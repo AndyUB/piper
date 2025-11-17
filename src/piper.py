@@ -18,13 +18,22 @@ def distributed_stage(stage_id, actor_id=None, mb=None, optim=None):
     piper_metadata['current_actor'] = actor_id
 
 @register_backend
-def piper(gm, example_inputs, **kwargs): 
+def piper(gm, graphargs, **kwargs): 
     # make sure example inputs are serializable by turning symbolic
     # ints and fake tensors into concrete values
-    serializable_example_inputs = []
-    for ex in example_inputs:
+    serializable_graphargs = []
+    input_idxs = []
+    for i,arg in enumerate(graphargs):
+        # save indices of input tensors and model parameters
+        if 'self' not in str(arg):
+            input_idxs.append(i)
+
+        # get example value from graph arg
+        ex = arg.example
+
+        # convert symbolic ints and fake tensors to concrete values
         if isinstance(ex, torch.SymInt):
-            serializable_example_inputs.append(int(ex))
+            serializable_graphargs.append(int(ex))
         elif isinstance(ex, torch._subclasses.fake_tensor.FakeTensor):
             new = torch.full(
                 ex.shape,
@@ -34,9 +43,9 @@ def piper(gm, example_inputs, **kwargs):
                 layout=ex.layout,
                 requires_grad=ex.requires_grad,
             )
-            serializable_example_inputs.append(new)
+            serializable_graphargs.append(new)
         else:
-            serializable_example_inputs.append(ex)
+            serializable_graphargs.append(ex)
 
     # serialize the fx.Graph
     payload = serialize_graphmodule(gm)
@@ -45,14 +54,13 @@ def piper(gm, example_inputs, **kwargs):
     stage_id = piper_metadata['current_stage']
     actor_id = piper_metadata['current_actor']
     actor = piper_metadata['actors'][actor_id]
-    compile_id = stage_id #better_compile_id
     ray.get(
         actor.compile_graph.remote(
-            compile_id,
             stage_id,
             payload,
             torch._dynamo.backends.debugging.eager,
-            serializable_example_inputs,
+            serializable_graphargs,
+            input_idxs,
         )
     )
 
@@ -61,12 +69,18 @@ def piper(gm, example_inputs, **kwargs):
         return int(x) if isinstance(x, torch.SymInt) else x
     def int_to_tensor(x):
         return torch.tensor(x) if isinstance(x, int) else x
-    fakes = gm(*list(map(symint_to_int, example_inputs)))
+    fakes = gm(*list(map(symint_to_int, serializable_graphargs)))
     fakes = list(map(int_to_tensor, fakes))
 
     # return a wrapper function that runs the fx.Graph on the actor and 
     # returns remote futures for each graph output
     def overwrite_compiled_fn(*args):
+        # ignore model parameter arguments (stored on the actor)
+        input_tensors_only = []
+        for i in input_idxs:
+            input_tensors_only.append(args[i])
+        args = input_tensors_only
+
         mb_idx = piper_metadata['current_mb']
         # track stage dependencies
         for arg in args:
@@ -80,10 +94,10 @@ def piper(gm, example_inputs, **kwargs):
 
         if piper_metadata['currently_compiling']:
             # dispatch task without nccl transport
-            refs = actor.call_cpu.options(num_returns=len(fakes)).remote(compile_id, stage_id, mb_idx, *args)
+            refs = actor.call_cpu.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
         else:
             # dispatch with nccl transport
-            refs = actor.call.options(num_returns=len(fakes)).remote(compile_id, stage_id, mb_idx, *args)
+            refs = actor.call.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
 
         # wrap the remote futures with RemoteTensor
         if isinstance(refs, list):

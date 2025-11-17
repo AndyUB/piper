@@ -32,13 +32,15 @@ class StageActor:
 
         # ordered list of frame ids for ordering the fx.Graphs on this actor
         self.frame_ids = []
-        # map compile id -> compiled fx.Graph function
+        # map stage id -> compiled fx.Graph function
         self.compiled_fns = dict()
-        # map compile id -> model parameters used by the fx.Graph
+        # map stage id -> model parameters used by the fx.Graph with holes (None values) for input tensors
         self.parameters = dict()
-        # map compile id -> optimizer for the fx.Graph
+        # map stage id -> indices of the input tensors (as opposed to model parameters) used by the fx.Graph
+        self.input_idxs = dict()
+        # map stage id -> optimizer for the fx.Graph
         self.optims = dict()
-        # map stage_id -> mb_idx -> previous activation (if this stage is not first)
+        # map stage -> mb_idx -> previous activation (if this stage is not first)
         self.prev_activation = defaultdict(dict)
         # map stage id -> mb_idx -> current activation
         self.activation = defaultdict(dict)
@@ -63,8 +65,8 @@ class StageActor:
         self.truth = tensor.to('cuda')
         return "done"
 
-    def compile_graph(self, compile_id: CompileId, stage_id, gm_data, compiler_fn, example_inputs):
-        self.log.info(f"Compiling graph on actor {self.actor_id}. compile id: {compile_id}. inputs: {len(example_inputs)}")
+    def compile_graph(self, stage_id, gm_data, compiler_fn, graphargs, input_idxs):
+        self.log.info(f"Compiling graph on actor {self.actor_id}. stage id: {stage_id}. inputs: {len(graphargs)}")
         start = time.perf_counter()
 
         self.trace_data[stage_id] = {
@@ -84,37 +86,42 @@ class StageActor:
             },
         }
 
+        # compile the graph with the given graphargs
         gm = deserialize_graphmodule(gm_data)
-        compiled_fn = compiler_fn(gm, example_inputs)
+        compiled_fn = compiler_fn(gm, graphargs)
         assert callable(compiled_fn), "compiler_fn did not return callable"
-        self.compiled_fns[compile_id] = compiled_fn
+        self.compiled_fns[stage_id] = compiled_fn
+
+        # discard the graphargs that correspond to input tensors
+        for i in input_idxs:
+            graphargs[i] = None
+        self.input_idxs[stage_id] = input_idxs
+
+        # save the graphargs that correspond to model parameters
+        self.parameters[stage_id] = graphargs
+
+        # initialize the optimizer for this stage
+        self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
 
         # MEMORY CLEANUP
         del gm
         del gm_data
-        del example_inputs      
 
         end = time.perf_counter()
         self.log.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
     @ray.method(tensor_transport="nccl")
-    def call(self, compile_id: CompileId, stage_id: int, mb_idx: int, *args):
+    def call(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
         
-        # Initialize timing variables
         if self.tracing:
-            # Create CUDA events for timing
             start_event = torch.cuda.Event(enable_timing=True)
             pre_forward_event = torch.cuda.Event(enable_timing=True)
             forward_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            
-            # Reset peak memory counter for forward pass
             torch.cuda.reset_peak_memory_stats()
             forward_start_memory = torch.cuda.memory_allocated()
-
-            # Start timing
             start_event.record()
         
         def pre_loaded_input(param):
@@ -131,30 +138,33 @@ class StageActor:
             return x[0] if isinstance(x, list) or isinstance(x, tuple) else x
         args = list(map(unwrap, args))
 
+        # place input tensors in the correct indices
+        for i, arg in zip(self.input_idxs[stage_id], args):
+            self.parameters[stage_id][i] = arg
+
         # save first input as previous activation
         if stage_id != 0:
             args[0].requires_grad_()
             self.prev_activation[stage_id][mb_idx] = args[0]
 
-        # Record timing before forward call
         if self.tracing:
             pre_forward_event.record()
 
-        out = self.compiled_fns[compile_id](*args)
+        out = self.compiled_fns[stage_id](*self.parameters[stage_id])
 
-        # Record timing after forward call
         if self.tracing:
             forward_event.record()
+
+        # clear the input tensors
+        for i in self.input_idxs[stage_id]:
+            self.parameters[stage_id][i] = None
         del args
 
         # save first output as activation
         self.activation[stage_id][mb_idx] = out[0]
 
-        # End timing and record data
         if self.tracing:
             end_event.record()
-            
-            # Synchronize and record timing data
             torch.cuda.synchronize()
             pre_forward_time = start_event.elapsed_time(pre_forward_event)
             forward_time = pre_forward_event.elapsed_time(forward_event)
@@ -175,7 +185,7 @@ class StageActor:
                 self.fwd_objs[stage_id] = torch.ones_like(out)
         return out
 
-    def call_cpu(self, compile_id: CompileId, stage_id: int, mb_idx: int, *args):
+    def call_cpu(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
 
         def pre_loaded_input(param):
@@ -194,19 +204,20 @@ class StageActor:
                 return x
         args = list(map(unwrap, args))
 
-        def send_to_device(param):
-            if isinstance(param, torch.Tensor):
-                return param.to('cuda')
-            else:
-                return param
-        args = list(map(send_to_device, args))
+        # place input tensors in the correct indices
+        for i, arg in zip(self.input_idxs[stage_id], args):
+            self.parameters[stage_id][i] = arg
 
         # save first input as previous activation
         if stage_id != 0:
             assert args[0].requires_grad
             self.prev_activation[stage_id][mb_idx] = args[0]
 
-        out = self.compiled_fns[compile_id](*args)
+        out = self.compiled_fns[stage_id](*self.parameters[stage_id])
+        
+        # clear the input tensors
+        for i in self.input_idxs[stage_id]:
+            self.parameters[stage_id][i] = None
         del args
 
         # save first output as activation
@@ -217,26 +228,21 @@ class StageActor:
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.log.info(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}", inp)
         
-        # Initialize timing variables
         if self.tracing:
-            # Create CUDA events for timing
             start_event = torch.cuda.Event(enable_timing=True)
             pre_backward_event = torch.cuda.Event(enable_timing=True)
             backward_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            
-            # Start timing
+
             start_event.record()
         
         # get the activation for the current stage
         activation = self.activation[stage_id][mb_idx]
         
-        # Reset peak memory counter for backward pass
         if self.tracing:
             torch.cuda.reset_peak_memory_stats()
             backward_start_memory = torch.cuda.memory_allocated()
 
-        # Record timing before loss/backward call
         if self.tracing:
             pre_backward_event.record()
         
@@ -257,7 +263,6 @@ class StageActor:
             assert activation.shape == inp.shape
             activation.backward(gradient=inp)
 
-        # Record timing after loss/backward call
         if self.tracing:
             backward_event.record()
 
@@ -270,11 +275,8 @@ class StageActor:
         else:
             ret = ["done"]
         
-        # End timing and record data
         if self.tracing:
             end_event.record()
-            
-            # Synchronize and record timing data
             torch.cuda.synchronize()
             pre_backward_time = start_event.elapsed_time(pre_backward_event)
             backward_time = pre_backward_event.elapsed_time(backward_event)
@@ -295,17 +297,13 @@ class StageActor:
     def update(self, *done_mbs):
         self.log.debug(f"Calling update on actor {self.actor_id}")
         
-        # Initialize timing variables
         if self.tracing:
-            # Create CUDA events for timing
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
 
-            # Reset peak memory counter for update
             torch.cuda.reset_peak_memory_stats()
             update_start_memory = torch.cuda.memory_allocated()
 
-            # Start timing
             start_event.record()
         
         assert self.optim_fn
@@ -315,11 +313,8 @@ class StageActor:
         losses = self.loss
         self.loss.clear()
         
-        # End timing and record data
         if self.tracing:
             end_event.record()
-            
-            # Synchronize and record timing data
             torch.cuda.synchronize()
             total_time = start_event.elapsed_time(end_event)
             update_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - update_start_memory) / (1024**3)
