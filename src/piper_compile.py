@@ -148,6 +148,7 @@ def piper_setup(model, example_inputs, dynamic=False, backend=None):
     piper_metadata['currently_compiling'] = False
 
     from ray.experimental.collective import create_collective_group
+    # TODO: is there an issue here where, if you make this code compile on each DP rank, they each start their own collectives?
     create_collective_group(
         list(piper_metadata['actors'].values()),
         backend="nccl")

@@ -420,8 +420,8 @@ class Transformer(nn.Module):
 
         for layer in self.layers[:self.n_layers // 2]:
             h = layer(h, start_pos, freqs_cis, mask)
-
-        distributed_stage(1, actor_id=1, mb=dynamo_mb, optim=torch.optim.Adam)
+        # DEBUG NOTE: commenting out line below to get the data parallelism working
+        #distributed_stage(1, actor_id=1, mb=dynamo_mb, optim=torch.optim.Adam)
 
         for layer in self.layers[self.n_layers // 2:]:
             h = layer(h, start_pos, freqs_cis, mask)

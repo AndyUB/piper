@@ -2,6 +2,7 @@ import ray
 import torch
 import time
 import argparse
+import os
 from torch import nn, optim
 from torch.profiler import profile, record_function, ProfilerActivity
 
@@ -75,7 +76,9 @@ def main(args):
         llama_config = LLAMA_3B
     elif args.model == 'LLAMA_8B':
         llama_config = LLAMA_8B
-        
+    print(args) 
+    local_rank = int(os.environ['LOCAL_RANK'])
+    print(f"Got local_rank={local_rank}")
     loss_fn = torch.nn.CrossEntropyLoss()
     device = 'cuda'
     
@@ -85,7 +88,7 @@ def main(args):
     seq_len = args.seq_len
     warmup = args.warmup
     iters = args.iters
-
+    # creating the training data; might make this a new method to get the dataloader to work properly
     x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
     y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long).to(device)
 
