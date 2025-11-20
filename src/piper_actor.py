@@ -101,7 +101,8 @@ class StageActor:
         self.parameters[stage_id] = graphargs
 
         # initialize the optimizer for this stage
-        self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
+        if [param for param in self.parameters[stage_id] if param is not None]:
+            self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
 
         # MEMORY CLEANUP
         del gm
@@ -208,6 +209,9 @@ class StageActor:
         for i, arg in zip(self.input_idxs[stage_id], args):
             self.parameters[stage_id][i] = arg
 
+        # print(f"Stage {stage_id} input_idxs: {self.input_idxs[stage_id]}")
+        # for arg in args:
+        #     print(arg.shape, arg.requires_grad)
         # save first input as previous activation
         if stage_id != 0:
             assert args[0].requires_grad

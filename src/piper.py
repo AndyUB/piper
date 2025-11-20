@@ -18,22 +18,23 @@ def distributed_stage(stage_id, actor_id=None, mb=None, optim=None):
     piper_metadata['current_actor'] = actor_id
 
 @register_backend
-def piper(gm, graphargs, **kwargs): 
+def piper(gm, example_inputs, **kwargs):
+
+    placeholders = gm.graph.find_nodes(op="placeholder")
+    graphargs = [node.meta["grapharg"] for node in placeholders]
+
     # make sure example inputs are serializable by turning symbolic
     # ints and fake tensors into concrete values
-    serializable_graphargs = []
+    serializable_examples = []
     input_idxs = []
-    for i,arg in enumerate(graphargs):
+    for i, (arg, ex) in enumerate(zip(graphargs, example_inputs)):
         # save indices of input tensors and model parameters
         if 'self' not in str(arg):
             input_idxs.append(i)
 
-        # get example value from graph arg
-        ex = arg.example
-
         # convert symbolic ints and fake tensors to concrete values
         if isinstance(ex, torch.SymInt):
-            serializable_graphargs.append(int(ex))
+            serializable_examples.append(int(ex))
         elif isinstance(ex, torch._subclasses.fake_tensor.FakeTensor):
             new = torch.full(
                 ex.shape,
@@ -43,9 +44,9 @@ def piper(gm, graphargs, **kwargs):
                 layout=ex.layout,
                 requires_grad=ex.requires_grad,
             )
-            serializable_graphargs.append(new)
+            serializable_examples.append(new)
         else:
-            serializable_graphargs.append(ex)
+            serializable_examples.append(ex)
 
     # serialize the fx.Graph
     payload = serialize_graphmodule(gm)
@@ -59,7 +60,7 @@ def piper(gm, graphargs, **kwargs):
             stage_id,
             payload,
             torch._dynamo.backends.debugging.eager,
-            serializable_graphargs,
+            serializable_examples,
             input_idxs,
         )
     )
@@ -69,7 +70,7 @@ def piper(gm, graphargs, **kwargs):
         return int(x) if isinstance(x, torch.SymInt) else x
     def int_to_tensor(x):
         return torch.tensor(x) if isinstance(x, int) else x
-    fakes = gm(*list(map(symint_to_int, serializable_graphargs)))
+    fakes = gm(*list(map(symint_to_int, serializable_examples)))
     fakes = list(map(int_to_tensor, fakes))
 
     # return a wrapper function that runs the fx.Graph on the actor and 
@@ -80,7 +81,7 @@ def piper(gm, graphargs, **kwargs):
         for i in input_idxs:
             input_tensors_only.append(args[i])
         args = input_tensors_only
-
+        
         mb_idx = piper_metadata['current_mb']
         # track stage dependencies
         for arg in args:
