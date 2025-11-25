@@ -75,7 +75,7 @@ def piper(gm, example_inputs, **kwargs):
 
     # return a wrapper function that runs the fx.Graph on the actor and 
     # returns remote futures for each graph output
-    def overwrite_compiled_fn(*args):
+    def run_remote_subgraph(*args):
         # ignore model parameter arguments (stored on the actor)
         input_tensors_only = []
         for i in input_idxs:
@@ -95,10 +95,10 @@ def piper(gm, example_inputs, **kwargs):
 
         if piper_metadata['currently_compiling']:
             # dispatch task without nccl transport
-            refs = actor.call_cpu.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+            refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
         else:
             # dispatch with nccl transport
-            refs = actor.call.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+            refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
 
         # wrap the remote futures with RemoteTensor
         if isinstance(refs, list):
@@ -107,4 +107,4 @@ def piper(gm, example_inputs, **kwargs):
         else:
             assert len(fakes) == 1
             return [RemoteTensor(fakes[0], refs, stage_id)]
-    return overwrite_compiled_fn
+    return run_remote_subgraph

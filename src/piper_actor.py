@@ -4,10 +4,26 @@ import logging
 import os
 import time
 from torch._guards import CompileId
+from torch.nn import Parameter
 from collections import defaultdict
 from .piper_utils import deserialize_graphmodule, piper_metadata
 
 torch.set_float32_matmul_precision('high')
+
+torch._dynamo.config.compiled_autograd = True
+def backward_backend(gm, example_inputs, **kwargs):
+    print("BACKWARD GRAPH")
+
+    placeholders = gm.graph.find_nodes(op="placeholder")
+    graphargs = [node.meta["grapharg"] for node in placeholders]
+    for arg in graphargs:
+        if isinstance(arg._example, list) or isinstance(arg._example, tuple):
+            for ex in arg._example:
+                print(f"Arg {ex.shape} | parameter: {isinstance(ex, Parameter)} | requires_grad: {ex.requires_grad}")
+    gm.print_readable()
+
+    return gm
+
 
 @ray.remote
 class StageActor:
@@ -113,7 +129,7 @@ class StageActor:
         return "Finished compiling"
 
     @ray.method(tensor_transport="nccl")
-    def call(self, stage_id: int, mb_idx: int, *args):
+    def forward(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
         
         if self.tracing:
@@ -186,7 +202,7 @@ class StageActor:
                 self.fwd_objs[stage_id] = torch.ones_like(out)
         return out
 
-    def call_cpu(self, stage_id: int, mb_idx: int, *args):
+    def forward_no_nccl(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
 
         def pre_loaded_input(param):
@@ -273,9 +289,9 @@ class StageActor:
         del self.activation[stage_id][mb_idx]
         del activation
 
+        # propagate the gradient backwards if not the first stage
         if stage_id != 0:
-            ret = [self.prev_activation[stage_id][mb_idx].grad.clone()]
-            del self.prev_activation[stage_id][mb_idx]
+            ret = [self.prev_activation[stage_id][mb_idx]]
         else:
             ret = ["done"]
         
@@ -297,6 +313,44 @@ class StageActor:
             if stage_id != 0:
                 self.bwd_objs[stage_id] = torch.ones_like(ret[0])
         return ret + ret
+
+    def backward_compile(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+        self.log.info(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}", inp)
+        
+        # get the activation for the current stage
+        activation = self.activation[stage_id][mb_idx]
+
+        # Compile the backward pass
+        @torch.compile(backend=backward_backend)
+        def backward_loss(loss_fn, activation, labels):
+            loss = loss_fn(activation, labels)
+            loss.backward()
+            return loss
+        @torch.compile(backend=backward_backend)
+        def backward_activation(activation, inp):
+            activation.backward(gradient=inp)
+
+        # compute loss in the last stage. use the saved activation rather
+        # remembers the computation graph, inp should be the labels
+        if loss_fn is not None:
+            labels = inp[0]
+            loss = backward_loss(loss_fn, activation, labels)
+            self.loss.append(loss)
+
+        # if not the last stage, backprop on the stored activation given 
+        # the input gradient from the subsequent stage
+        else:
+            grad = inp[0]
+            assert activation.shape == grad.shape
+            backward_activation(activation, grad)
+
+        # propagate the gradient backwards if not the first stage
+        if stage_id != 0:
+            ret = [self.prev_activation[stage_id][mb_idx]]
+        else:
+            ret = ["done"]
+
+        return ret
 
     def update(self, *done_mbs):
         self.log.debug(f"Calling update on actor {self.actor_id}")
