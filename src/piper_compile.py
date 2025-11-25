@@ -9,7 +9,9 @@ from dataclasses import dataclass
 from typing import Optional, Callable
 from bytecode import Bytecode, Instr, Label
 
-from .piper_utils import piper_metadata
+import ray
+
+from .piper_utils import piper_metadata, RemoteTensor
 
 @dataclass(frozen=True)
 class CallMarker:
@@ -108,8 +110,13 @@ def piper_setup(model, example_inputs, dynamic=False, backend=None):
     
     compiled = torch.compile(model, dynamic=dynamic, backend=backend)
 
+    piper_metadata['currently_compiling'] = True
+
     print("[PIPER] Compiling...")
 
+    def make_remote(x):
+        return RemoteTensor(x, ray.put(x))
+    # example_inputs = list(map(make_remote, example_inputs))
     out = compiled(*example_inputs).get()
 
     print("[PIPER] Compiled...")

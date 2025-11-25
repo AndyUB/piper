@@ -6,7 +6,7 @@ import json, importlib, operator
 import torch.fx as fx
 
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
-
+from typing import Any, Optional
 
 """
 Metadata for dynamically tracking Piper actors, stages, and microbatches
@@ -17,7 +17,6 @@ piper_metadata = dict()
 piper_metadata['actors'] = dict()
 piper_metadata['stage_fns'] = dict()
 piper_metadata['dag'] = set()
-piper_metadata['currently_compiling'] = True
 
 
 """
@@ -33,12 +32,14 @@ class RemoteTensorKey:
 
 class RemoteTensor(torch.Tensor):
     _fake: torch.Tensor
-    _stage_id: int
+    _stage_id: Optional[int]
+    _obj_ref: ray._raylet.ObjectRef
+    _resolved: Any
 
     def __new__(cls, 
                 fake: FakeTensor, 
                 obj_ref: ray._raylet.ObjectRef,
-                stage_id: int):
+                stage_id: Optional[int] = None):
         instance = torch.Tensor._make_wrapper_subclass(
             cls,
             fake.size(),
@@ -49,10 +50,10 @@ class RemoteTensor(torch.Tensor):
             layout=fake.layout,
             requires_grad=fake.requires_grad,
         )
-        instance.obj_ref = obj_ref
-        instance._stage_id = stage_id
-        instance.resolved = None
+        instance._obj_ref = obj_ref
         instance._fake = fake
+        instance._stage_id = stage_id
+        instance._resolved = None
         instance.key = RemoteTensorKey()
         return instance
 
@@ -60,21 +61,20 @@ class RemoteTensor(torch.Tensor):
         return self._stage_id
 
     def get(self):
-        if self.resolved is None:
-            obj = ray.get(self.obj_ref)
+        if self._resolved is None:
+            obj = ray.get(self._obj_ref)
             if isinstance(obj, list) or isinstance(obj, tuple):
                 assert len(obj) == 1
-                self.resolved = obj[0]
+                self._resolved = obj[0]
             else:
-                self.resolved = obj
-        return self.resolved
+                self._resolved = obj
+        return self._resolved
     
     def get_ref(self):
-        return self.obj_ref
+        return self._obj_ref
 
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
         if piper_metadata['currently_compiling']:
-            # fall back to fake execution to keep tracing alive
             def unwrap_fake(x):
                 if isinstance(x, RemoteTensor):
                     return x._fake
@@ -82,8 +82,7 @@ class RemoteTensor(torch.Tensor):
             args = torch.utils._pytree.tree_map(unwrap_fake, args)
             kwargs = torch.utils._pytree.tree_map(unwrap_fake, kwargs or {})
             return func(*args, **kwargs)
-        
-        # print("HERE 2", func, args)
+            
         def unwrap(x):
             if isinstance(x, RemoteTensor):
                 return x.get()
@@ -99,39 +98,6 @@ class RemoteTensor(torch.Tensor):
 
         out = func(*args, **kwargs)
         return out
-
-    # arithmetic
-    def __add__(self, other):
-        return self.get() + (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __radd__(self, other):
-        return (other.get() if isinstance(other, RemoteTensor) else other) + self.get()
-
-    def __sub__(self, other):
-        return self.get() - (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __rsub__(self, other):
-        return (other.get() if isinstance(other, RemoteTensor) else other) - self.get()
-
-    # comparisons
-    def __eq__(self, other):
-        return self.get() == (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __lt__(self, other):
-        return self.get() < (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __le__(self, other):
-        return self.get() <= (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __gt__(self, other):
-        return self.get() > (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __ge__(self, other):
-        return self.get() >= (other.get() if isinstance(other, RemoteTensor) else other)
-
-    def __repr__(self):
-        return f"RemoteTensor(obj_ref={self.obj_ref})"
-
 
 """
 Serialize/deserialize an fx.GraphModule
