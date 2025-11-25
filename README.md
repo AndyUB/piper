@@ -19,19 +19,6 @@ for k, v in locals.items():
         locals[k] = v._fake
 ####### PIPER MODIFICATION END #######
 ```
-
-The torch.compile backend interface is too limiting. 
-Compiler backends accept a graph module and example inputs.
-`graphargs` is datastructure describing the arguments to a grpah module, including their source in the top-level module and an example.
-The list of example inputs required by the torch.compile backend interface are derived from the graph args datastructure. 
-The Piper backend requires source information to differentiate model parameters from inputs. 
-- Modification: Change the invocation of [self.call_user_compiler in output_graph.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/output_graph.py#L2217):
-```
-####### PIPER MODIFICATION START #######
-# compiled_fn = self.call_user_compiler(gm, self.example_inputs())
-compiled_fn = self.call_user_compiler(gm, self.graphargs)
-####### PIPER MODIFICATION END #######
-```
  
 Ray: Tensor transport backends currently only support 1 return value per task.
 - WIP: Upstream this into Ray.
