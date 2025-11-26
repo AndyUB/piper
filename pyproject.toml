@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "piper"
+version = "0.0.1"
+description = "Distributed pipeline parallelism with Ray"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "ray"
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools]
+py-modules = [
+    "piper",
+    "piper_actor",
+    "piper_compile",
+    "piper_exec",
+    "piper_utils"
+]
