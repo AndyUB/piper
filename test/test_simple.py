@@ -1,7 +1,8 @@
 import torch
 import ray
 from torch import nn
-from src.piper import piper, distributed_stage
+from torch.export import export, ExportedProgram
+from piper.piper import piper, distributed_stage
 from collections.abc import Iterable
 
 class MyModel(nn.Module):
@@ -30,7 +31,7 @@ out = model(x).get()
 
 # Manually run a training step on a single batch
 
-from src.piper_utils import piper_metadata
+from piper.utils import piper_metadata
 actors = piper_metadata['actors']
 
 # forward pass (executing with fused forwards, for now)

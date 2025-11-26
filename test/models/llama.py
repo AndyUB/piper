@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torch.nn.utils import parameters_to_vector
 
-from src.piper import distributed_stage
+from piper.piper import distributed_stage
 
 # import fairscale.nn.model_parallel.initialize as fs_init
 # from fairscale.nn.model_parallel.layers import (

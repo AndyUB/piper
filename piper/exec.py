@@ -1,7 +1,7 @@
 import torch
 from typing import NamedTuple
 
-from piper_utils import piper_metadata
+from piper.utils import piper_metadata
 
 class Task(NamedTuple):
     device_id: int

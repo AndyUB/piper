@@ -1,9 +1,9 @@
 import ray
 import torch
-from piper_actor import StageActor
+from piper.actor import StageActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
-from piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata
+from piper.utils import RemoteTensor, serialize_graphmodule, piper_metadata
 
 @_disallow_in_graph_helper(throw_if_not_allowed=False)
 def distributed_stage(stage_id, actor_id=None, mb=None, optim=None):

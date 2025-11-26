@@ -1,5 +1,13 @@
 import torch
 
+def split_backward_graph(gm: torch.fx.GraphModule):
+    """
+    Given a GraphModule representing a full forward+backward pass,
+    split it into two GraphModules: one for the backward weight pass and one for the backward input pass
+    """
+
+    return gm
+
 class Model(torch.nn.Module):
    def __init__(self):
       super().__init__()
@@ -25,3 +33,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

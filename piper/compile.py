@@ -2,7 +2,7 @@ import ray
 import torch
 from torch._dynamo.backends.debugging import eager
 
-from .piper_utils import piper_metadata
+from piper.utils import piper_metadata
 
 def piper_setup(model, example_inputs, dynamic=False, backend=None):
     """

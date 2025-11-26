@@ -1,4 +1,4 @@
-from src.piper_exec import Task
+from piper.exec import Task
 
 
 def print_schedule(schedule):
