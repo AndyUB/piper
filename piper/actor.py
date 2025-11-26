@@ -6,7 +6,7 @@ import time
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from piper_utils import deserialize_graphmodule, piper_metadata
+from piper.utils import deserialize_graphmodule, piper_metadata, split_backward_graph
 
 torch.set_float32_matmul_precision('high')
 
@@ -21,6 +21,8 @@ def backward_backend(gm, example_inputs, **kwargs):
             for ex in arg._example:
                 print(f"Arg {ex.shape} | parameter: {isinstance(ex, Parameter)} | requires_grad: {ex.requires_grad}")
     gm.print_readable()
+
+
 
     return gm
 
@@ -230,7 +232,8 @@ class StageActor:
         #     print(arg.shape, arg.requires_grad)
         # save first input as previous activation
         if stage_id != 0:
-            assert args[0].requires_grad
+            args[0].requires_grad_()
+            # assert args[0].requires_grad 
             self.prev_activation[stage_id][mb_idx] = args[0]
 
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])

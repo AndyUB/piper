@@ -293,3 +293,11 @@ def deserialize_graphmodule(s: str) -> fx.GraphModule:
     state = {k: torch.tensor(v) for k, v in data["state_dict"].items()}
     gm.load_state_dict(state, strict=False)
     return gm
+
+def split_backward_graphs(gm: fx.GraphModule):
+    """
+    Given a GraphModule representing a full forward+backward pass,
+    split it into two GraphModules: one for the backward weight pass and one for the backward input pass
+    """
+
+    return gm
