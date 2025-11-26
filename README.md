@@ -2,7 +2,39 @@
 
 Piper is a PyTorch library for training large models with flexible pipeline parallel schedules.
 
-## Dependencies
+## Set-up Directions
+We assume a Linux-based environment
+
+1. Install UV
+Follow the [Installing uv instructions](https://docs.astral.sh/uv/getting-started/installation/) from the uv documentation, or run
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Validate the installation by running
+```
+uv --version
+```
+
+2. Create venv
+```
+uv venv .venv
+source .venv/bin/activate
+```
+
+3. Install PyTorch (Nightly)
+```
+uv pip install --pre \
+  torch torchvision torchaudio \
+  --extra-index-url https://download.pytorch.org/whl/nightly/cu129
+```
+
+4. Install Remaining Dependencies from `pyproject.toml`
+```
+uv pip install -e .
+```
+
+5. Modify dependencies located in `.venv/lib/`
 
 PyTorch
 
