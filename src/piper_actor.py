@@ -6,7 +6,7 @@ import time
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from .piper_utils import deserialize_graphmodule, piper_metadata
+from piper_utils import deserialize_graphmodule, piper_metadata
 
 torch.set_float32_matmul_precision('high')
 

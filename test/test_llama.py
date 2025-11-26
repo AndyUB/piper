@@ -5,10 +5,10 @@ import argparse
 from torch import nn, optim
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from src.piper_exec import Task, piper_exec
-from src.piper_compile import piper_setup
-from src.piper import piper
-from src.piper_utils import piper_metadata
+from piper_exec import Task, piper_exec
+from piper_compile import piper_setup
+from piper import piper
+from piper_utils import piper_metadata
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, print_schedule
@@ -105,10 +105,14 @@ def main(args):
     ray.get(actors[num_actors-1].send_truth.remote(y))
 
     schedule = None
-    if args.schedule == "interleaved-1f1b":
-        from .interleaved_grid_schedules import pp2_interleaved_1f1b_grid_schedule, pp4_interleaved_1f1b_grid_schedule
-        schedule = pp2_interleaved_1f1b_grid_schedule if num_devices == 2 else pp4_interleaved_1f1b_grid_schedule
-    elif args.schedule == "1f1b":
+    # if args.schedule == "interleaved-1f1b":
+    #     from .interleaved_grid_schedules import pp2_interleaved_1f1b_grid_schedule, pp4_interleaved_1f1b_grid_schedule
+    #     schedule = pp2_interleaved_1f1b_grid_schedule if num_devices == 2 else pp4_interleaved_1f1b_grid_schedule
+    # elif args.schedule == "1f1b":
+    #     schedule = build_1f1b_schedule(num_mbs, num_devices)
+    # elif args.schedule == "gpipe":
+    #     schedule = build_gpipe_schedule(num_mbs, num_devices)
+    if args.schedule == "1f1b":
         schedule = build_1f1b_schedule(num_mbs, num_devices)
     elif args.schedule == "gpipe":
         schedule = build_gpipe_schedule(num_mbs, num_devices)
