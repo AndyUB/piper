@@ -130,7 +130,7 @@ class StageActor:
         self.log.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
         
@@ -247,7 +247,7 @@ class StageActor:
         self.activation[stage_id][mb_idx] = out[0]
         return out
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.log.info(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}", inp)
         
@@ -444,7 +444,7 @@ class StageActor:
         torch.cuda.memory._record_memory_history(enabled=None)
         return "done"
     
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def get_object(self, is_fwd, stage_id):
         if is_fwd:
             return self.fwd_objs[stage_id]
