@@ -2,7 +2,39 @@
 
 Piper is a PyTorch library for training large models with flexible pipeline parallel schedules.
 
-## Dependencies
+## Set-up Directions
+We assume a Linux-based environment
+
+1. Install UV
+Follow the [Installing uv instructions](https://docs.astral.sh/uv/getting-started/installation/) from the uv documentation, or run
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Validate the installation by running
+```
+uv --version
+```
+
+2. Create venv
+```
+uv venv .venv
+source .venv/bin/activate
+```
+
+3. Install PyTorch (Nightly)
+```
+uv pip install --pre \
+  torch torchvision torchaudio \
+  --extra-index-url https://download.pytorch.org/whl/nightly/cu129
+```
+
+4. Install Remaining Dependencies from `pyproject.toml`
+```
+uv pip install -e .
+```
+
+5. Modify dependencies located in `.venv/lib/`
 
 PyTorch
 
@@ -17,19 +49,6 @@ from src.piper_utils import RemoteTensor
 for k, v in locals.items():
     if isinstance(v, RemoteTensor):
         locals[k] = v._fake
-####### PIPER MODIFICATION END #######
-```
-
-The torch.compile backend interface is too limiting. 
-Compiler backends accept a graph module and example inputs.
-`graphargs` is datastructure describing the arguments to a grpah module, including their source in the top-level module and an example.
-The list of example inputs required by the torch.compile backend interface are derived from the graph args datastructure. 
-The Piper backend requires source information to differentiate model parameters from inputs. 
-- Modification: Change the invocation of [self.call_user_compiler in output_graph.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/output_graph.py#L2217):
-```
-####### PIPER MODIFICATION START #######
-# compiled_fn = self.call_user_compiler(gm, self.example_inputs())
-compiled_fn = self.call_user_compiler(gm, self.graphargs)
 ####### PIPER MODIFICATION END #######
 ```
  
