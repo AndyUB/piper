@@ -1,7 +1,8 @@
 import torch
 from typing import NamedTuple
+import threading
 
-from .piper_utils import piper_metadata
+from .piper_utils import piper_tls
 
 class Task(NamedTuple):
     device_id: int
@@ -151,11 +152,10 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
         List of losses per microbatch.)
     """
     num_steps, num_stages = len(schedule[0]), len(schedule)
-    actors = piper_metadata['actors']
-    fwd_fns = piper_metadata['stage_fns']
+    actors = piper_tls.actors
 
-    dag_edges = piper_metadata['dag']
-    dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata['dag'])))
+    dag_edges = piper_tls.dag
+    dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_tls.dag)))
     
     # Validate the schedule before execution
     validate_schedule(schedule, dag_edges, num_mbs)
@@ -166,6 +166,14 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     # maps mb_idx to a dict that maps stage_id to the refs output from the stage's backward on that microbatch
     bwd_ref_dicts = dict()
 
+    # create events for each microbatch
+    for mb_idx in range(num_mbs):
+        piper_tls.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
+    threads = dict()
+    
+    def run_model(inputs, mb_idx):
+        fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
+
     # iterate over evrery task in the schedule
     ret = []
     for i in range(num_steps):
@@ -173,7 +181,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
             task = schedule[j][i]
             if task:
                 device_id,stage_id, mb_idx, is_fwd, upd = task
-                piper_metadata['current_mb'] = mb_idx
+                piper_tls.current_mb = mb_idx
                 actor_id = j
                 if upd:
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
@@ -193,26 +201,11 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                     upd = actors[actor_id].update.remote(*done_refs)
                     ret.append(upd)
                 elif is_fwd:
-                    if split_fwd_fns:
-                        # print(f"[PIPER] Forward stage {stage_id} mb {mb_idx}")
-                        # Set the current microbatch index in thread-local storage
-                        if stage_id == 0:
-                            refs = fwd_fns[1](fwd_fns[0](model._orig_mod, *inputs, dynamo_mb=mb_idx))
-                            fwd_refs[mb_idx] = refs
-                        else:
-                            refs = fwd_refs[mb_idx]
-                            if isinstance(refs, list) or isinstance(refs, tuple):
-                                refs = fwd_fns[stage_id+1](*refs)
-                            else:
-                                refs = fwd_fns[stage_id+1](refs)
-                            fwd_refs[mb_idx] = refs
-                    else:
-                        # if this is the first forward task for a microbatch, dispatch the forward task
-                        # LIMITATION: forward for all stages is dispatched by this call, cannot interleave
-                        # forward tasks with other tasks.
-                        if mb_idx not in fwd_refs:
-                            # print(f"Fwd mb {mb_idx}")
-                            fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
+                    if stage_id == 0:
+                        thread = threading.Thread(target=run_model, args=(inputs, mb_idx))
+                        thread.start()
+                        threads[mb_idx] = thread
+                    piper_tls.events[mb_idx][stage_id].set()
                 else:
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch
@@ -222,6 +215,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                     if mb_idx not in bwd_ref_dicts:
                         # if this is the first backward task for a microbatch, dispatch the
                         # backward task and cache the resulting ref(s)
+                        threads[mb_idx].join()
                         fwd_ref = fwd_refs[mb_idx]
                         bwd_ref_dicts[mb_idx] = dict()
                         # print(f"[PIPER] Backward stage {stage_id} mb {mb_idx} in: {fwd_ref}")

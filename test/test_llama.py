@@ -8,7 +8,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from src.piper_exec import Task, piper_exec
 from src.piper_compile import piper_setup
 from src.piper import piper
-from src.piper_utils import piper_metadata
+from src.piper_utils import piper_tls
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, print_schedule
@@ -95,10 +95,10 @@ def main(args):
     model.to(device)
 
     # print_cuda_memory_stats(device, "after loading model")
-    compiled = piper_setup(model, [x], backend=piper)
+    compiled = piper_setup(model, [x], num_stages=num_devices, backend=piper)
     # print_cuda_memory_stats(device, "after compiling model")
     
-    actors = piper_metadata['actors']
+    actors = piper_tls.actors
     num_actors = len(actors)
     assert num_actors == num_devices
     ray.get(actors[0].send_input.remote(x))

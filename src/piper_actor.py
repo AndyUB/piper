@@ -6,11 +6,9 @@ import time
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from .piper_utils import deserialize_graphmodule, piper_metadata
+from .piper_utils import deserialize_graphmodule, piper_tls
 
-torch.set_float32_matmul_precision('high')
-
-torch._dynamo.config.compiled_autograd = True
+# torch._dynamo.config.compiled_autograd = True
 def backward_backend(gm, example_inputs, **kwargs):
     print("BACKWARD GRAPH")
 
@@ -24,9 +22,8 @@ def backward_backend(gm, example_inputs, **kwargs):
 
     return gm
 
-
-@ray.remote
-class StageActor:
+@ray.remote(num_gpus=1)
+class PiperActor:
     # def __init__(self, id, compiler_fn, example_inputs, parameters, optim_fn=None):
     def __init__(self, id, optim_fn=None):
         torch.manual_seed(0)
@@ -128,7 +125,7 @@ class StageActor:
         self.log.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
         
@@ -204,6 +201,7 @@ class StageActor:
 
     def forward_no_nccl(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
+        print(f"Calling cpu forward {stage_id} mb {mb_idx}")
 
         def pre_loaded_input(param):
             if param is None:
@@ -244,7 +242,7 @@ class StageActor:
         self.activation[stage_id][mb_idx] = out[0]
         return out
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.log.info(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}", inp)
         
