@@ -6,7 +6,7 @@ import time
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from piper.utils import deserialize_graphmodule, piper_metadata, split_backward_graph
+from piper.utils import deserialize_graphmodule, piper_metadata
 
 torch.set_float32_matmul_precision('high')
 
@@ -21,9 +21,7 @@ def backward_backend(gm, example_inputs, **kwargs):
             for ex in arg._example:
                 print(f"Arg {ex.shape} | parameter: {isinstance(ex, Parameter)} | requires_grad: {ex.requires_grad}")
     gm.print_readable()
-
-
-
+    
     return gm
 
 
@@ -64,6 +62,9 @@ class StageActor:
         self.activation = defaultdict(dict)
         # accumuate loss for each microbatch
         self.loss = []
+
+        # save upstream gradients for split backward
+        # self.saved_upstream = defaultdict(dict)
 
         # Timing infrastructure
         self.tracing = False  # Toggle for timing and memory tracing
@@ -119,6 +120,8 @@ class StageActor:
         self.parameters[stage_id] = graphargs
 
         # initialize the optimizer for this stage
+        ## Added this manual_seed for debugging
+        torch.manual_seed(0)
         if [param for param in self.parameters[stage_id] if param is not None]:
             self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
 
@@ -165,6 +168,7 @@ class StageActor:
         if stage_id != 0:
             args[0].requires_grad_()
             self.prev_activation[stage_id][mb_idx] = args[0]
+
 
         if self.tracing:
             pre_forward_event.record()
@@ -329,6 +333,7 @@ class StageActor:
             loss = loss_fn(activation, labels)
             loss.backward()
             return loss
+        
         @torch.compile(backend=backward_backend)
         def backward_activation(activation, inp):
             activation.backward(gradient=inp)
@@ -356,7 +361,8 @@ class StageActor:
         return ret
 
     def update(self, *done_mbs):
-        self.log.debug(f"Calling update on actor {self.actor_id}")
+        self.log.info(f"Calling update on actor {self.actor_id}")
+        # print("UPDATE FOR STAGE ", self.actor_id, " MBS ", done_mbs)
         
         if self.tracing:
             start_event = torch.cuda.Event(enable_timing=True)
@@ -368,9 +374,12 @@ class StageActor:
             start_event.record()
         
         assert self.optim_fn
+        # print("len(self.optims): ", len(self.optims))
         for _, optim in self.optims.items():
+            # print("GRAD STEP")
+            # print(optim)
             optim.step()
-            optim.zero_grad()
+            optim.zero_grad(set_to_none=True)
         losses = self.loss
         self.loss.clear()
         
@@ -459,3 +468,142 @@ class StageActor:
             objs = [obj + 1]
         self.objs = objs
         return "done"
+    
+    # Debugging param dump function #
+    def get_param_grads(self, stage_id: int):
+        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
+        return [p.grad.detach().clone().cpu() if p.grad is not None else None
+                for p in stage_params]
+    
+    def get_params(self, stage_id: int):
+        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
+        return [p.detach().clone().cpu() for p in stage_params]
+    ######
+
+    def backward_input(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+        self.log.info(f"Calling backward_input {stage_id} mb {mb_idx} on actor {self.actor_id}")
+        # print("BACKWARD INPUT FOR STAGE ", stage_id, " MB ", mb_idx)
+        is_last_stage = loss_fn is not None
+        activation = self.activation[stage_id][mb_idx]
+
+        if stage_id == 0:
+            if is_last_stage:
+                labels = self.truth if self.truth is not None else inp[0]
+                loss = loss_fn(activation, labels)
+                self.loss.append(loss)
+                upstream = torch.ones_like(loss)
+                # print("UPSTREAM FROM LAST STAGE: ", upstream)
+                # print("UPSTREAM SHAPE FROM LAST STAGE: ", upstream.shape)
+                # self.saved_upstream[stage_id][mb_idx] = upstream
+            else:
+                # upstream = inp[0]
+                upstream = inp
+                # self.saved_upstream[stage_id][mb_idx] = upstream
+            gx = torch.zeros_like(activation)
+            # print(f"INPUT GX on stage {stage_id} mb {mb_idx}: {gx}")
+            # print(f"INPUT GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
+            # print(f"INPUT UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
+            # print(f"INPUT UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
+            return [gx, upstream]
+
+        stage_input = self.prev_activation[stage_id][mb_idx]
+
+        if is_last_stage:
+            labels = self.truth if self.truth is not None else inp[0]
+            loss = loss_fn(activation, labels)
+            self.loss.append(loss)
+
+            upstream = torch.ones_like(loss)
+
+            gx = torch.autograd.grad(
+                outputs=loss,
+                inputs=stage_input,
+                grad_outputs=upstream,
+                retain_graph=True,
+            )[0]
+
+        else:
+            # upstream = inp[0]
+            upstream = inp
+
+            gx = torch.autograd.grad(
+                outputs=activation,
+                inputs=stage_input,
+                grad_outputs=upstream,
+                retain_graph=True,
+            )[0]
+
+        # self.saved_upstream[stage_id][mb_idx] = upstream
+
+        # Change to also return upstream for temporal dependency
+        # print(f"INPUT GX on stage {stage_id} mb {mb_idx}: {gx}")
+        # print(f"INPUT GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
+        # print(f"INPUT UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
+        # print(f"INPUT UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
+
+        return [gx, upstream]
+
+
+    def backward_weight(self, stage_id: int, mb_idx: int, upstream_ref, loss_fn=None):
+        # print("BACKWARD WEIGHT FOR STAGE ", stage_id, " MB ", mb_idx)
+        self.log.info(f"Calling backward_weight {stage_id} mb {mb_idx} on actor {self.actor_id}")
+
+        is_last_stage = loss_fn is not None
+        activation = self.activation[stage_id][mb_idx]
+
+        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
+
+        # print(f"UPSTREAM: {upstream_ref}")
+        # print(f"UPSTREAM[0]: {upstream_ref[0]}")
+        # print(f"UPSTREAM[1]: {upstream_ref[1]}")
+
+        gx = ray.get(upstream_ref[0])
+        upstream = ray.get(upstream_ref[1])
+        # print(f"RESOLVED UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
+        # print(f"RESOLVED UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
+        # print(f"RESOLVED GX on stage {stage_id} mb {mb_idx}: {gx}")
+        # print(f"RESOLVED GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
+
+        if is_last_stage:
+            labels = self.truth if self.truth is not None else None
+            loss = loss_fn(activation, labels)
+
+            # upstream = self.saved_upstream[stage_id][mb_idx]
+
+            gparams = torch.autograd.grad(
+                outputs=loss,
+                inputs=stage_params,
+                # grad_outputs=upstream,
+                retain_graph=False,
+            )
+
+        else:
+            # upstream = self.saved_upstream[stage_id][mb_idx]
+
+            gparams = torch.autograd.grad(
+                outputs=activation,
+                inputs=stage_params,
+                grad_outputs=upstream,
+                retain_graph=False,
+            )
+
+        assert len(gparams) == len(stage_params), (
+            f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(stage_params)}"
+        )
+        
+        for p, g in zip(stage_params, gparams):
+            if p.grad is None:
+                p.grad = g.clone()
+            else:
+                p.grad.add_(g)
+
+        del self.activation[stage_id][mb_idx]
+        # del self.saved_upstream[stage_id][mb_idx]
+        # del self.prev_activation[stage_id][mb_idx]
+
+        return [gx] + ["done"]
+
+
+
+
+

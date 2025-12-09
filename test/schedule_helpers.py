@@ -1,11 +1,11 @@
-from piper.exec import Task
+from piper.exec import Task, TaskType
 
 
 def print_schedule(schedule):
     for stage in schedule:
         for step in stage:
             if step:
-                string = f"{step.stage_id}:{step.mb_idx}:{'u' if step.upd else 'f' if step.is_fwd else 'b'}"
+                string = f"{step.stage_id}:{step.mb_idx}:{step.task}"
             else:
                 string = " -- "
             print(string, end="\t")
@@ -18,15 +18,15 @@ def build_gpipe_schedule(n_mbs: int, n_stages: int):
         for stage_id in range(n_stages):
             mb_idx = step - stage_id
             if mb_idx >= 0 and mb_idx < n_mbs:
-                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, True, False)
+                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, TaskType.FORWARD)
 
     for step in range(steps, steps * 2):
         for stage_id in reversed(range(n_stages)):
             mb_idx = (step - steps) - (n_stages - stage_id - 1)
             if mb_idx >= 0 and mb_idx < n_mbs:
-                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, False, False)
+                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, TaskType.BACKWARD)
     for i, stage in enumerate(range(n_stages)):
-        schedule[stage][-i-1] = Task(stage_id=stage, device_id=stage, mb_idx=0, is_fwd=False, upd=True)
+        schedule[stage][-i-1] = Task(stage_id=stage, device_id=stage, mb_idx=0, task=TaskType.UPDATE)
     return schedule
 
 def build_1f1b_schedule(n_mbs: int, n_stages: int):
@@ -40,7 +40,7 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                 if mb_idx >= 0 and mb_idx < n_mbs:
                     schedule[stage_id][step] = Task(
                         device_id=stage_id, stage_id=stage_id, 
-                        mb_idx=mb_idx, is_fwd=True, upd=False
+                        mb_idx=mb_idx, task=TaskType.FORWARD
                     )
                     stage_mb[stage_id][0] += 1
     for step in range(n_stages, 2 * steps):
@@ -54,7 +54,47 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                 if mb_idx >= 0 and mb_idx < n_mbs:
                     schedule[stage_id][step] = Task(
                         device_id=stage_id, stage_id=stage_id,
-                        mb_idx=mb_idx, is_fwd=task_type, upd=False
+                        mb_idx=mb_idx, task=TaskType.FORWARD if task_type else TaskType.BACKWARD
                     )
                     stage_mb[stage_id][fwd_or_bwd] += 1
+    return schedule
+
+## ZB: Finish schedule function ##
+def build_zb1p_schedule(n_mbs: int, n_stages: int):
+    if n_stages != 2 or n_mbs != 4:
+        raise NotImplementedError("ZB1P schedule is only implemented for 2 stages and 4 microbatches.")
+    schedule = [
+        [
+            Task(device_id=0, stage_id=0, mb_idx=0, task=TaskType.FORWARD),         # t0:  F0
+            None,                                                                   # t1:   -
+            Task(device_id=0, stage_id=0, mb_idx=1, task=TaskType.FORWARD),         # t2:  F1
+            Task(device_id=0, stage_id=0, mb_idx=0, task=TaskType.BACKWARD_INPUT),  # t3:  I0
+            Task(device_id=0, stage_id=0, mb_idx=0, task=TaskType.BACKWARD_WEIGHT), # t4:  W0
+            Task(device_id=0, stage_id=0, mb_idx=2, task=TaskType.FORWARD),         # t5:  F2
+            Task(device_id=0, stage_id=0, mb_idx=1, task=TaskType.BACKWARD_INPUT),  # t6:  I1
+            Task(device_id=0, stage_id=0, mb_idx=1, task=TaskType.BACKWARD_WEIGHT), # t7:  W1
+            Task(device_id=0, stage_id=0, mb_idx=3, task=TaskType.FORWARD),         # t8:  F3
+            Task(device_id=0, stage_id=0, mb_idx=2, task=TaskType.BACKWARD_INPUT),  # t9:  I2
+            Task(device_id=0, stage_id=0, mb_idx=2, task=TaskType.BACKWARD_WEIGHT), # t10: W2
+            Task(device_id=0, stage_id=0, mb_idx=3, task=TaskType.BACKWARD_INPUT),  # t11: I3
+            Task(device_id=0, stage_id=0, mb_idx=3, task=TaskType.BACKWARD_WEIGHT), # t12: W3
+            Task(device_id=0, stage_id=0, mb_idx=0, task=TaskType.UPDATE),         # t13: U0
+        ],
+        [
+            None,                                                                   # t0:  -
+            Task(device_id=1, stage_id=1, mb_idx=0, task=TaskType.FORWARD),         # t1:  F0
+            Task(device_id=1, stage_id=1, mb_idx=0, task=TaskType.BACKWARD_INPUT),  # t2:  I0
+            Task(device_id=1, stage_id=1, mb_idx=1, task=TaskType.FORWARD),         # t3:  F1
+            Task(device_id=1, stage_id=1, mb_idx=1, task=TaskType.BACKWARD_INPUT),  # t4:  I1
+            Task(device_id=1, stage_id=1, mb_idx=0, task=TaskType.BACKWARD_WEIGHT), # t5:  W0
+            Task(device_id=1, stage_id=1, mb_idx=2, task=TaskType.FORWARD),         # t6:  F2
+            Task(device_id=1, stage_id=1, mb_idx=2, task=TaskType.BACKWARD_INPUT),  # t7:  I2
+            Task(device_id=1, stage_id=1, mb_idx=1, task=TaskType.BACKWARD_WEIGHT), # t8:  W1
+            Task(device_id=1, stage_id=1, mb_idx=3, task=TaskType.FORWARD),         # t9:  F3
+            Task(device_id=1, stage_id=1, mb_idx=3, task=TaskType.BACKWARD_INPUT),  # t10: I3
+            Task(device_id=1, stage_id=1, mb_idx=2, task=TaskType.BACKWARD_WEIGHT), # t11: W2
+            Task(device_id=1, stage_id=1, mb_idx=3, task=TaskType.BACKWARD_WEIGHT), # t12: W3
+            Task(device_id=1, stage_id=1, mb_idx=0, task=TaskType.UPDATE),         # t13: U0
+        ],
+        ]
     return schedule

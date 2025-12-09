@@ -11,13 +11,13 @@ from piper.piper import piper
 from piper.utils import piper_metadata
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
-from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, print_schedule
+from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, build_zb1p_schedule, print_schedule
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['LLAMA_DEBUG', 'LLAMA_1B', 'LLAMA_3B', 'LLAMA_8B'], default='LLAMA_DEBUG',
                         help='Model configuration: LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, or LLAMA_8B (default: LLAMA_DEBUG)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b'], default='1f1b',
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'zb1p'], default='1f1b',
                         help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
     parser.add_argument('--devices', type=int, choices=[2, 4], default=2,
                         help='Number of devices/stages (default: 2)')
@@ -116,6 +116,9 @@ def main(args):
         schedule = build_1f1b_schedule(num_mbs, num_devices)
     elif args.schedule == "gpipe":
         schedule = build_gpipe_schedule(num_mbs, num_devices)
+    elif args.schedule == "zb1p":
+        schedule = build_zb1p_schedule(num_mbs, num_devices)
+
 
     print("SCHEDULE:")
     print_schedule(schedule)

@@ -3,6 +3,7 @@ import ray
 from torch import nn
 from torch.export import export, ExportedProgram
 from piper.piper import piper, distributed_stage
+from piper.utils import piper_metadata
 from collections.abc import Iterable
 
 class MyModel(nn.Module):

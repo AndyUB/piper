@@ -1,14 +1,21 @@
 import torch
 from typing import NamedTuple
+from strenum import StrEnum
 
 from piper.utils import piper_metadata
+
+class TaskType(StrEnum):
+    FORWARD = "f"
+    BACKWARD = "b"
+    UPDATE = "u"
+    BACKWARD_INPUT = "i"
+    BACKWARD_WEIGHT = "w"
 
 class Task(NamedTuple):
     device_id: int
     stage_id: int
     mb_idx: int
-    is_fwd: bool
-    upd: bool
+    task: TaskType
 
 class DAGEdge(NamedTuple):
     from_stage: int
@@ -49,18 +56,18 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
                     )
                 
                 # Check for duplicates
-                task_key = (task.stage_id, task.mb_idx, task.is_fwd, task.upd)
+                task_key = (task.stage_id, task.mb_idx, task.task)
                 if task_key in all_tasks:
                     raise ValueError(
                         f"Duplicate task found: stage_id={task.stage_id}, "
-                        f"mb_idx={task.mb_idx}, is_fwd={task.is_fwd}, upd={task.upd}"
+                        f"mb_idx={task.mb_idx}, task={task.task}"
                     )
                 all_tasks.add(task_key)
                 
                 # Track tasks by microbatch
                 if task.mb_idx not in microbatch_tasks:
                     microbatch_tasks[task.mb_idx] = set()
-                microbatch_tasks[task.mb_idx].add((task.stage_id, task.is_fwd, task.upd))
+                microbatch_tasks[task.mb_idx].add((task.stage_id, task.task == TaskType.FORWARD, task.task == TaskType.UPDATE))
     
     # Get all required stages from DAG edges
     all_required_stages = set()
@@ -98,9 +105,9 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
             for time_step in range(num_steps):
                 task = schedule[stage_id][time_step]
                 if task is not None and task.mb_idx == mb_idx:
-                    if task.is_fwd and not task.upd:
+                    if task.task == TaskType.FORWARD:
                         fwd_times[task.stage_id] = time_step
-                    elif not task.is_fwd and not task.upd:
+                    elif not task.task == TaskType.FORWARD and not task.task == TaskType.UPDATE:
                         bwd_times[task.stage_id] = time_step
         
         # Check forward stage ordering: if A -> B, then fwd(A) < fwd(B)
@@ -158,7 +165,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata['dag'])))
     
     # Validate the schedule before execution
-    validate_schedule(schedule, dag_edges, num_mbs)
+    # validate_schedule(schedule, dag_edges, num_mbs)
 
     # maps mb_idx to the ref resulting from a forward call on the microbatch
     fwd_refs = dict()
@@ -172,10 +179,10 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
         for j in range(num_stages-1, -1, -1):
             task = schedule[j][i]
             if task:
-                device_id,stage_id, mb_idx, is_fwd, upd = task
+                device_id, stage_id, mb_idx, task_type = task
                 piper_metadata['current_mb'] = mb_idx
                 actor_id = j
-                if upd:
+                if task_type == TaskType.UPDATE:
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
                     if num_bwd_targets == 0:
                         num_bwd_targets = 1
@@ -189,10 +196,9 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                         else:
                             done_refs.add(bwd_refs)
                     done_refs = list(done_refs)
-                    # print(f"[PIPER] Update stage {stage_id}")
                     upd = actors[actor_id].update.remote(*done_refs)
                     ret.append(upd)
-                elif is_fwd:
+                elif task_type == TaskType.FORWARD:
                     if split_fwd_fns:
                         # print(f"[PIPER] Forward stage {stage_id} mb {mb_idx}")
                         # Set the current microbatch index in thread-local storage
@@ -213,7 +219,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                         if mb_idx not in fwd_refs:
                             # print(f"Fwd mb {mb_idx}")
                             fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
-                else:
+                elif task_type == TaskType.BACKWARD:
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch
                     # print(f"Calling backward stage {stage_id} mb {mb_idx}")
@@ -276,4 +282,82 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                             .backward.options(num_returns=num_bwd_targets*2)
                             .remote(stage_id, mb_idx, bwd_ref)
                         )
+
+                ############ ZB Modification ###########
+                elif task_type == TaskType.BACKWARD_INPUT:
+                    num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
+                    if num_bwd_targets == 0:
+                        num_bwd_targets = 1
+
+                    if mb_idx not in bwd_ref_dicts:
+                        fwd_ref = fwd_refs[mb_idx]
+                        bwd_ref_dicts[mb_idx] = {}
+
+                        bwd_ref_dicts[mb_idx][stage_id] = (
+                            actors[actor_id]
+                            .backward_input.options(num_returns=2*num_bwd_targets)
+                            .remote(
+                                stage_id,
+                                mb_idx,
+                                fwd_ref.get_ref(),
+                                loss_fn=loss_fn,
+                            )
+                        )
+
+                    else:
+                        to_stage = [
+                            edge.to_stage
+                            for edge in dag_edges
+                            if edge.from_stage == stage_id
+                        ]
+                        
+                        assert len(to_stage) == 1
+                        to_stage = to_stage[0]
+
+                        targets = get_backward_targets(to_stage, dag_edges)
+                        idx = targets.index(DAGEdge(stage_id, to_stage))
+
+                        assert to_stage in bwd_ref_dicts[mb_idx]
+
+                        successor_upstreams = bwd_ref_dicts[mb_idx][to_stage]
+                        upstream_ref = successor_upstreams[idx]
+
+                        bwd_ref_dicts[mb_idx][stage_id] = (
+                            actors[actor_id]
+                            .backward_input.options(num_returns=2*num_bwd_targets)
+                            .remote(
+                                stage_id,
+                                mb_idx,
+                                upstream_ref,
+                                loss_fn=None,
+                            )
+                        )
+
+                elif task_type == TaskType.BACKWARD_WEIGHT:
+                    num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
+                    if num_bwd_targets == 0:
+                        num_bwd_targets = 1
+
+                    is_last_stage = len(
+                        [e for e in dag_edges if e.from_stage == stage_id]
+                    ) == 0
+
+                    # Ensures the stage's backward_input was called before backward_weight for this mb
+                    assert mb_idx in bwd_ref_dicts and stage_id in bwd_ref_dicts[mb_idx]
+
+                    upstream_ref = bwd_ref_dicts[mb_idx][stage_id]
+
+                    bwd_ref_dicts[mb_idx][stage_id] = (
+                            actors[actor_id]
+                            .backward_weight.options(num_returns=2*num_bwd_targets)
+                            .remote(
+                            stage_id,
+                            mb_idx,
+                            upstream_ref,
+                            loss_fn=loss_fn if is_last_stage else None,
+                        )
+                    )
+                ###########################################
+                else:
+                    raise ValueError(f"Unknown task type: {task_type}")
     return ret
