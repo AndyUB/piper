@@ -111,9 +111,6 @@ def main(args):
     # Clear timing data
     ray.get([actor.clear_trace_data.remote() for actor in actors.values()])
 
-    # Set tracing
-    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
-
     # Time training steps
     start = time.perf_counter()
     for _ in range(iters):
@@ -124,6 +121,16 @@ def main(args):
     ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
     iter_schedule()
     peak_memory = ray.get([actor.get_peak_memory.remote() for actor in actors.values()])
+    
+    # Print throughput and peak memory
+    print("THROUGHPUT:")
+    print(f"\ttime: {(end - start)*1e3/iters:.0f} ms")
+    print(
+        f"\t{args.schedule} throughput: {(iters * batch_size * num_mbs * seq_len)/(end - start):.0f} tokens/sec"
+    )
+    print("PEAK MEMORY:")
+    for actor_id, peak_memory in enumerate(peak_memory):
+        print(f"\tActor {actor_id}: {peak_memory:.1f} GB")
 
     def print_mean_timing_data(trace_data: dict, actor_id: int) -> None:
         """Prints mean timing and memory statistics from trace_data for a given actor.
@@ -171,24 +178,13 @@ def main(args):
                                 print(f"      {metric}: {mean_val:.3f} GB")
                         else:
                             print(f"      {metric}: {mean_val:.3f} ms")
-    
-    print("THROUGHPUT:")
-    print(f"\ttime: {(end - start)*1e3/iters:.0f} ms")
-    print(
-        f"\t{args.schedule} throughput: {(iters * batch_size * num_mbs * seq_len)/(end - start):.0f} tokens/sec"
-    )
-    print("PEAK MEMORY:")
-    for actor_id, peak_memory in enumerate(peak_memory):
-        print(f"\tActor {actor_id}: {peak_memory:.1f} GB")
-
-    ray.timeline(f"out/{args.model}-pp{num_devices}-{args.schedule}-wip.json")
-
+                            
     if args.tracing:
         for actor in actors.values():
             trace_data = ray.get(actor.get_trace_data.remote())
             actor_id = ray.get(actor.id.remote())
             print_mean_timing_data(trace_data, actor_id)
-        # ray.timeline(f"out/{args.model}-pp{num_devices}-{args.schedule}.json")
+        ray.timeline(f"out/{args.model}-pp{num_devices}-{args.schedule}.json")
 
 if __name__ == "__main__":
     ray.init(include_dashboard=True, log_to_driver=True, namespace="llama")

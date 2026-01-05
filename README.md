@@ -52,19 +52,19 @@ for k, v in locals.items():
 ####### PIPER MODIFICATION END #######
 ```
 
-The torch.compile backend interface is too limiting. 
-Compiler backends accept a graph module and example inputs.
-`graphargs` is datastructure describing the arguments to a grpah module, including their source in the top-level module and an example.
-The list of example inputs required by the torch.compile backend interface are derived from the graph args datastructure. 
-The Piper backend requires source information to differentiate model parameters from inputs. 
-- Modification: Change the invocation of [self.call_user_compiler in output_graph.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/output_graph.py#L2217):
+Piper RemoteTensor causes recompilation bugs because it's not traceable by TorchDynamo. 
+- WIP: same as above
+- Modification: Add at the beginning of [`CheckFunctionManager.__init__` in guards.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/guards.py#L3532):
 ```
 ####### PIPER MODIFICATION START #######
-# compiled_fn = self.call_user_compiler(gm, self.example_inputs())
-compiled_fn = self.call_user_compiler(gm, self.graphargs)
+def filter_guards(guard):
+    return not (
+        guard.inner_create_fn().__name__ == "TENSOR_MATCH" or 
+        guard.name == "L['dynamo_mb']")
+guards = list(filter(filter_guards, guards))
 ####### PIPER MODIFICATION END #######
 ```
- 
+
 Ray: Tensor transport backends currently only support 1 return value per task.
 - WIP: Upstream this into Ray.
 - Modifications (2): Comment out the [assertion in ActorMethod._remote()](https://github.com/ray-project/ray/blob/b70d990db786a1f2259dec0504acccf2590353f3/python/ray/actor.py#L824-L828) and add logic for [handling multiple return values with a GPU object manager](https://github.com/ray-project/ray/blob/b70d990db786a1f2259dec0504acccf2590353f3/python/ray/actor.py#L880-L887).

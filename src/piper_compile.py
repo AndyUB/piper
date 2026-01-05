@@ -1,5 +1,6 @@
 import ray
 import torch
+from .piper_utils import piper_metadata, RemoteTensor
 from torch._dynamo.backends.debugging import eager
 import threading
 from .piper_utils import piper_metadata
@@ -32,7 +33,6 @@ def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, b
     print(f"[PIPER] Compiling {num_stages} stages...")
 
     out = compiled(*example_inputs).get()
-
     print("[PIPER] Compiled...")
 
     piper_metadata.currently_compiling = False

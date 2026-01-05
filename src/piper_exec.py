@@ -137,7 +137,7 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages, split_fwd_fns: bool=False):
+def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
