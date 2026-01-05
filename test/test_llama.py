@@ -181,6 +181,8 @@ def main(args):
     for actor_id, peak_memory in enumerate(peak_memory):
         print(f"\tActor {actor_id}: {peak_memory:.1f} GB")
 
+    ray.timeline(f"out/{args.model}-pp{num_devices}-{args.schedule}-wip.json")
+
     if args.tracing:
         for actor in actors.values():
             trace_data = ray.get(actor.get_trace_data.remote())
