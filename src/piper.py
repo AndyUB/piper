@@ -13,7 +13,6 @@ def distributed_stage(stage_id, actor_id=None, mb=None, optim=None):
     if actor_id not in piper_metadata['actors']:
         actor = StageActor.options(num_gpus=1).remote(actor_id, optim_fn=optim)
         piper_metadata['actors'][actor_id] = actor
-        piper_metadata['stage_fns'][stage_id] = None
     piper_metadata['current_stage'] = stage_id
     piper_metadata['current_actor'] = actor_id
 

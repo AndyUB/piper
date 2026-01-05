@@ -135,7 +135,7 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: bool=False):
+def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
@@ -152,7 +152,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     """
     num_steps, num_stages = len(schedule[0]), len(schedule)
     actors = piper_metadata['actors']
-    fwd_fns = piper_metadata['stage_fns']
 
     dag_edges = piper_metadata['dag']
     dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata['dag'])))
@@ -193,26 +192,12 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                     upd = actors[actor_id].update.remote(*done_refs)
                     ret.append(upd)
                 elif is_fwd:
-                    if split_fwd_fns:
-                        # print(f"[PIPER] Forward stage {stage_id} mb {mb_idx}")
-                        # Set the current microbatch index in thread-local storage
-                        if stage_id == 0:
-                            refs = fwd_fns[1](fwd_fns[0](model._orig_mod, *inputs, dynamo_mb=mb_idx))
-                            fwd_refs[mb_idx] = refs
-                        else:
-                            refs = fwd_refs[mb_idx]
-                            if isinstance(refs, list) or isinstance(refs, tuple):
-                                refs = fwd_fns[stage_id+1](*refs)
-                            else:
-                                refs = fwd_fns[stage_id+1](refs)
-                            fwd_refs[mb_idx] = refs
-                    else:
-                        # if this is the first forward task for a microbatch, dispatch the forward task
-                        # LIMITATION: forward for all stages is dispatched by this call, cannot interleave
-                        # forward tasks with other tasks.
-                        if mb_idx not in fwd_refs:
-                            # print(f"Fwd mb {mb_idx}")
-                            fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
+                    # if this is the first forward task for a microbatch, dispatch the forward task
+                    # LIMITATION: forward for all stages is dispatched by this call, cannot interleave
+                    # forward tasks with other tasks.
+                    if mb_idx not in fwd_refs:
+                        # print(f"Fwd mb {mb_idx}")
+                        fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
                 else:
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch

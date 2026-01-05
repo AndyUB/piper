@@ -15,7 +15,6 @@ during compile and execution time
 
 piper_metadata = dict()
 piper_metadata['actors'] = dict()
-piper_metadata['stage_fns'] = dict()
 piper_metadata['dag'] = set()
 
 
