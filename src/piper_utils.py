@@ -4,19 +4,31 @@ import uuid
 import inspect
 import json, importlib, operator
 import torch.fx as fx
-
+import threading
+from collections import defaultdict
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 from typing import Any, Optional
 
 """
-Metadata for dynamically tracking Piper actors, stages, and microbatches
-during compile and execution time
+Piper thread local storage for tracking Piper actors, stages, and microbatches
 """
 
-piper_metadata = dict()
-piper_metadata['actors'] = dict()
-piper_metadata['dag'] = set()
+class ThreadLocal(threading.local):
+    events = None
+    mb_idx = None
+    actor_mutexes = None
 
+events_tls = ThreadLocal()
+
+class PiperMetadata:
+    actors = dict()
+    dag = set()
+    currently_compiling = True
+    current_stage = None
+    current_actor = None
+    first_graph_of_stage = None
+
+piper_metadata = PiperMetadata()
 
 """
 Remote tensors wrap Ray ObjectRefs
@@ -73,7 +85,7 @@ class RemoteTensor(torch.Tensor):
         return self._obj_ref
 
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if piper_metadata['currently_compiling']:
+        if piper_metadata.currently_compiling:
             def unwrap_fake(x):
                 if isinstance(x, RemoteTensor):
                     return x._fake

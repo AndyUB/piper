@@ -350,11 +350,12 @@ def partition(*args):
 
 
 class Transformer(nn.Module):
-    def __init__(self, params: ModelArgs):
+    def __init__(self, params: ModelArgs, seq_len: int, device):
         super().__init__()
         self.params = params
         self.vocab_size = params.vocab_size
         self.n_layers = params.n_layers
+        self.seq_len = seq_len
 
         def log_size(layer, indent=0):
             num_params = sum(p.numel() for p in layer.parameters())
@@ -390,41 +391,28 @@ class Transformer(nn.Module):
 
         self.freqs_cis = precompute_freqs_cis(
             params.dim // params.n_heads,
-            params.max_seq_len * 2,
+            self.seq_len,
             params.rope_theta,
-        )
+        ).to(device)
 
-    def forward(self, tokens: torch.Tensor, dynamo_mb: int=0):
+        mask = torch.full((self.seq_len, self.seq_len), float("-inf"))
+        mask = torch.triu(mask, diagonal=1)
+        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask]).to(device)
 
-        distributed_stage(0, actor_id=0, mb=dynamo_mb, optim=torch.optim.Adam)
+    def forward(self, tokens: torch.Tensor):
 
-        seqlen = tokens.shape[1]
+        distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
+
         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
-
         start_pos = 0
-        freqs_cis = self.freqs_cis.to(h.device)[start_pos : start_pos + seqlen].detach()
+        
+        for layer in self.layers[:self.n_layers//2]:
+            h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        mask = None
-        if seqlen > 1:
-            mask = torch.full((seqlen, seqlen), float("-inf"), device=tokens.device)
+        distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
 
-            mask = torch.triu(mask, diagonal=1)
-
-            # When performing key-value caching, we compute the attention scores
-            # only for the new sequence. Thus, the matrix of scores is of size
-            # (seqlen, cache_len + seqlen), and the only masked entries are (i, j) for
-            # j > cache_len + i, since row i corresponds to token cache_len + i.
-            mask = torch.hstack(
-                [torch.zeros((seqlen, start_pos), device=tokens.device), mask]
-            ).type_as(h)
-
-        for layer in self.layers[:self.n_layers // 2]:
-            h = layer(h, start_pos, freqs_cis, mask)
-
-        distributed_stage(1, actor_id=1, mb=dynamo_mb, optim=torch.optim.Adam)
-
-        for layer in self.layers[self.n_layers // 2:]:
-            h = layer(h, start_pos, freqs_cis, mask)
+        for layer in self.layers[self.n_layers//2:]:
+            h = layer(h, start_pos, self.freqs_cis, self.mask)
 
         h = self.norm(h) if self.norm else h
         output = self.output(h).float() if self.output else h
