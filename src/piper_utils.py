@@ -13,18 +13,22 @@ from typing import Any, Optional
 Piper thread local storage for tracking Piper actors, stages, and microbatches
 """
 
-# class PiperTLS(threading.local):
-class PiperTLS:
+class ThreadLocal(threading.local):
+    events = None
+    mb_idx = None
+    actor_mutexes = None
+
+events_tls = ThreadLocal()
+
+class PiperMetadata:
     actors = dict()
     dag = set()
     currently_compiling = True
-    events = defaultdict(dict)
-    current_mb = None
     current_stage = None
     current_actor = None
     first_graph_of_stage = None
 
-piper_tls = PiperTLS()
+piper_metadata = PiperMetadata()
 
 """
 Remote tensors wrap Ray ObjectRefs
@@ -81,7 +85,7 @@ class RemoteTensor(torch.Tensor):
         return self._obj_ref
 
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if piper_tls.currently_compiling:
+        if piper_metadata.currently_compiling:
             def unwrap_fake(x):
                 if isinstance(x, RemoteTensor):
                     return x._fake

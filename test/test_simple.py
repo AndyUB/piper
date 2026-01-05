@@ -22,7 +22,7 @@ class MyModel(nn.Module):
         x = self.fc3(x)
         return x
 
-from src.piper_utils import piper_tls
+from src.piper_utils import piper_metadata
 
 def run_model(model, x, dynamo_mb):
     out = model(x, dynamo_mb).get()
@@ -37,8 +37,8 @@ def main():
 
     mb_idx = 0
     num_stages = 2
-    piper_tls.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
-    for event in piper_tls.events[mb_idx]:
+    piper_metadata.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
+    for event in piper_metadata.events[mb_idx]:
         event.set()
     run_model(model, x, mb_idx)
 
@@ -46,14 +46,14 @@ def main():
 
     threads = []
     for mb_idx in range(2):
-        piper_tls.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
+        piper_metadata.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
         thread = threading.Thread(target=run_model, args=(model, x, mb_idx))
         thread.start()
         threads.append(thread)
 
     for stage_id in range(num_stages):
         for mb_idx in range(2):
-            piper_tls.events[mb_idx][stage_id].set()
+            piper_metadata.events[mb_idx][stage_id].set()
 
     for thread in threads:
         thread.join()

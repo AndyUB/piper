@@ -1,8 +1,9 @@
 import torch
 from typing import NamedTuple
 import threading
+import time
 
-from .piper_utils import piper_tls
+from .piper_utils import piper_metadata
 
 class Task(NamedTuple):
     device_id: int
@@ -32,13 +33,13 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
     Raises:
         ValueError: If the schedule violates any validation rules
     """
-    num_stages, num_steps = len(schedule), len(schedule[0]) if schedule else 0
+    num_devices, num_steps = len(schedule), len(schedule[0]) if schedule else 0
     
     # Check well-formedness: no duplicates, device_id matches row, and all stages present
     all_tasks = set()
     microbatch_tasks = {}  # mb_idx -> set of (stage_id, is_fwd, upd)
     
-    for stage_id in range(num_stages):
+    for stage_id in range(num_devices):
         for time_step in range(num_steps):
             task = schedule[stage_id][time_step]
             if task is not None:
@@ -95,9 +96,9 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
         fwd_times = {}  # stage_id -> time_step
         bwd_times = {}  # stage_id -> time_step
         
-        for stage_id in range(num_stages):
+        for device_id in range(num_devices):
             for time_step in range(num_steps):
-                task = schedule[stage_id][time_step]
+                task = schedule[device_id][time_step]
                 if task is not None and task.mb_idx == mb_idx:
                     if task.is_fwd and not task.upd:
                         fwd_times[task.stage_id] = time_step
@@ -136,7 +137,7 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: bool=False):
+def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages, split_fwd_fns: bool=False):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
@@ -151,11 +152,12 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     Returns:
         List of losses per microbatch.)
     """
-    num_steps, num_stages = len(schedule[0]), len(schedule)
-    actors = piper_tls.actors
+    num_steps, num_devices = len(schedule[0]), len(schedule)
+    actors = piper_metadata.actors
 
-    dag_edges = piper_tls.dag
-    dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_tls.dag)))
+    dag_edges = piper_metadata.dag
+    dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata.dag)))
+    # print(f"[PIPER] DAG edges: {dag_edges}")
     
     # Validate the schedule before execution
     validate_schedule(schedule, dag_edges, num_mbs)
@@ -167,23 +169,27 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     bwd_ref_dicts = dict()
 
     # create events for each microbatch
-    for mb_idx in range(num_mbs):
-        piper_tls.events[mb_idx] = [threading.Event() for _ in range(num_stages)]
+    events = dict([(mb_idx, [threading.Event() for _ in range(num_stages)]) for mb_idx in range(num_mbs)])
+    actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in actors.keys()])
     threads = dict()
     
-    def run_model(inputs, mb_idx):
-        fwd_refs[mb_idx] = model(*inputs, dynamo_mb=mb_idx)
+    def run_model(inputs, mb_idx, events, actor_mutexes):
+        from .piper_utils import events_tls
+        events_tls.events = events
+        events_tls.mb_idx = mb_idx
+        events_tls.actor_mutexes = actor_mutexes
+        fwd_refs[mb_idx] = model(*inputs)
 
     # iterate over evrery task in the schedule
     ret = []
     for i in range(num_steps):
-        for j in range(num_stages-1, -1, -1):
+        for j in range(num_devices-1, -1, -1):
             task = schedule[j][i]
             if task:
                 device_id,stage_id, mb_idx, is_fwd, upd = task
-                piper_tls.current_mb = mb_idx
                 actor_id = j
                 if upd:
+                    # print(f"[Controller main] update stage {stage_id} mb {mb_idx}")
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
                     if num_bwd_targets == 0:
                         num_bwd_targets = 1
@@ -198,34 +204,42 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                             done_refs.add(bwd_refs)
                     done_refs = list(done_refs)
                     # print(f"[PIPER] Update stage {stage_id}")
-                    upd = actors[actor_id].update.remote(*done_refs)
-                    ret.append(upd)
+                    with actor_mutexes[actor_id]:
+                        ret.append(actors[actor_id].update.remote(*done_refs))
                 elif is_fwd:
+                    # print(f"[Controller main] forward stage {stage_id} mb {mb_idx}")
                     if stage_id == 0:
-                        thread = threading.Thread(target=run_model, args=(inputs, mb_idx))
-                        thread.start()
+                        thread = threading.Thread(target=run_model, args=(inputs, mb_idx, events[mb_idx], actor_mutexes))
                         threads[mb_idx] = thread
-                    piper_tls.events[mb_idx][stage_id].set()
+                        thread.start()
+                    events[mb_idx][stage_id].set()
+                    # Wait for the thread to grab a lock on the actor mutex,
+                    # signalled by unsetting the event
+                    while events[mb_idx][stage_id].is_set():
+                        time.sleep(0.001)
                 else:
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch
-                    # print(f"Calling backward stage {stage_id} mb {mb_idx}")
+                    # print(f"[Controller main] backward stage {stage_id} mb {mb_idx}")
                     # print(f"[PIPER] Stage {stage_id} backward targets: {get_backward_targets(stage_id, dag_edges)}")
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
                     if mb_idx not in bwd_ref_dicts:
                         # if this is the first backward task for a microbatch, dispatch the
                         # backward task and cache the resulting ref(s)
+                        # print(f"[Main] waiting on mb {mb_idx}")
                         threads[mb_idx].join()
+                        # print(f"[Main] Joined mb {mb_idx}")
                         fwd_ref = fwd_refs[mb_idx]
                         bwd_ref_dicts[mb_idx] = dict()
                         # print(f"[PIPER] Backward stage {stage_id} mb {mb_idx} in: {fwd_ref}")
-                        bwd_ref_dicts[mb_idx][stage_id] = (
-                            actors[actor_id]
-                            .backward.options(num_returns=num_bwd_targets*2)
-                            .remote(
-                                stage_id, mb_idx, fwd_ref.get_ref(), loss_fn=loss_fn
+                        with actor_mutexes[actor_id]:
+                            bwd_ref_dicts[mb_idx][stage_id] = (
+                                actors[actor_id]
+                                .backward.options(num_returns=num_bwd_targets*2)
+                                .remote(
+                                    stage_id, mb_idx, fwd_ref.get_ref(), loss_fn=loss_fn
+                                )
                             )
-                        )
                     else:
                         # if this is not the first backward task for a microbatch, look up
                         # the input ref which represents a gradient from the backward call
@@ -265,9 +279,10 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                         if num_bwd_targets == 0:
                             num_bwd_targets = 1
                         # print(f"[PIPER] Backward stage {stage_id} mb {mb_idx}")
-                        bwd_ref_dicts[mb_idx][stage_id] = (
-                            actors[actor_id]
-                            .backward.options(num_returns=num_bwd_targets*2)
-                            .remote(stage_id, mb_idx, bwd_ref)
-                        )
+                        with actor_mutexes[actor_id]:
+                            bwd_ref_dicts[mb_idx][stage_id] = (
+                                actors[actor_id]
+                                .backward.options(num_returns=num_bwd_targets*2)
+                                .remote(stage_id, mb_idx, bwd_ref)
+                            )
     return ret

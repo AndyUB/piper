@@ -6,7 +6,7 @@ import time
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from .piper_utils import deserialize_graphmodule, piper_tls
+from .piper_utils import deserialize_graphmodule, piper_metadata
 
 # torch._dynamo.config.compiled_autograd = True
 def backward_backend(gm, example_inputs, **kwargs):
@@ -47,6 +47,8 @@ class PiperActor:
         self.frame_ids = []
         # map stage id -> compiled fx.Graph function
         self.compiled_fns = dict()
+        # map stage id -> original GraphModule (for hook registration)
+        self.graph_modules = dict()
         # map stage id -> model parameters used by the fx.Graph with holes (None values) for input tensors
         self.parameters = dict()
         # map stage id -> indices of the input tensors (as opposed to model parameters) used by the fx.Graph
@@ -77,6 +79,13 @@ class PiperActor:
     def send_truth(self, tensor):
         self.truth = tensor.to('cuda')
         return "done"
+    
+    def reset_peak_memory(self):
+        torch.cuda.reset_peak_memory_stats()
+        return "done"
+
+    def get_peak_memory(self):
+        return torch.cuda.max_memory_allocated() / (1024**3)
 
     def compile_graph(self, stage_id, gm_data, compiler_fn, graphargs, input_idxs):
         self.log.info(f"Compiling graph on actor {self.actor_id}. stage id: {stage_id}. inputs: {len(graphargs)}")
@@ -84,16 +93,14 @@ class PiperActor:
 
         self.trace_data[stage_id] = {
             'forward': {
-                'pre_forward': [],
                 'forward': [],
-                'post_forward': [],
+                'total': [],
                 'peak_memory_delta': [],
                 'peak_memory': []
             },
             'backward': {
-                'pre_backward': [],
                 'backward': [],
-                'post_backward': [],
+                'total': [],
                 'peak_memory_delta': [],
                 'peak_memory': []
             },
@@ -101,6 +108,10 @@ class PiperActor:
 
         # compile the graph with the given graphargs
         gm = deserialize_graphmodule(gm_data)
+        
+        # Store GraphModule reference
+        self.graph_modules[stage_id] = gm
+        
         compiled_fn = compiler_fn(gm, graphargs)
         assert callable(compiled_fn), "compiler_fn did not return callable"
         self.compiled_fns[stage_id] = compiled_fn
@@ -118,25 +129,23 @@ class PiperActor:
             self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
 
         # MEMORY CLEANUP
-        del gm
         del gm_data
 
         end = time.perf_counter()
         self.log.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
-        self.log.info(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
-        
+        self.log.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id}")
+        # print(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id}")
+
         if self.tracing:
-            start_event = torch.cuda.Event(enable_timing=True)
-            pre_forward_event = torch.cuda.Event(enable_timing=True)
-            forward_event = torch.cuda.Event(enable_timing=True)
+            beginning_event = torch.cuda.Event(enable_timing=True)
+            forward_start_event = torch.cuda.Event(enable_timing=True)
+            forward_end_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            torch.cuda.reset_peak_memory_stats()
-            forward_start_memory = torch.cuda.memory_allocated()
-            start_event.record()
+            beginning_event.record()
         
         def pre_loaded_input(param):
             if param is None:
@@ -144,6 +153,18 @@ class PiperActor:
             else:
                 return param
         args = list(map(pre_loaded_input, args))
+
+        def unwrap_arg(arg):
+            if isinstance(arg, list) or isinstance(arg, tuple):
+                assert len(arg) == 1
+                return arg[0]
+            else:
+                return arg
+        args = list(map(unwrap_arg, args))
+
+        def detach_arg(arg):
+            return arg.detach().clone()
+        args = list(map(detach_arg, args))
 
         # Ray object refs resolve to a single element list
         def unwrap(x):
@@ -158,38 +179,48 @@ class PiperActor:
 
         # save first input as previous activation
         if stage_id != 0:
-            args[0].requires_grad_()
+            if not args[0].requires_grad:
+                args[0].requires_grad_()
             self.prev_activation[stage_id][mb_idx] = args[0]
 
+        # Record start event for forward timing
         if self.tracing:
-            pre_forward_event.record()
+            torch.cuda.reset_peak_memory_stats()
+            forward_start_memory = torch.cuda.memory_allocated()
+            forward_start_event.record()
 
+        # Call compiled function
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
 
+        # Record end event and calculate forward timing
         if self.tracing:
-            forward_event.record()
+            forward_end_event.record()
+            torch.cuda.synchronize()
+            
+            # Calculate total forward time
+            forward_time = forward_start_event.elapsed_time(forward_end_event)
+            
+            forward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - forward_start_memory) / (1024**3)
+            forward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
+
+        # save first output as activation BEFORE clearing input tensors
+        # This ensures the activation doesn't share memory with parameters
+        # that might be modified when processing other stages on the same actor
+        activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
+        self.activation[stage_id][mb_idx] = activation_tensor
 
         # clear the input tensors
         for i in self.input_idxs[stage_id]:
             self.parameters[stage_id][i] = None
         del args
 
-        # save first output as activation
-        self.activation[stage_id][mb_idx] = out[0]
-
         if self.tracing:
             end_event.record()
             torch.cuda.synchronize()
-            pre_forward_time = start_event.elapsed_time(pre_forward_event)
-            forward_time = pre_forward_event.elapsed_time(forward_event)
-            post_forward_time = forward_event.elapsed_time(end_event)
-            
-            forward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - forward_start_memory) / (1024**3)
-            forward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
-
-            self.trace_data[stage_id]['forward']['pre_forward'].append(pre_forward_time)
+            total_time = forward_start_event.elapsed_time(end_event)
+            # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]['forward']['forward'].append(forward_time)
-            self.trace_data[stage_id]['forward']['post_forward'].append(post_forward_time)
+            self.trace_data[stage_id]['forward']['total'].append(forward_time)
             self.trace_data[stage_id]['forward']['peak_memory_delta'].append(forward_peak_memory_delta_gb)
             self.trace_data[stage_id]['forward']['peak_memory'].append(forward_peak_memory_gb)
 
@@ -197,11 +228,11 @@ class PiperActor:
                 self.fwd_objs[stage_id] = [torch.ones_like(t) for t in out]
             else:
                 self.fwd_objs[stage_id] = torch.ones_like(out)
+        
         return out
 
     def forward_no_nccl(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
-        print(f"Calling cpu forward {stage_id} mb {mb_idx}")
 
         def pre_loaded_input(param):
             if param is None:
@@ -233,36 +264,39 @@ class PiperActor:
 
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
         
+        # save first output as activation BEFORE clearing input tensors
+        # This ensures the activation doesn't share memory with parameters
+        # that might be modified when processing other stages on the same actor
+        activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
+        self.activation[stage_id][mb_idx] = activation_tensor
+        
         # clear the input tensors
         for i in self.input_idxs[stage_id]:
             self.parameters[stage_id][i] = None
         del args
-
-        # save first output as activation
-        self.activation[stage_id][mb_idx] = out[0]
         return out
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
-        self.log.info(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}", inp)
+        self.log.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}")
+        # print(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}")
         
         if self.tracing:
-            start_event = torch.cuda.Event(enable_timing=True)
-            pre_backward_event = torch.cuda.Event(enable_timing=True)
-            backward_event = torch.cuda.Event(enable_timing=True)
+            beginning_event = torch.cuda.Event(enable_timing=True)
+            backward_start_event = torch.cuda.Event(enable_timing=True)
+            backward_end_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
+            beginning_event.record()
 
-            start_event.record()
-        
         # get the activation for the current stage
+        assert mb_idx in self.activation[stage_id], f"mb_idx {mb_idx} not in activation[stage_id {stage_id}]"
         activation = self.activation[stage_id][mb_idx]
         
+        # Record start event for backward timing
         if self.tracing:
             torch.cuda.reset_peak_memory_stats()
             backward_start_memory = torch.cuda.memory_allocated()
-
-        if self.tracing:
-            pre_backward_event.record()
+            backward_start_event.record()
         
         # compute loss in the last stage. use the saved activation rather
         # than inp because the saved activation remembers the computation graph
@@ -272,8 +306,8 @@ class PiperActor:
             else:
                 labels = inp[0]
             loss = loss_fn(activation, labels)
-            self.loss.append(loss)
             loss.backward()
+            self.loss.append(loss.item())
         # if not the last stage, backprop on the stored activation given 
         # the input gradient from the subsequent stage
         else:
@@ -281,8 +315,16 @@ class PiperActor:
             assert activation.shape == inp.shape
             activation.backward(gradient=inp)
 
+        # Record end event and calculate backward timing
         if self.tracing:
-            backward_event.record()
+            backward_end_event.record()
+            torch.cuda.synchronize()
+            
+            # Calculate total backward time
+            backward_time = backward_start_event.elapsed_time(backward_end_event)
+            
+            backward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - backward_start_memory) / (1024**3)
+            backward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
         del self.activation[stage_id][mb_idx]
         del activation
@@ -296,20 +338,15 @@ class PiperActor:
         if self.tracing:
             end_event.record()
             torch.cuda.synchronize()
-            pre_backward_time = start_event.elapsed_time(pre_backward_event)
-            backward_time = pre_backward_event.elapsed_time(backward_event)
-            post_backward_time = backward_event.elapsed_time(end_event)
-            backward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - backward_start_memory) / (1024**3)
-            backward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
-
-            self.trace_data[stage_id]['backward']['pre_backward'].append(pre_backward_time)
+            total_time = beginning_event.elapsed_time(end_event)
+            # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]['backward']['backward'].append(backward_time)
-            self.trace_data[stage_id]['backward']['post_backward'].append(post_backward_time)
+            self.trace_data[stage_id]['backward']['total'].append(total_time)
             self.trace_data[stage_id]['backward']['peak_memory_delta'].append(backward_peak_memory_delta_gb)
             self.trace_data[stage_id]['backward']['peak_memory'].append(backward_peak_memory_gb)
-            
             if stage_id != 0:
                 self.bwd_objs[stage_id] = torch.ones_like(ret[0])
+        
         return ret + ret
 
     def backward_compile(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
@@ -399,16 +436,14 @@ class PiperActor:
         for stage_id in self.trace_data:
             self.trace_data[stage_id] = {
                 'forward': {
-                    'pre_forward': [],
                     'forward': [],
-                    'post_forward': [],
+                    'total': [],
                     'peak_memory_delta': [],
                     'peak_memory': []
                 },
                 'backward': {
-                    'pre_backward': [],
                     'backward': [],
-                    'post_backward': [],
+                    'total': [],
                     'peak_memory_delta': [],
                     'peak_memory': []
                 },
