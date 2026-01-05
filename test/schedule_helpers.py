@@ -57,4 +57,6 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                         mb_idx=mb_idx, is_fwd=task_type, upd=False
                     )
                     stage_mb[stage_id][fwd_or_bwd] += 1
+    for i, stage in enumerate(range(n_stages)):
+        schedule[stage][-i-1] = Task(stage_id=stage, device_id=stage, mb_idx=n_mbs-1, is_fwd=False, upd=True)
     return schedule
