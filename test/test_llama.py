@@ -25,8 +25,8 @@ def parse_args():
                         help='Batch size (default: 8)')
     parser.add_argument('--num_mbs', type=int, default=4,
                         help='Number of microbatches (default: 4)')
-    parser.add_argument('--seq_len', type=int, default=512,
-                        help='Sequence length (default: 512)')
+    parser.add_argument('--seq_len', type=int, default=256,
+                        help='Sequence length (default: 256)')
     parser.add_argument('--warmup', type=int, default=5,
                         help='Number of warmup iterations (default: 5)')
     parser.add_argument('--iters', type=int, default=20,
