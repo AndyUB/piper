@@ -10,6 +10,7 @@ from src.piper_exec import Task, piper_exec
 from src.piper_compile import piper_setup
 from src.piper import piper
 from src.piper_utils import piper_metadata
+from src.piper_actor import PiperProgramCoordinator
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, print_schedule
@@ -64,7 +65,7 @@ def print_cuda_memory_stats(device: str, message: str = "") -> None:
         f"peak={peak_gb:.1f} GiB, available={available_gb:.1f} GiB, total={total_gb:.1f} GiB"
     )
 
-
+# change this to take rank and world size as arguments from the Pipeline Controller
 def main(args):
     
     # Set model configuration based on argument
@@ -77,8 +78,8 @@ def main(args):
     elif args.model == 'LLAMA_8B':
         llama_config = LLAMA_8B
     print(args) 
-    local_rank = int(os.environ['LOCAL_RANK'])
-    print(f"Got local_rank={local_rank}")
+    #local_rank = int(os.environ['LOCAL_RANK'])
+    #print(f"Got local_rank={local_rank}")
     loss_fn = torch.nn.CrossEntropyLoss()
     device = 'cuda'
     
@@ -98,12 +99,20 @@ def main(args):
     model.to(device)
 
     # print_cuda_memory_stats(device, "after loading model")
-    compiled = piper_setup(model, [x], backend=piper)
+    print(f"[MAIN BEFORE] piper_metadata id: {id(piper_metadata)}, actors dict id: {id(piper_metadata['actors'])}")
+    compiled, compilation_metadata = piper_setup(model, [x], backend=piper)
     # print_cuda_memory_stats(device, "after compiling model")
+    print(f"[MAIN AFTER] compilation_metadata['actors'] = {compilation_metadata['actors']}; compilation_metadata={compilation_metadata}")
+    print(f"[MAIN AFTER] compilation_metadata id: {id(compilation_metadata)}, actors dict id: {id(compilation_metadata['actors'])}")
     
-    actors = piper_metadata['actors']
+    # Update the global piper_metadata with the compilation metadata
+    # This is necessary because piper_exec and other functions expect the global metadata to be populated
+    piper_metadata.update(compilation_metadata)
+    
+    actors = compilation_metadata['actors']
+    piper_rank = os.environ.get("PIPER_RANK")
     num_actors = len(actors)
-    assert num_actors == num_devices
+    assert num_actors == num_devices, f"[pid={os.getpid()}{piper_rank}] actors={actors}, num_actors={num_actors}, num_devices={num_devices}"
     ray.get(actors[0].send_input.remote(x))
     ray.get(actors[num_actors-1].send_truth.remote(y))
 
@@ -408,4 +417,13 @@ if __name__ == "__main__":
     ray.init(include_dashboard=True, log_to_driver=True, namespace="llama")
     torch.manual_seed(0)
     args = parse_args()
-    main(args)
+    # initialze with dp rank 2
+    piper_coordinator = PiperProgramCoordinator.remote(2)
+    if torch.cuda.is_available():
+        print("CUDA is available")
+    else:
+        print("CUDA is NOT available")
+    print(f"Created piper coordinator handle")
+    future = piper_coordinator.run_program.remote(main, args)
+    print(f"Dispatched the run_program from main")
+    ray.get(future)

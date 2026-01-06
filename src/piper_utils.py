@@ -19,9 +19,7 @@ piper_metadata['stage_fns'] = dict()
 piper_metadata['dag'] = set()
 piper_metadata['currently_compiling'] = True
 # stores the parallelism configs; will eventually hold EP, PP, TP numbers too
-piper_metadata['parallelism_configs'] = {
-    {'dp' : 1}
-}
+piper_metadata['parallelism_configs'] = {'dp' : 1}
 
 """
 Remote tensors wrap Ray ObjectRefs

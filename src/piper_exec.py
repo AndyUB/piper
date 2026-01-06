@@ -138,27 +138,6 @@ def validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def setup_data_parallel(local_rank, data_parallel):
-    # first, get all the stages
-    actors = piper_metadata['actors']
-    num_actors = len(actors)
-    # TODO: is the number of pipeline parallelism stages the number of actors or number_of_actors / dp_size
-    num_pp_stages = num_actors 
-    stage_actor_local_rank_ray_objects = [actors[i] for i in range(num_pp_stages)]
-    # for now, data_parallel is the world size. Aka we want to broadcast our stage_actor_handles to the other dp ranks so that we can create the collectives
-    stage_actors_for_every_rank = [[] for i in range(data_parallel)]
-    stage_actors_for_every_rank[local_rank] = stage_actor_local_rank_ray_objects
-    for rank in data_parallel:
-    # we have a list of the stage_actors, broadcast them to the other ranks
-        dist.broadcast(stage_actors_for_every_rank[rank], src=rank)
-    # when we are done, we should have all the stage_actors
-    if rank == 0:
-        print(f"Stage Actors for Every Rank: {stage_actors_for_every_rank}")
-    # setup the collective communication groups for the dp 
-    for stage_num in range(num_pp_stages):
-        stage_actors_for_pp_stage = [stage_actors_for_every_rank[i][stage_num] for i in range(data_parallel)]
-        create_collective_group(stage_actors_for_pp_stage, backend='nccl')
-    print(f"Created the communication group for the stages in each dp group!")
 
 def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: bool=False):
     """
@@ -178,13 +157,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
     num_steps, num_stages = len(schedule[0]), len(schedule)
     actors = piper_metadata['actors']
     fwd_fns = piper_metadata['stage_fns']
-    print(f"DEBUG: fwd_fns={fwd_fns}")
-    data_parallel_size = piper_metadata['parallelism_configs']['dp']
-    print(f"TEMPORARY: data_parallel_size={data_parallel_size}")
-    local_rank = int(os.environ['LOCAL_RANK'])
-    setup_data_parallel(local_rank, data_parallel_size)
-    print("Verified the setup_data_parallel, exiting...")
-    exit()
+    print(f"DEBUG: fwd_fns={fwd_fns}; actors={actors}, num_steps={num_steps}, num_stages={num_stages}")
 
 
     dag_edges = piper_metadata['dag']
@@ -222,7 +195,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                         else:
                             done_refs.add(bwd_refs)
                     done_refs = list(done_refs)
-                    # print(f"[PIPER] Update stage {stage_id}")
+                    print(f"[PIPER] Update stage {stage_id}")
                     upd = actors[actor_id].update.remote(*done_refs)
                     ret.append(upd)
                 elif is_fwd:

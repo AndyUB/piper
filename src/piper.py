@@ -3,17 +3,39 @@ import torch
 from .piper_actor import StageActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
+
+import os
 from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata
 
 @_disallow_in_graph_helper(throw_if_not_allowed=False)
 def distributed_stage(stage_id, actor_id=None, mb=None, optim=None):
+    rank = int(os.environ['PIPER_RANK'])
+    world_size = int(os.environ['PIPER_WORLD_SIZE'])
+    num_stages = int(os.environ.get('NUM_STAGES', '1'))
+    
     if actor_id is None:
         actor_id = stage_id
+    
+    # Calculate unique actor_id for this DP rank
+    # actor_id = stage_id + rank * num_stages
+    original_stage_id = actor_id  # Store the stage_id without DP offset
+    #actor_id += (rank * num_stages)
+    
+    print(f"[distributed_stage] piper_metadata id: {id(piper_metadata)}, actors dict id: {id(piper_metadata['actors'])}")
+    
     piper_metadata['current_mb'] = mb
     if actor_id not in piper_metadata['actors']:
-        actor = StageActor.options(num_gpus=1).remote(actor_id, optim_fn=optim)
+        actor = StageActor.options(num_gpus=1).remote(
+            actor_id, 
+            optim_fn=optim,
+            dp_rank=rank,
+            dp_world_size=world_size,
+            stage_id_for_dp=original_stage_id,
+            num_stages=2 # TODO: make this line somehow better than hardcoding...
+        )
         piper_metadata['actors'][actor_id] = actor
         piper_metadata['stage_fns'][stage_id] = None
+        print(f"[distributed_stage] Created actor {actor_id}, actors now: {piper_metadata['actors']}")
     piper_metadata['current_stage'] = stage_id
     piper_metadata['current_actor'] = actor_id
 

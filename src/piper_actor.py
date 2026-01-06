@@ -6,13 +6,16 @@ import time
 from torch._guards import CompileId
 from collections import defaultdict
 from .piper_utils import deserialize_graphmodule, piper_metadata
+import torch.distributed as dist
+
+from typing import Callable
 
 torch.set_float32_matmul_precision('high')
 
 @ray.remote
 class StageActor:
     # def __init__(self, id, compiler_fn, example_inputs, parameters, optim_fn=None):
-    def __init__(self, id, optim_fn=None):
+    def __init__(self, id, optim_fn=None, dp_rank=0, dp_world_size=1, num_stages = 1, stage_id_for_dp=None):
         torch.manual_seed(0)
 
         self.log = logging.getLogger(__name__)
@@ -24,6 +27,16 @@ class StageActor:
 
         self.actor_id = id
         self.optim_fn = optim_fn
+        
+        # Data parallel attributes
+        self.dp_rank = dp_rank
+        self.dp_world_size = dp_world_size
+        self.num_stages = num_stages
+        self.stage_id_for_dp = stage_id_for_dp  if stage_id_for_dp is not None else id# Stage ID without DP offset
+        self.dp_process_group = None  # Will be set later
+        self.stage_dp_group = None
+        self.global_stage = self.num_stages * self.dp_rank + self.actor_id
+        self.global_world_size = self.num_stages * self.dp_world_size
 
         self.input = None
         self.truth = None
@@ -54,6 +67,11 @@ class StageActor:
         end = time.perf_counter()
         self.log.debug(f"__init__ took {(end-start)*1000:.2f}ms")
 
+        self.log.info(f"About to join a distributed process group")
+        if "CUDA_VISIBLE_DEVICES" in os.environ:
+            print(f"[PIPER RANK {self.dp_rank}] CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+       
+
     def id(self):
         return self.actor_id
 
@@ -64,6 +82,31 @@ class StageActor:
     def send_truth(self, tensor):
         self.truth = tensor.to('cuda')
         return "done"
+
+    # this is for making sure every StageActor process joins the big process group
+    # After everyone joins. then each StageActor can create their own Stage Group
+    @ray.method
+    def join_process_group(self):
+        if "CUDA_VISIBLE_DEVICES" in os.environ:
+            print(f"[PIPER RANK {self.dp_rank}] CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        print(f"Stage {self.stage_id_for_dp} on dp_rank {self.dp_rank} w/ global stage id {self.global_stage} is joining the large torch process group!")
+        master_addr = os.environ.get('PIPER_MASTER_ADDR', "127.0.0.1")
+        master_port = os.environ.get('PIPER_MASTER_PORT', "10000")
+        #init_method = f"tcp://{master_addr}:{master_port}"
+        init_method = f"tcp://{master_addr}:{master_port}"
+        dist.init_process_group("nccl", init_method=init_method, rank=self.global_stage, world_size=self.global_world_size)
+        self.log.info(f"Global Stage {self.global_stage} joined the DP group! Now about to join the stage_process_groups...")
+        self.join_stage_process_group()
+    
+    # for each Stage i in a dp_rank, create a new process group consisting of only actors of that particular stage
+    def join_stage_process_group(self):
+        # every process needs to participate in every subgroup creation
+        for stage in range(self.num_stages):
+            relevant_ranks = [(stage + self.num_stages * i) for i in range(self.dp_world_size)]
+            process_group = dist.new_group(ranks=relevant_ranks, backend='nccl')
+            if self.global_stage % self.num_stages == stage:
+                self.stage_dp_group = process_group
+                print(f"{self.global_stage} has joined its own stage dp group!")
 
     def compile_graph(self, stage_id, gm_data, compiler_fn, graphargs, input_idxs):
         self.log.info(f"Compiling graph on actor {self.actor_id}. stage id: {stage_id}. inputs: {len(graphargs)}")
@@ -294,7 +337,31 @@ class StageActor:
                 self.bwd_objs[stage_id] = torch.ones_like(ret[0])
         return ret + ret
 
+    def set_dp_process_group(self, group):
+        """Set the torch.distributed process group for this actor's DP synchronization."""
+        self.dp_process_group = group
+        self.log.info(f"Actor {self.actor_id}: Set DP process group for stage {self.stage_id_for_dp}")
+        return "done"
+
+    def synchronize_gradients(self):
+        """Synchronize gradients across all DP ranks for this stage using all-reduce."""
+        if self.stage_dp_group is None or self.dp_world_size is None or self.dp_world_size <= 1:
+            # No synchronization needed for single DP rank
+            return
+        
+        self.log.info(f"Actor {self.actor_id}: Synchronizing gradients for stage {self.stage_id_for_dp}")
+        
+        # Iterate over all stages on this actor and synchronize their parameters
+        for stage_id, parameters in self.parameters.items():
+            for param in parameters:
+                if param is not None and param.grad is not None:
+                    # Use AVG to average gradients across DP ranks
+                    dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.stage_dp_group)
+
     def update(self, *done_mbs):
+        # first need to synchronize the gradients
+        #print("UPDATE IS HAPPENING RIGHT NOW YOU IMBECILE!")
+        self.synchronize_gradients()
         self.log.debug(f"Calling update on actor {self.actor_id}")
         
         if self.tracing:
@@ -398,3 +465,60 @@ class StageActor:
             objs = [obj + 1]
         self.objs = objs
         return "done"
+
+# TODO: when scheduling the run_dp_rank processes to GPUs, set the CUDA_VISIBLE_DEVICES for these processes to be disjoint i.e rank 0 only sees GPU 0, rank 1 only sees GPU 1, etc...
+@ray.remote(num_gpus=0.01)
+def run_dp_rank(rank, world_size, master_addr, master_port, num_stages, training_func: Callable, *args, **kwargs):
+    print("Inside the run_dp_rank function")
+    def wrapped_fn(*args, **kwargs):
+            print(f"inside the wrapped_fn that is being run on rank {rank}")
+            os.environ['PIPER_RANK'] = str(rank)
+            os.environ['PIPER_WORLD_SIZE'] = str(world_size)
+            os.environ['PIPER_NUM_STAGES'] = str(num_stages)
+            os.environ['PIPER_MASTER_ADDR'] = str(master_addr)
+            os.environ['PIPER_MASTER_PORT'] = str(master_port)
+            #init_method = f"tcp://{master_addr}:{master_port}"
+            #print(f"on rank {rank} about to init the process group")
+            #dist.init_process_group("nccl", init_method=init_method, rank=rank, world_size=world_size)
+            #print(f"initialized {rank}!")
+            res = training_func(*args, **kwargs)
+            #dist.destroy_process_group()
+            return res
+    return wrapped_fn(*args, **kwargs)
+
+def find_free_port():
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("0.0.0.0", 0))
+        port = s.getsockname()[1]
+    return port
+
+@ray.remote
+class PiperProgramCoordinator:
+    """ Central Actor that Coordinates all the DP replicas of a single pipeline"""
+    def __init__(self, dp_size: int = 2, num_stages: int = 1):
+        self.dp_size = dp_size
+        self.num_stages = num_stages
+        print(f"Created the PiperProgramCoordinator with dp_size={self.dp_size}, num_stages={self.num_stages}")
+        self.master_port = find_free_port()
+    
+    def run_program(self, training_func: Callable, *args, **kwargs):
+        print("In the run_program method in the ProgramCoordinator")
+        if torch.cuda.is_available():
+            print("CUDA is available")
+        else:
+            print("CUDA is NOT available")
+        ret_vals_handles, ret_vals = [], []
+        for rank in range(self.dp_size):
+            print(f"Dispathching the run_dp_rank function for rank {rank}")
+            ret_handle = run_dp_rank.remote(rank, self.dp_size, "127.0.0.1", self.master_port, self.num_stages, training_func, *args, **kwargs)
+            print(f"Dispatched for rank {rank}")
+            ret_vals_handles.append(ret_handle)
+        for ret_val_handle in ret_vals_handles:
+            ret_vals.append(ray.get(ret_val_handle))
+        return ret_vals
+    
+
+            
+
+
