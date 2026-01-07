@@ -3,7 +3,8 @@ import torch
 from .piper_utils import piper_metadata, RemoteTensor
 from torch._dynamo.backends.debugging import eager
 import threading
-from .piper_utils import piper_metadata
+import gc
+
 
 def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, backend=None):
     """
@@ -42,6 +43,6 @@ def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, b
         list(piper_metadata.actors.values()),
         backend="nccl")
     
-    # print("[PIPER] Started NCCL group")
+    print(f"[PIPER] Started NCCL group with {len(piper_metadata.actors)} actors")
 
     return compiled

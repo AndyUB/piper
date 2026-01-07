@@ -9,6 +9,9 @@ from collections import defaultdict
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 from typing import Any, Optional
 
+DEBUG_LOGGING = False
+
+
 """
 Piper thread local storage for tracking Piper actors, stages, and microbatches
 """

@@ -3,10 +3,11 @@ import torch
 import logging
 import os
 import time
+import gc
 from torch._guards import CompileId
 from torch.nn import Parameter
 from collections import defaultdict
-from .piper_utils import deserialize_graphmodule, piper_metadata
+from .piper_utils import deserialize_graphmodule, piper_metadata, DEBUG_LOGGING
 
 # torch._dynamo.config.compiled_autograd = True
 def backward_backend(gm, example_inputs, **kwargs):
@@ -138,7 +139,8 @@ class PiperActor:
     @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.log.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id}")
-        # print(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id}")
+        if DEBUG_LOGGING:
+            print(f"[PIPER] Thread {mb_idx} running forward {stage_id}")
 
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
@@ -229,10 +231,17 @@ class PiperActor:
             else:
                 self.fwd_objs[stage_id] = torch.ones_like(out)
         
+        # Memory cleanup: force garbage collection to free up memory from intermediate computations
+        # gc.collect()
+        # if torch.cuda.is_available():
+        #     torch.cuda.empty_cache()
+        
         return out
 
     def forward_no_nccl(self, stage_id: int, mb_idx: int, *args):
         self.log.info(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} with {len(args)} args")
+        if DEBUG_LOGGING:
+            print(f"[PIPER] Thread {mb_idx} running cpu forward {stage_id}")
 
         def pre_loaded_input(param):
             if param is None:
@@ -274,13 +283,20 @@ class PiperActor:
         for i in self.input_idxs[stage_id]:
             self.parameters[stage_id][i] = None
         del args
+        
+        # Memory cleanup: force garbage collection to free up memory
+        # gc.collect()
+        # if torch.cuda.is_available():
+        #     torch.cuda.empty_cache()
+        
         return out
 
     @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.log.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}")
-        # print(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id}")
-        
+        if DEBUG_LOGGING:
+            print(f"[PIPER] Thread {mb_idx} running backward {stage_id}")
+
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
             backward_start_event = torch.cuda.Event(enable_timing=True)
@@ -308,6 +324,8 @@ class PiperActor:
             loss = loss_fn(activation, labels)
             loss.backward()
             self.loss.append(loss.item())
+            # Clean up loss tensor after extracting item
+            del loss
         # if not the last stage, backprop on the stored activation given 
         # the input gradient from the subsequent stage
         else:
@@ -346,6 +364,11 @@ class PiperActor:
             self.trace_data[stage_id]['backward']['peak_memory'].append(backward_peak_memory_gb)
             if stage_id != 0:
                 self.bwd_objs[stage_id] = torch.ones_like(ret[0])
+        
+        # Memory cleanup: force garbage collection to free up memory from backward pass
+        # gc.collect()
+        # if torch.cuda.is_available():
+        #     torch.cuda.empty_cache()
         
         return ret + ret
 

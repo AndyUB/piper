@@ -3,7 +3,7 @@ import torch
 from .piper_actor import PiperActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
-from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata
+from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, DEBUG_LOGGING
 import threading
 
 
@@ -78,8 +78,6 @@ def piper(gm, example_inputs, **kwargs):
         )
     )
 
-    # print(f"Thread {threading.get_native_id()} compiled stage {stage_id}")
-
     # get a list of fake tensor outputs from the fx.Graph
     def symint_to_int(x):
         return int(x) if isinstance(x, torch.SymInt) else x
@@ -87,8 +85,6 @@ def piper(gm, example_inputs, **kwargs):
         return torch.tensor(x) if isinstance(x, int) else x
     fakes = gm(*list(map(symint_to_int, serializable_examples)))
     fakes = list(map(int_to_tensor, fakes))
-
-    # print(f"[Compiler] graph {stage_id} outputs: {[t.shape for t in fakes]}")
 
     # wait for a signal to run this graph if it's the first graph of the stage
     first_graph_of_stage = piper_metadata.first_graph_of_stage
@@ -102,21 +98,25 @@ def piper(gm, example_inputs, **kwargs):
         from .piper_utils import events_tls
 
         mb_idx = events_tls.mb_idx
-        # print(f"[Child] Waiting to call {stage_id} mb {mb_idx}")
 
         # wait for a signal to run the partial graph
         if first_graph_of_stage:
+            if DEBUG_LOGGING:
+                print(f"[PIPER] Thread {mb_idx} waiting for stage {stage_id}")
             events_tls.events[stage_id].wait()
-            # print(f"Thread {threading.get_native_id()} running stage {stage_id} mb {mb_idx}")
+            if DEBUG_LOGGING:
+                print(f"[PIPER] Thread {mb_idx} running stage {stage_id}")
 
         # Mutex ensures that only one thread submits a task to this actor at a time
+        if DEBUG_LOGGING:
+            print(f"[PIPER] Thread {mb_idx} waiting for actor mutex {actor_id}")
         with events_tls.actor_mutexes[actor_id]:
+            if DEBUG_LOGGING:
+                print(f"[PIPER] Thread {mb_idx} got actor mutex {actor_id}")
 
             # clear the event for the next stage
             if first_graph_of_stage:
                 events_tls.events[stage_id].clear()
-
-            # print(f"[Child] Calling {stage_id} mb {mb_idx}")
 
             # ignore model parameter arguments (stored on the actor)
             input_tensors_only = []
