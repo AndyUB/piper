@@ -1,25 +1,40 @@
 import ray
 import torch
+import os
 from .piper_actor import PiperActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
-from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata
+from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger
 import threading
 
+logger = create_logger("piper_backend", "INFO")
 
 """
 Annotation for stage boundaries, causes torch.compile graph break
 and sets metadata appropriately at compile time and runtime
 """
-
 @_disallow_in_graph_helper(throw_if_not_allowed=False)
 def distributed_stage(stage_id, actor_id=None, optim=None):
-    # print(f"Thread {threading.get_native_id()} entering distributed_stage {stage_id}")
+    dp_rank = int(os.environ['PIPER_DP_RANK'])
+    world_size = int(os.environ['PIPER_WORLD_SIZE'])
+    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
+
     if actor_id is None:
         actor_id = stage_id
+
+    global_rank = dp_rank * dp_degree + actor_id
+
     if actor_id not in piper_metadata.actors:
-        actor = PiperActor.remote(actor_id, optim_fn=optim)
+        logger.debug(f"Initializing actor for global rank {global_rank}")
+        actor = PiperActor.options(num_gpus=1).remote(
+            actor_id, 
+            world_size,
+            dp_rank=dp_rank, 
+            dp_degree=dp_degree,
+            optim_fn=optim, 
+        )
         piper_metadata.actors[actor_id] = actor
+    
     piper_metadata.current_stage = stage_id
     piper_metadata.current_actor = actor_id
     piper_metadata.first_graph_of_stage = True
@@ -32,7 +47,6 @@ for execution
 
 @register_backend
 def piper(gm, example_inputs, **kwargs):
-
     placeholders = gm.graph.find_nodes(op="placeholder")
     graphargs = [node.meta["grapharg"] for node in placeholders]
 
@@ -68,6 +82,9 @@ def piper(gm, example_inputs, **kwargs):
     stage_id = piper_metadata.current_stage
     actor_id = piper_metadata.current_actor
     actor = piper_metadata.actors[actor_id]
+    dp_rank = int(os.environ['PIPER_DP_RANK'])
+    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
+    global_rank = dp_rank * dp_degree + actor_id
     ray.get(
         actor.compile_graph.remote(
             stage_id,
@@ -78,8 +95,6 @@ def piper(gm, example_inputs, **kwargs):
         )
     )
 
-    # print(f"Thread {threading.get_native_id()} compiled stage {stage_id}")
-
     # get a list of fake tensor outputs from the fx.Graph
     def symint_to_int(x):
         return int(x) if isinstance(x, torch.SymInt) else x
@@ -87,8 +102,6 @@ def piper(gm, example_inputs, **kwargs):
         return torch.tensor(x) if isinstance(x, int) else x
     fakes = gm(*list(map(symint_to_int, serializable_examples)))
     fakes = list(map(int_to_tensor, fakes))
-
-    # print(f"[Compiler] graph {stage_id} outputs: {[t.shape for t in fakes]}")
 
     # wait for a signal to run this graph if it's the first graph of the stage
     first_graph_of_stage = piper_metadata.first_graph_of_stage
@@ -102,21 +115,21 @@ def piper(gm, example_inputs, **kwargs):
         from .piper_utils import events_tls
 
         mb_idx = events_tls.mb_idx
-        # print(f"[Child] Waiting to call {stage_id} mb {mb_idx}")
 
         # wait for a signal to run the partial graph
         if first_graph_of_stage:
+            logger.debug(f"Thread {mb_idx} global rank {global_rank} waiting for stage {stage_id}")
             events_tls.events[stage_id].wait()
-            # print(f"Thread {threading.get_native_id()} running stage {stage_id} mb {mb_idx}")
+            logger.debug(f"Thread {mb_idx} global rank {global_rank} running stage {stage_id}")
 
         # Mutex ensures that only one thread submits a task to this actor at a time
+        logger.debug(f"Thread {mb_idx} global rank {global_rank} waiting for actor mutex {actor_id}")
         with events_tls.actor_mutexes[actor_id]:
+            logger.debug(f"Thread {mb_idx} global rank {global_rank} got actor mutex {actor_id}")
 
             # clear the event for the next stage
             if first_graph_of_stage:
                 events_tls.events[stage_id].clear()
-
-            # print(f"[Child] Calling {stage_id} mb {mb_idx}")
 
             # ignore model parameter arguments (stored on the actor)
             input_tensors_only = []

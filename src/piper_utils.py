@@ -2,12 +2,40 @@ import ray
 import torch
 import uuid
 import inspect
+import logging
 import json, importlib, operator
 import torch.fx as fx
 import threading
 from collections import defaultdict
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 from typing import Any, Optional
+
+"""
+Logger utility
+"""
+
+def create_logger(name: str, log_level: str):
+    match log_level:
+        case "DEBUG":
+            log_level = logging.DEBUG
+        case "INFO":
+            log_level = logging.INFO
+        case "WARNING":
+            log_level = logging.WARNING
+        case "ERROR":
+            log_level = logging.ERROR
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        handler.setFormatter(logging.Formatter(fmt))
+        logger.addHandler(handler)
+        logger.propagate = False
+    
+    return logger
 
 """
 Piper thread local storage for tracking Piper actors, stages, and microbatches
@@ -27,6 +55,7 @@ class PiperMetadata:
     current_stage = None
     current_actor = None
     first_graph_of_stage = None
+    parallelism_configs = {'dp': 1}
 
 piper_metadata = PiperMetadata()
 
