@@ -132,7 +132,6 @@ def main(args):
         torch.manual_seed(dp_rank)
         x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
         torch.manual_seed(0)
-        print(f"DP rank {dp_rank} input data: {x[:10]}")
 
     model = Transformer(llama_config, seq_len, device)
     model.to(device)
