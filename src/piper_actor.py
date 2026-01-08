@@ -463,6 +463,9 @@ class PiperActor:
             'peak_memory_delta': [],
             'peak_memory': []
         }
+    
+    def get_trace_data(self) -> dict:
+        return self.trace_data
 
     def set_tracing(self, enabled: bool) -> None:
         """

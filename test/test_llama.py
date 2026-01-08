@@ -32,7 +32,7 @@ def parse_args():
                         help='Number of stages (default: 2)')
     parser.add_argument('--devices', type=int, default=2,
                         help='Number of devices/stages (default: 2)')
-    parser.add_argument('--dp_degree', type=int, default=2,
+    parser.add_argument('--dp_degree', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size (default: 16)')
@@ -162,6 +162,8 @@ def main(args):
     ray.get(actors[0].send_input.remote(x))
     ray.get(actors[num_actors-1].send_truth.remote(y))
 
+    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
+
     # Definte one iteration of the schedule
     def iter_schedule():
         out = piper_exec(compiled, schedule, [None], None, loss_fn, num_mbs, num_stages)
@@ -176,8 +178,9 @@ def main(args):
     for _ in range(warmup):
         iter_schedule()
 
-    # Clear timing data
+    # Clear tracing data
     ray.get([actor.clear_trace_data.remote() for actor in actors.values()])
+    ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
 
     # Time training steps
     start = time.perf_counter()
@@ -189,20 +192,15 @@ def main(args):
         # Ensure that model weights are synchronized after training
         ray.get([actor.verify_weights.remote() for actor in actors.values()])
     
-    print("THROUGHPUT:")
-    print(f"\ttime: {(end - start)*1e3/iters:.0f} ms")
+    print(f"Iteration time: {(end - start)*1e3/iters:.0f} ms")
     print(
-        f"\t{args.schedule} throughput: {(iters * batch_size * num_mbs * seq_len)/(end - start):.0f} tokens/sec"
+        f"{args.schedule} throughput: {(iters * batch_size * num_mbs * seq_len)/(end - start):.0f} tokens/sec"
     )
 
-    ray.timeline(f"out/{args.model}-pp{num_devices//args.dp_degree}-dp{args.dp_degree}-{args.schedule}.json")
-
     if args.tracing:
-        # Get peak memory stats
-        ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
-        iter_schedule()
+        # Get overall peak memory
         peak_memory = ray.get([actor.get_peak_memory.remote() for actor in actors.values()])
-        print("PEAK MEMORY:")
+        print("Peak memory:")
         for actor_id, peak_memory in enumerate(peak_memory):
             print(f"\tActor {actor_id}: {peak_memory:.1f} GB")
 
@@ -211,7 +209,8 @@ def main(args):
             trace_data = ray.get(actor.get_trace_data.remote())
             actor_id = ray.get(actor.id.remote())
             print_mean_timing_data(trace_data, actor_id)
-        ray.timeline(f"out/{args.model}-pp{num_devices}-{args.schedule}.json")
+        
+        ray.timeline(f"out/{args.model}-pp{num_devices//args.dp_degree}-dp{args.dp_degree}-{args.schedule}.json")
 
 if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
