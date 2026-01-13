@@ -15,7 +15,7 @@ CLEANUP_MEMORY = False
 
 @ray.remote
 class PiperActor:
-    def __init__(self, actor_id, world_size, dp_rank=0, dp_degree=1, optim_fn=None):
+    def __init__(self, actor_id, world_size, dp_rank=0, dp_degree=1, pp_degree=1, optim_fn=None):
         self.logger = create_logger("piper_actor", "INFO")
         
         start = time.perf_counter()
@@ -27,8 +27,15 @@ class PiperActor:
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
         self.world_size = world_size
-        self.global_rank = dp_rank * dp_degree + actor_id
         self.dp_group = None
+        self.pp_degree = pp_degree
+
+        if pp_degree == 1:
+            self.global_rank = dp_rank
+        elif dp_degree == 1:
+            self.global_rank = actor_id
+        else:
+            self.global_rank = dp_rank * dp_degree + actor_id
 
         self.logger.info(f"Initializing Ray actor {actor_id} global rank {self.global_rank} with PID: {os.getpid()}")
 
