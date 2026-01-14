@@ -3,10 +3,13 @@ import torch
 import logging
 import os
 import time
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from torch._guards import CompileId
 from torch.nn import Parameter
+from torch.autograd.graph import GradientEdge, Node
 from collections import defaultdict
 from piper.utils import deserialize_graphmodule, piper_metadata
+from piper.backward_utils import get_param_groups, construct_reverse_graph, _get_grad_fn_or_grad_acc
 
 torch.set_float32_matmul_precision('high')
 
@@ -62,9 +65,8 @@ class StageActor:
         self.activation = defaultdict(dict)
         # accumuate loss for each microbatch
         self.loss = []
-
-        # save upstream gradients for split backward
-        # self.saved_upstream = defaultdict(dict)
+        # stage_id -> mb_idx -> param_groups
+        self._bw_param_groups = defaultdict(dict)
 
         # Timing infrastructure
         self.tracing = False  # Toggle for timing and memory tracing
@@ -362,7 +364,6 @@ class StageActor:
 
     def update(self, *done_mbs):
         self.log.info(f"Calling update on actor {self.actor_id}")
-        # print("UPDATE FOR STAGE ", self.actor_id, " MBS ", done_mbs)
         
         if self.tracing:
             start_event = torch.cuda.Event(enable_timing=True)
@@ -374,10 +375,7 @@ class StageActor:
             start_event.record()
         
         assert self.optim_fn
-        # print("len(self.optims): ", len(self.optims))
         for _, optim in self.optims.items():
-            # print("GRAD STEP")
-            # print(optim)
             optim.step()
             optim.zero_grad(set_to_none=True)
         losses = self.loss
@@ -469,7 +467,200 @@ class StageActor:
         self.objs = objs
         return "done"
     
-    # Debugging param dump function #
+
+    def backward_input(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+        is_last_stage = loss_fn is not None
+        activation = self.activation[stage_id][mb_idx]
+
+        if is_last_stage:
+            labels = self.truth if self.truth is not None else inp[0]
+            loss = loss_fn(activation, labels)
+            self.loss.append(loss)
+
+            activation_or_loss = loss
+            upstream_grads = torch.ones_like(loss)
+
+        else:
+            activation_or_loss = activation
+            upstream_grads = inp
+
+        # In first stage, we treat the backward_input call like a NOOP
+        if stage_id == 0:
+            gx = torch.zeros_like(activation)
+            return [gx, upstream_grads]
+
+        stage_input = self.prev_activation[stage_id][mb_idx]
+        stage_params = [p for p in self.parameters[stage_id] if p is not None]
+
+        output_nodes = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [activation_or_loss]) if n is not None]
+        input_nodes  = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [stage_input]) if n is not None]
+        param_nodes   = [n for n in (_get_grad_fn_or_grad_acc(p) for p in stage_params) if n is not None]
+
+        reverse_edges = construct_reverse_graph(output_nodes)
+        param_groups = get_param_groups(input_nodes, param_nodes, reverse_edges)
+
+        # Hooks to capture grads at intermediate nodes. For use in backward_weight
+        handles = []
+        for pg in param_groups:
+            inters = pg["intermediates"]
+            if not inters:
+                continue
+
+            pg["grads"] = [None] * len(inters)
+
+            for i, inter in enumerate(inters):
+                def make_hook(group: Dict[str, Any], idx: int):
+                    def hook(grad_inputs):
+                        group["grads"][idx] = grad_inputs
+                    return hook
+                handles.append(inter.register_prehook(make_hook(pg, i)))
+
+        gx = torch.autograd.grad(
+            outputs=activation_or_loss,
+            inputs=stage_input,
+            grad_outputs=upstream_grads,
+            retain_graph=True,
+            allow_unused=True,
+        )
+
+        gx = gx[0] # Take the gx gradient out of the tuple returned by autograd.grad
+        if gx is not None and stage_input.requires_grad:
+            if stage_input.grad is None:
+                stage_input.grad = gx
+            else:
+                stage_input.grad.add_(gx)
+
+        # Free output tensors between the output nodes and the intermediate nodes
+        if not isinstance(activation_or_loss, list):
+            activation_or_loss = [activation_or_loss]
+
+        for t in activation_or_loss:
+            t.detach_()
+
+        for h in handles:
+            h.remove()
+
+        self._bw_param_groups[stage_id][mb_idx] = param_groups
+
+        return [gx, upstream_grads]
+
+
+    def backward_weight(self, stage_id: int, mb_idx: int, upstream_ref, loss_fn=None):
+        stage_params = [p for p in self.parameters[stage_id] if p is not None]
+
+        # right now, we're only keeping gx to enforce temporal dependency
+        # upstream is only required for the stage 0 case
+        gx = ray.get(upstream_ref[0])
+        upstream = ray.get(upstream_ref[1])
+
+        # Special case to handle stage 0 since we don't create param_groups
+        if stage_id == 0:
+            is_last_stage = loss_fn is not None
+            activation = self.activation[stage_id][mb_idx]
+
+            if is_last_stage:
+                labels = self.truth if self.truth is not None else None
+                loss = loss_fn(activation, labels)
+
+                gparams = torch.autograd.grad(
+                    outputs=loss,
+                    inputs=stage_params,
+                    retain_graph=False,
+                )
+
+            else:
+                gparams = torch.autograd.grad(
+                    outputs=activation,
+                    inputs=stage_params,
+                    grad_outputs=upstream,
+                    retain_graph=False,
+                )
+
+            assert len(gparams) == len(stage_params), (
+                f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(stage_params)}"
+            )
+            
+            for p, g in zip(stage_params, gparams):
+                if p.grad is None:
+                    p.grad = g.clone()
+                else:
+                    p.grad.add_(g)
+
+            del self.activation[stage_id][mb_idx]
+
+            return [None] + ["done"]
+
+        grad_acc_to_weight: Dict[Node, Tuple[Parameter, int]] = {}
+        for param in stage_params:
+            node = _get_grad_fn_or_grad_acc(param)
+            grad_acc_to_weight[node] = param
+
+        param_groups = self._bw_param_groups[stage_id][mb_idx]
+
+        # Perform the weight updates separately for each param_group
+        for g in param_groups:
+            inters: List[Node] = g.get("intermediates", [])
+            grads_list = g.get("grads", None)
+
+            # Groups with no intermediates: nothing to do via this mechanism
+            if not inters or grads_list is None:
+                continue
+
+            valid_edges: List[GradientEdge] = []
+            valid_grad_outs: List[torch.Tensor] = []
+
+            for inter, grad_inputs in zip(inters, grads_list):
+                if grad_inputs is None:
+                    continue
+
+                gs = [x for x in grad_inputs if x is not None]
+                if not gs:
+                    continue
+                
+                summed = sum(gs)
+
+                valid_edges.append(GradientEdge(inter, 0))
+                valid_grad_outs.append(summed)
+
+            del g["intermediates"]
+
+            if not valid_edges:
+                continue
+
+            mapped_param_nodes = [p for p in g["params"] if p in grad_acc_to_weight]
+            if not mapped_param_nodes:
+                continue
+
+            weight_edges = tuple(GradientEdge(p, 0) for p in mapped_param_nodes)
+
+            gparams = torch.autograd.grad(
+                outputs=valid_edges,
+                inputs=weight_edges,
+                grad_outputs=valid_grad_outs,
+                retain_graph=False,
+            )
+
+            del g["grads"]
+
+            assert len(gparams) == len(mapped_param_nodes), (
+                f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(mapped_param_nodes)}"
+            )
+            
+            for param_node, dw in zip(g["params"], gparams):
+                if dw is None:
+                    continue
+
+                weight = grad_acc_to_weight[param_node]
+
+                if weight.grad is None:
+                    weight.grad = dw
+                else:
+                    weight.grad.add_(dw)
+
+        return [None] + ["done"]
+
+
+    ##### Debugging param dump function #####
     def get_param_grads(self, stage_id: int):
         stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
         return [p.grad.detach().clone().cpu() if p.grad is not None else None
@@ -478,132 +669,6 @@ class StageActor:
     def get_params(self, stage_id: int):
         stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
         return [p.detach().clone().cpu() for p in stage_params]
-    ######
-
-    def backward_input(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
-        self.log.info(f"Calling backward_input {stage_id} mb {mb_idx} on actor {self.actor_id}")
-        # print("BACKWARD INPUT FOR STAGE ", stage_id, " MB ", mb_idx)
-        is_last_stage = loss_fn is not None
-        activation = self.activation[stage_id][mb_idx]
-
-        if stage_id == 0:
-            if is_last_stage:
-                labels = self.truth if self.truth is not None else inp[0]
-                loss = loss_fn(activation, labels)
-                self.loss.append(loss)
-                upstream = torch.ones_like(loss)
-                # print("UPSTREAM FROM LAST STAGE: ", upstream)
-                # print("UPSTREAM SHAPE FROM LAST STAGE: ", upstream.shape)
-                # self.saved_upstream[stage_id][mb_idx] = upstream
-            else:
-                # upstream = inp[0]
-                upstream = inp
-                # self.saved_upstream[stage_id][mb_idx] = upstream
-            gx = torch.zeros_like(activation)
-            # print(f"INPUT GX on stage {stage_id} mb {mb_idx}: {gx}")
-            # print(f"INPUT GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
-            # print(f"INPUT UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
-            # print(f"INPUT UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
-            return [gx, upstream]
-
-        stage_input = self.prev_activation[stage_id][mb_idx]
-
-        if is_last_stage:
-            labels = self.truth if self.truth is not None else inp[0]
-            loss = loss_fn(activation, labels)
-            self.loss.append(loss)
-
-            upstream = torch.ones_like(loss)
-
-            gx = torch.autograd.grad(
-                outputs=loss,
-                inputs=stage_input,
-                grad_outputs=upstream,
-                retain_graph=True,
-            )[0]
-
-        else:
-            # upstream = inp[0]
-            upstream = inp
-
-            gx = torch.autograd.grad(
-                outputs=activation,
-                inputs=stage_input,
-                grad_outputs=upstream,
-                retain_graph=True,
-            )[0]
-
-        # self.saved_upstream[stage_id][mb_idx] = upstream
-
-        # Change to also return upstream for temporal dependency
-        # print(f"INPUT GX on stage {stage_id} mb {mb_idx}: {gx}")
-        # print(f"INPUT GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
-        # print(f"INPUT UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
-        # print(f"INPUT UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
-
-        return [gx, upstream]
-
-
-    def backward_weight(self, stage_id: int, mb_idx: int, upstream_ref, loss_fn=None):
-        # print("BACKWARD WEIGHT FOR STAGE ", stage_id, " MB ", mb_idx)
-        self.log.info(f"Calling backward_weight {stage_id} mb {mb_idx} on actor {self.actor_id}")
-
-        is_last_stage = loss_fn is not None
-        activation = self.activation[stage_id][mb_idx]
-
-        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
-
-        # print(f"UPSTREAM: {upstream_ref}")
-        # print(f"UPSTREAM[0]: {upstream_ref[0]}")
-        # print(f"UPSTREAM[1]: {upstream_ref[1]}")
-
-        gx = ray.get(upstream_ref[0])
-        upstream = ray.get(upstream_ref[1])
-        # print(f"RESOLVED UPSTREAM on stage {stage_id} mb {mb_idx}: {upstream}")
-        # print(f"RESOLVED UPSTREAM SHAPE on stage {stage_id} mb {mb_idx}: {upstream.shape}")
-        # print(f"RESOLVED GX on stage {stage_id} mb {mb_idx}: {gx}")
-        # print(f"RESOLVED GX SHAPE on stage {stage_id} mb {mb_idx}: {gx.shape}")
-
-        if is_last_stage:
-            labels = self.truth if self.truth is not None else None
-            loss = loss_fn(activation, labels)
-
-            # upstream = self.saved_upstream[stage_id][mb_idx]
-
-            gparams = torch.autograd.grad(
-                outputs=loss,
-                inputs=stage_params,
-                # grad_outputs=upstream,
-                retain_graph=False,
-            )
-
-        else:
-            # upstream = self.saved_upstream[stage_id][mb_idx]
-
-            gparams = torch.autograd.grad(
-                outputs=activation,
-                inputs=stage_params,
-                grad_outputs=upstream,
-                retain_graph=False,
-            )
-
-        assert len(gparams) == len(stage_params), (
-            f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(stage_params)}"
-        )
-        
-        for p, g in zip(stage_params, gparams):
-            if p.grad is None:
-                p.grad = g.clone()
-            else:
-                p.grad.add_(g)
-
-        del self.activation[stage_id][mb_idx]
-        # del self.saved_upstream[stage_id][mb_idx]
-        # del self.prev_activation[stage_id][mb_idx]
-
-        return [gx] + ["done"]
-
-
-
+    ########
 
 

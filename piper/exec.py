@@ -282,8 +282,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                             .backward.options(num_returns=num_bwd_targets*2)
                             .remote(stage_id, mb_idx, bwd_ref)
                         )
-
-                ############ ZB Modification ###########
                 elif task_type == TaskType.BACKWARD_INPUT:
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
                     if num_bwd_targets == 0:
@@ -357,7 +355,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, split_fwd_fns: 
                             loss_fn=loss_fn if is_last_stage else None,
                         )
                     )
-                ###########################################
                 else:
                     raise ValueError(f"Unknown task type: {task_type}")
     return ret
