@@ -26,7 +26,7 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
 
     if actor_id not in piper_metadata.actors:
         logger.debug(f"Initializing actor for global rank {global_rank}")
-        actor = PiperActor.options(num_gpus=1).remote(
+        actor = PiperActor.options(num_gpus=1.0).remote(
             actor_id, 
             world_size,
             dp_rank=dp_rank, 
@@ -78,6 +78,8 @@ def piper(gm, example_inputs, **kwargs):
     # serialize the fx.Graph
     payload = serialize_graphmodule(gm)
 
+    # gm.print_readable()
+
     # send the fx.Graph and model attributes to the actor
     stage_id = piper_metadata.current_stage
     actor_id = piper_metadata.current_actor
@@ -85,9 +87,11 @@ def piper(gm, example_inputs, **kwargs):
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
     global_rank = dp_rank * dp_degree + actor_id
+    subgraph_id = id(gm)
     ray.get(
         actor.compile_graph.remote(
             stage_id,
+            subgraph_id,
             payload,
             torch._dynamo.backends.debugging.eager,
             serializable_examples,
@@ -140,7 +144,9 @@ def piper(gm, example_inputs, **kwargs):
             # track stage dependencies
             for arg in args:
                 if isinstance(arg, RemoteTensor):
-                    piper_metadata.dag.add((arg.get_stage_id(), stage_id))
+                    prev_stage = arg.get_stage_id()
+                    if prev_stage != stage_id:
+                        piper_metadata.dag.add((prev_stage, stage_id))
 
             # get Ray ObjectRefs from RemoteTensors
             def unwrap(x):
@@ -149,10 +155,10 @@ def piper(gm, example_inputs, **kwargs):
 
             if piper_metadata.currently_compiling:
                 # dispatch task without nccl transport
-                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(stage_id, subgraph_id, mb_idx, *args)
             else:
                 # dispatch with nccl transport
-                refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+                refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, subgraph_id, mb_idx, *args)
 
             # wrap the remote futures with RemoteTensor
             if isinstance(refs, list):

@@ -1,4 +1,5 @@
 import os
+import ray
 import torch
 import torch.distributed as dist
 from typing import NamedTuple
@@ -7,7 +8,7 @@ import time
 
 from .piper_utils import piper_metadata, create_logger
 
-logger = create_logger("piper_exec", "INFO")
+logger = create_logger("piper_exec", "DEBUG")
 
 class Task(NamedTuple):
     device_id: int
@@ -177,6 +178,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
     threads = dict()
     
     def run_model(inputs, mb_idx, events, actor_mutexes):
+        logger.debug(f"Controller launching thread {mb_idx}")
         from .piper_utils import events_tls
         events_tls.events = events
         events_tls.mb_idx = mb_idx
@@ -287,4 +289,4 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                 .backward.options(num_returns=num_bwd_targets*2)
                                 .remote(stage_id, mb_idx, bwd_ref)
                             )
-    return ret
+    return ray.get(ret)
