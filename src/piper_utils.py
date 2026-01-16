@@ -112,6 +112,7 @@ class RemoteTensor(torch.Tensor):
                 self._resolved = obj[0]
             else:
                 self._resolved = obj
+        self._resolved = self._resolved.to('cpu')
         return self._resolved
     
     def get_ref(self):
@@ -146,6 +147,8 @@ class RemoteTensor(torch.Tensor):
     
     def __repr__(self):
         """Custom repr that avoids triggering masked_select from tensor formatting."""
+        if self._resolved is not None:
+            return self._resolved.__repr__()
         return (
             f"RemoteTensor(shape={tuple(self.shape)}, dtype={self.dtype}, "
             f"device={self.device}, stage_id={self._stage_id})"

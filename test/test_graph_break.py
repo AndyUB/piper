@@ -21,7 +21,7 @@ def main():
         def forward(self, x):
             distributed_stage(0)
             x = self.layer1(x)
-            print(f"graph break: {x.data}")
+            print(f"graph break: {x.data} {x + 1} {x[0]}")
             x = self.layer2(x)
             
             distributed_stage(1)
