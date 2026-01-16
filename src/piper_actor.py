@@ -143,7 +143,7 @@ class PiperActor:
         return max(subgraph_ids) if subgraph_ids else 0
 
     def compile_graph(self, stage_id: int, subgraph_id: int, gm_data, compiler_fn, graphargs, input_idxs):
-        self.logger.debug(f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} subgraph id: {subgraph_id} with inputs: {len(graphargs)}")
+        self.logger.debug(f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} subgraph id: {subgraph_id} with inputs: {len(graphargs)} and input indices: {input_idxs}")
 
         # set up tracing data structure
         if stage_id not in self.trace_data:
@@ -172,8 +172,13 @@ class PiperActor:
         self.subgraph_order[stage_id].append(subgraph_id)
         
         # Place graphargs on the device
-        graphargs = list(map(lambda x: x.to(self.device).detach().requires_grad_(True), graphargs))
-        
+        def move_to_device(idx, arg):
+            if idx not in input_idxs:
+                return arg.to(self.device).detach().requires_grad_(True)
+            else:
+                return arg.to(self.device)
+        graphargs = list(map(move_to_device, range(len(graphargs)), graphargs))
+
         compiled_fn = compiler_fn(gm, graphargs)
         assert callable(compiled_fn), "compiler_fn did not return callable"
         self.compiled_fns[stage_id][subgraph_id] = compiled_fn
@@ -230,9 +235,9 @@ class PiperActor:
             return x[0] if isinstance(x, list) or isinstance(x, tuple) else x
         args = list(map(unwrap, args))
 
-        # def detach_arg(arg):
-        #     return arg.detach().clone()
-        # args = list(map(detach_arg, args))
+        def place(arg):
+            return arg.to(self.device)
+        args = list(map(place, args))
 
         # place input tensors in the correct indices
         for i, arg in zip(self.input_idxs[stage_id][subgraph_id], args):

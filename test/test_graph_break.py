@@ -21,23 +21,25 @@ def main():
         def forward(self, x):
             distributed_stage(0)
             x = self.layer1(x)
-            print("graph break")
+            print(f"graph break: {x.data}")
             x = self.layer2(x)
             
             distributed_stage(1)
             x = self.layer3(x)
             return x
 
-    model = piper_setup(TwoLayerNN, (2, 2, 2), torch.optim.Adam, (torch.randn(2),), num_stages=2, num_devices=2)
+    x = torch.randn(2)
+    y = torch.randn(2)
+
+    model = piper_setup(TwoLayerNN, (2, 2, 2), torch.optim.Adam, [x], num_stages=2, num_devices=2)
+
+    return
 
     num_mbs = 1
     num_stages = 2
     schedule = build_1f1b_schedule(num_mbs, num_stages)
     print_schedule(schedule)
     loss_fn = torch.nn.CrossEntropyLoss()
-
-    x = torch.randn(2).to('cuda')
-    y = torch.randn(2).to('cuda')
 
     from src.piper_utils import piper_metadata
     stage1_weights = ray.get(piper_metadata.actors[0].get_weights.remote(0))
