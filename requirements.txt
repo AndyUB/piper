@@ -1,0 +1,5 @@
+python==3.10
+numpy
+ray==2.53.0
+torch==2.9.1+cu128
+cupy-cuda12x

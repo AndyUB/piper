@@ -2,41 +2,16 @@
 
 Piper is a PyTorch library for training large models with flexible pipeline parallel schedules.
 
-## Set-up Directions
+## Environment setup: conda
 We assume a Linux-based environment
 
-1. Install UV
-Follow the [Installing uv instructions](https://docs.astral.sh/uv/getting-started/installation/) from the uv documentation, or run
-```
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+1. Create a conda environment with `python==3.10`
+2. Install the requirements in `requirements.txt`
+3. Modify PyTorch and Ray dependencies according to the instructions below
 
-Validate the installation by running
-```
-uv --version
-```
+## Modifying dependencies
 
-2. Create venv
-```
-uv venv .venv
-source .venv/bin/activate
-```
-
-3. Install PyTorch (Nightly)
-```
-uv pip install --pre \
-  torch torchvision torchaudio \
-  --extra-index-url https://download.pytorch.org/whl/nightly/cu129
-```
-
-4. Install Remaining Dependencies from `pyproject.toml`
-```
-uv pip install -e .
-```
-
-5. Modify dependencies located in `.venv/lib/`
-
-PyTorch
+**PyTorch**
 
 Piper RemoteTensor is not traceable by TorchDynamo. 
 - WIP: following FakeTensor, register operator implementations that will make RemoteTensor transparently traceable by TorchDynamo.
@@ -51,8 +26,21 @@ for k, v in locals.items():
         locals[k] = v._fake
 ####### PIPER MODIFICATION END #######
 ```
- 
-Ray: Tensor transport backends currently only support 1 return value per task.
+
+Piper RemoteTensor causes recompilation bugs because it's not traceable by TorchDynamo. 
+- WIP: same as above
+- Modification: Add at the beginning of [`CheckFunctionManager.__init__` in guards.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/guards.py#L3532):
+```
+####### PIPER MODIFICATION START #######
+def filter_guards(guard):
+    return not guard.inner_create_fn().__name__ == "TENSOR_MATCH"
+guards = list(filter(filter_guards, guards))
+####### PIPER MODIFICATION END #######
+```
+
+**Ray**
+
+Tensor transport backends currently only support 1 return value per task.
 - WIP: Upstream this into Ray.
 - Modifications (2): Comment out the [assertion in ActorMethod._remote()](https://github.com/ray-project/ray/blob/b70d990db786a1f2259dec0504acccf2590353f3/python/ray/actor.py#L824-L828) and add logic for [handling multiple return values with a GPU object manager](https://github.com/ray-project/ray/blob/b70d990db786a1f2259dec0504acccf2590353f3/python/ray/actor.py#L880-L887).
 ```
