@@ -9,6 +9,7 @@ from torch.nn import Parameter
 from collections import defaultdict
 from .piper_utils import deserialize_graphmodule, piper_metadata, create_logger
 import torch.distributed as dist
+import threading
 from typing import Callable
 
 CLEANUP_MEMORY = False
@@ -75,29 +76,27 @@ class PiperActor:
 
         self.input = None
         self.truth = None
-        self.fwd_objs = {}
-        self.bwd_objs = {}
 
         # map stage id -> subgraph id -> compiled fx.Graph function
-        self.compiled_fns = defaultdict(lambda: defaultdict(dict))
+        self.forward_fns = defaultdict(dict)
         # map stage id -> subgraph id -> original GraphModule (for hook registration)
-        self.graph_modules = defaultdict(lambda: defaultdict(dict))
-        # map stage id -> list of subgraph ids in the order they are called
-        self.subgraph_order = defaultdict(list)
+        self.graph_modules = defaultdict(dict)
         # map stage id -> subgraph id -> model parameters used by the fx.Graph with holes (None values) for input tensors
-        self.parameters = defaultdict(lambda: defaultdict(dict))
+        self.parameters = defaultdict(dict)
         # map stage id -> subgraph id -> indices of the input tensors (as opposed to model parameters) used by the fx.Graph
-        self.input_idxs = defaultdict(lambda: defaultdict(dict))
+        self.input_idxs = defaultdict(dict)
         # map stage id -> optimizer for the fx.Graph
         self.optims = dict()
-        # map stage id -> mb_idx -> previous activation (if this stage is not first)
-        self.inp_activation = defaultdict(lambda: defaultdict(dict))
-        # map stage id -> mb_idx -> current activation
-        self.out_activation = defaultdict(lambda: defaultdict(dict))
+        # map stage id -> mb_idx -> subgraph id -> previous activation (if this stage is not first)
+        self.inp_activation = defaultdict(lambda: defaultdict(list))
+        # map stage id -> mb_idx -> subgraph id -> current activation
+        self.out_activation = defaultdict(lambda: defaultdict(list))
         # accumuate loss for each microbatch
         self.loss = []
         # map expert id -> expert
         self.experts = dict()
+        # map expert id -> mutex
+        self.expert_mutexes = defaultdict(threading.Lock)
 
         # Timing infrastructure
         self.tracing = False  # Toggle for timing and memory tracing
@@ -137,12 +136,12 @@ class PiperActor:
 
     def get_max_subgraph_id(self, stage_id: int) -> int:
         """Get the maximum subgraph_id for a given stage_id."""
-        if stage_id not in self.compiled_fns:
+        if stage_id not in self.forward_fns:
             return 0
-        subgraph_ids = list(self.compiled_fns[stage_id].keys())
+        subgraph_ids = list(self.forward_fns[stage_id].keys())
         return max(subgraph_ids) if subgraph_ids else 0
 
-    def compile_graph(self, stage_id: int, subgraph_id: int, gm_data, compiler_fn, graphargs, input_idxs):
+    def compile_graph(self, stage_id: int, subgraph_id: int, param_id: int, gm_data, compiler_fn, graphargs, input_idxs):
         self.logger.debug(f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} subgraph id: {subgraph_id} with inputs: {len(graphargs)} and input indices: {input_idxs}")
 
         # set up tracing data structure
@@ -164,54 +163,51 @@ class PiperActor:
 
         # compile the graph with the given graphargs
         gm = deserialize_graphmodule(gm_data)
+
+        self.compile_expert(gm)
         
         # Store GraphModule reference
         self.graph_modules[stage_id][subgraph_id] = gm
-
-        # Store subgraph in list of subgraph ids for this stage
-        self.subgraph_order[stage_id].append(subgraph_id)
+        self.forward_fns[stage_id][subgraph_id] = gm.forward
         
-        # Place graphargs on the device
-        def move_to_device(idx, arg):
-            if idx not in input_idxs:
-                return arg.to(self.device).detach().requires_grad_(True)
-            else:
-                return arg.to(self.device)
-        graphargs = list(map(move_to_device, range(len(graphargs)), graphargs))
-
-        compiled_fn = compiler_fn(gm, graphargs)
-        assert callable(compiled_fn), "compiler_fn did not return callable"
-        self.compiled_fns[stage_id][subgraph_id] = compiled_fn
-
-        # discard the graphargs that correspond to input tensors
-        for i in input_idxs:
-            graphargs[i] = None
-        self.input_idxs[stage_id][subgraph_id] = input_idxs
-
-        # save the graphargs that correspond to model parameters
-        self.parameters[stage_id][subgraph_id] = graphargs
-
-        # initialize the optimizer for this stage
-        if stage_id not in self.optims:
-            self.optims[stage_id] = self.optim_class([param for param in self.parameters[stage_id][subgraph_id] if param is not None])
-        else:
-            self.optims[stage_id].add_param_group({'params': [param for param in self.parameters[stage_id][subgraph_id] if param is not None]})
+        # save the parameters and initialize the optimizer
+        self.add_param_group(stage_id, subgraph_id, param_id, graphargs, input_idxs)
 
         del gm_data
 
         return "Finished compiling"
 
-    def load_expert(self, expert_class, uid, args, kwargs):
-        self.logger.info(f"Loading expert {expert_class} id {uid} on actor {self.actor_id}")
-        kwargs = kwargs or {}
-        self.experts[uid] = expert_class(*args, **kwargs).to(self.device)
+    def add_param_group(self, stage_id: int, subgraph_id: int, param_id: int, params, input_idxs):
+        self.logger.debug(f"Adding param group for stage {stage_id} subgraph {subgraph_id} param {param_id}")
 
-    def forward_expert(self, uid, *args):
-        with self.expert_mutexes[uid]:
-            return self.experts[uid](*args)
+        if param_id in self.parameters[stage_id]:
+            self.logger.debug(f"Param group already exists for stage {stage_id} subgraph {subgraph_id} param {param_id}")
+            return
+        
+        # place parameters on the device
+        def move_to_device(idx, arg):
+            if idx not in input_idxs:
+                return arg.to(self.device).detach().requires_grad_(True)
+            else:
+                return arg.to(self.device)
+        params = list(map(move_to_device, range(len(params)), params))
 
-    @ray.method(tensor_transport="nccl")
-    def forward(self, stage_id: int, subgraph_id: int, mb_idx: int, *args):
+        # discard the graphargs that correspond to input tensors
+        for i in input_idxs:
+            params[i] = None
+
+        # save the parameters
+        self.input_idxs[stage_id][subgraph_id] = input_idxs
+        self.parameters[stage_id][param_id] = params
+
+        # add the parameters to the optimizer for this stage
+        if stage_id not in self.optims:
+            self.optims[stage_id] = self.optim_class([param for param in params if param is not None])
+        else:
+            self.optims[stage_id].add_param_group({'params': [param for param in params if param is not None]})
+
+    # @ray.method(tensor_transport="nccl")
+    def forward(self, stage_id: int, subgraph_id: int, param_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} subgraph {subgraph_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
         if self.tracing:
@@ -241,13 +237,12 @@ class PiperActor:
 
         # place input tensors in the correct indices
         for i, arg in zip(self.input_idxs[stage_id][subgraph_id], args):
-            self.parameters[stage_id][subgraph_id][i] = arg
+            self.parameters[stage_id][param_id][i] = arg
 
         # save first input to the first subgraph as input activation
-        if stage_id != 0 and subgraph_id == self.subgraph_order[stage_id][0]:
-            if not args[0].requires_grad:
-                args[0].requires_grad_()
-            self.inp_activation[stage_id][mb_idx] = args[0]
+        if args[0].dtype == torch.float:
+            args[0].requires_grad_().retain_grad()
+        self.inp_activation[stage_id][mb_idx].append(args[0])
 
         # Record start event for forward timing
         if self.tracing:
@@ -256,7 +251,7 @@ class PiperActor:
             forward_start_event.record()
 
         # Call compiled function
-        out = self.compiled_fns[stage_id][subgraph_id](*self.parameters[stage_id][subgraph_id])
+        out = self.forward_fns[stage_id][subgraph_id](*self.parameters[stage_id][param_id])
 
         # Record end event and calculate forward timing
         if self.tracing:
@@ -268,30 +263,23 @@ class PiperActor:
             forward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
         # save first output of the last subgraph as output activation
-        if subgraph_id == self.subgraph_order[stage_id][-1]:
-            activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
-            self.out_activation[stage_id][mb_idx] = activation_tensor
+        activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
+        self.out_activation[stage_id][mb_idx].append(activation_tensor)
 
         # clear the input tensors
         for i in self.input_idxs[stage_id][subgraph_id]:
-            self.parameters[stage_id][subgraph_id][i] = None
+            self.parameters[stage_id][param_id][i] = None
         del args
 
         if self.tracing:
             end_event.record()
             torch.cuda.synchronize()
             total_time = forward_start_event.elapsed_time(end_event)
-            # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]['forward']['forward'].append(forward_time)
             self.trace_data[stage_id]['forward']['total'].append(forward_time)
             self.trace_data[stage_id]['forward']['peak_memory_delta'].append(forward_peak_memory_delta_gb)
             self.trace_data[stage_id]['forward']['peak_memory'].append(forward_peak_memory_gb)
 
-            if isinstance(out, list) or isinstance(out, tuple):
-                self.fwd_objs[stage_id] = [torch.ones_like(t) for t in out]
-            else:
-                self.fwd_objs[stage_id] = torch.ones_like(out)
-        
         if CLEANUP_MEMORY:
             gc.collect()
             if torch.cuda.is_available():
@@ -299,7 +287,7 @@ class PiperActor:
         
         return out
 
-    def forward_no_nccl(self, stage_id: int, subgraph_id: int, mb_idx: int, *args):
+    def forward_no_nccl(self, stage_id: int, subgraph_id: int, param_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling cpu forward {stage_id} subgraph {subgraph_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
         def pre_loaded_input(param):
@@ -324,23 +312,22 @@ class PiperActor:
 
         # place input tensors in the correct indices
         for i, arg in zip(self.input_idxs[stage_id][subgraph_id], args):
-            self.parameters[stage_id][subgraph_id][i] = arg
+            self.parameters[stage_id][param_id][i] = arg
 
         # save first input to the first subgraph as input activation
-        if stage_id != 0 and subgraph_id == self.subgraph_order[stage_id][0]:
-            assert args[0].requires_grad
-            self.inp_activation[stage_id][mb_idx] = args[0]
+        if args[0].dtype == torch.float:
+            args[0].requires_grad_().retain_grad()
+        self.inp_activation[stage_id][mb_idx].append(args[0])
 
-        out = self.compiled_fns[stage_id][subgraph_id](*self.parameters[stage_id][subgraph_id])
-        
+        out = self.forward_fns[stage_id][subgraph_id](*self.parameters[stage_id][param_id])
+
         # save first output of the last subgraph as output activation
-        if subgraph_id == self.subgraph_order[stage_id][-1]:
-            activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
-            self.out_activation[stage_id][mb_idx] = activation_tensor
+        activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
+        self.out_activation[stage_id][mb_idx].append(activation_tensor)
         
         # clear the input tensors
         for i in self.input_idxs[stage_id][subgraph_id]:
-            self.parameters[stage_id][subgraph_id][i] = None
+            self.parameters[stage_id][param_id][i] = None
         del args
         
         if CLEANUP_MEMORY:
@@ -350,8 +337,8 @@ class PiperActor:
         
         return out
 
-    @ray.method(tensor_transport="nccl")
-    def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+    # @ray.method(tensor_transport="nccl")
+    def backward(self, stage_id: int, mb_idx: int, inp, truth=None, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
         if self.tracing:
@@ -364,42 +351,54 @@ class PiperActor:
             backward_start_memory = torch.cuda.memory_allocated()
             backward_start_event.record()
 
-        # Propagate gradients backwards through the subgraphs by calling backward on the last subgraph, return the gradient of the input to the first subgraph
-        subgraph_id = self.subgraph_order[stage_id][-1]
+        # Propagate gradients backwards through the subgraphs of this stage by calling backward on the output activations
+        # in reverse order, passing the gradient of the input activation to each subsequent subgraph
+        ret = None
+        num_iters = len(self.out_activation[stage_id][mb_idx])
+        self.logger.debug(f"Backwarding over {num_iters} output activations and {len(self.inp_activation[stage_id][mb_idx])} input activations")
+        self.logger.debug(f"out activations: {[t.shape for t in self.out_activation[stage_id][mb_idx]]}")
+        self.logger.debug(f"inp activations: {[t.shape for t in self.inp_activation[stage_id][mb_idx]]}")
+        for i in range(num_iters):
+            # get the latest activation for this stage and microbatch
+            out_activation = self.out_activation[stage_id][mb_idx].pop()
+            inp_activation = self.inp_activation[stage_id][mb_idx].pop()
+            print_backward_graph(out_activation)
 
-        # get the activation for the current stage and subgraph
-        activation = self.out_activation[stage_id][mb_idx]
-        
-        # print("activation backward graph:")
-        # print_backward_graph(activation)
-
-        # compute loss in the last subgraph of the last stage. use the saved activation rather
-        # than inp because the saved activation remembers the computation graph
-        if loss_fn is not None:
-            if self.truth is not None:
-                labels = self.truth
+            # compute loss with the final activation of the final stage. 
+            # use the saved activation rather than inp because the saved activation stores the computation graph
+            if loss_fn is not None and i == 0:
+                assert out_activation.shape == inp.shape
+                if self.truth is not None:
+                    labels = self.truth
+                else:
+                    labels = truth.to(self.device)
+                assert out_activation.shape == labels.shape
+                loss = loss_fn(out_activation, labels)
+                loss.backward()
+                self.loss.append(loss.item())
+            # if not the last stage, backprop on the stored activation given 
+            # the input gradient from the subsequent stage
+            elif i == 0:
+                assert inp is not None
+                assert out_activation.shape == inp.shape
+                out_activation.backward(gradient=inp)
             else:
-                labels = inp[0]
-            loss = loss_fn(activation, labels)
-            loss.backward()
-            self.loss.append(loss.item())
-            # Clean up loss tensor after extracting item
-            del loss
-        # if not the last stage, backprop on the stored activation given 
-        # the input gradient from the subsequent stage
-        else:
-            assert inp is not None
-            assert activation.shape == inp.shape
-            activation.backward(gradient=inp)
+                assert ret is not None
+                self.logger.debug(f"out activation shape: {out_activation.shape} incoming gradient shape: {ret.shape}")
+                assert out_activation.shape == ret.shape
+                out_activation.backward(gradient=ret)
 
-        del self.out_activation[stage_id][mb_idx]
-        del activation
+            del out_activation
 
-        # propagate the gradient backwards if not the first stage and first subgraph
-        if stage_id != 0:
-            ret = self.inp_activation[stage_id][mb_idx].grad
-        else:
-            ret = "done"
+            # propagate the gradient backwards if not the first activation of the first stage
+            if stage_id == 0 and i == num_iters - 1:
+                ret = "done"
+            else:
+                self.logger.debug(f"Should have populated input activation {i} for stage {stage_id} mb {mb_idx}: {inp_activation.grad}")
+                ret = inp_activation.grad
+                assert ret is not None
+            
+            del inp_activation
 
         # Record end event and calculate backward timing
         if self.tracing:
@@ -415,13 +414,10 @@ class PiperActor:
             end_event.record()
             torch.cuda.synchronize()
             total_time = beginning_event.elapsed_time(end_event)
-            # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]['backward']['backward'].append(backward_time)
             self.trace_data[stage_id]['backward']['total'].append(total_time)
             self.trace_data[stage_id]['backward']['peak_memory_delta'].append(backward_peak_memory_delta_gb)
             self.trace_data[stage_id]['backward']['peak_memory'].append(backward_peak_memory_gb)
-            if stage_id != 0:
-                self.bwd_objs[stage_id] = torch.ones_like(ret[0])
         
         if CLEANUP_MEMORY:
             gc.collect()
@@ -436,7 +432,7 @@ class PiperActor:
         
         # Iterate over all stages and subgraphs on this actor and synchronize their parameters
         for stage_id, subgraph_params in self.parameters.items():
-            for subgraph_id, parameters in subgraph_params.items():
+            for param_id, parameters in subgraph_params.items():
                 for param in parameters:
                     if param is not None and param.grad is not None:
                         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
@@ -483,7 +479,7 @@ class PiperActor:
 
     def verify_weights(self, msg="first parameter"):
         for stage_id, subgraph_params in self.parameters.items():
-            for subgraph_id, parameters in subgraph_params.items():
+            for param_id, parameters in subgraph_params.items():
                 for param in parameters:
                     if param is not None and param.grad is not None:
                         if len(param.shape) == 2:

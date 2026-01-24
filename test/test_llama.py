@@ -34,6 +34,8 @@ def parse_args():
                         help='Number of devices/stages (default: 2)')
     parser.add_argument('--dp_degree', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
+    parser.add_argument('--pp_degree', type=int, default=1,
+                        help='Number of pipeline parallel degrees (default: 2)')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size (default: 16)')
     parser.add_argument('--num_mbs', type=int, default=4,
@@ -123,21 +125,18 @@ def main(args):
     warmup = args.warmup
     iters = args.iters
     # creating the training data; might make this a new method to get the dataloader to work properly
-    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
-    y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long).to(device)
+    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
+    y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long)
 
     # Generate different input data for each data parallel rank so that model weights get updated differently
     if args.dp_degree > 1:
         dp_rank = int(os.environ['PIPER_DP_RANK'])
         torch.manual_seed(dp_rank)
-        x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
+        x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
         torch.manual_seed(0)
 
-    model = Transformer(llama_config, seq_len, device)
-    model.to(device)
-
     num_stages = args.num_stages
-    compiled = piper_setup(model, [x], backend=piper, num_stages=num_stages, num_devices=num_devices)
+    compiled = piper_setup(Transformer, (llama_config, seq_len, device), torch.optim.Adam, [x], num_stages, num_devices)
     
     assert num_stages == len(piper_metadata.dag) + 1
 
@@ -215,6 +214,6 @@ def main(args):
 if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
     args = parse_args()
-    piper_coordinator = PiperProgramCoordinator.remote(dp_degree=args.dp_degree, world_size=args.devices)
+    piper_coordinator = PiperProgramCoordinator.remote(dp_degree=args.dp_degree, pp_degree=args.pp_degree, world_size=args.devices)
     ray.get(piper_coordinator.run_program.remote(main, args))
     ray.shutdown()

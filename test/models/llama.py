@@ -393,48 +393,48 @@ class Transformer(nn.Module):
             params.dim // params.n_heads,
             self.seq_len,
             params.rope_theta,
-        ).to(device)
+        )#.to(device)
 
         mask = torch.full((self.seq_len, self.seq_len), float("-inf"))
         mask = torch.triu(mask, diagonal=1)
-        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask]).to(device)
+        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask])#.to(device)
 
-    """
-    forward method for interleaved-1f1b schedule
-    requires:
-    - 2 devices
-    - 4 stages
-    - n_layers is divisible by 4
-    """
-    def forward(self, tokens: torch.Tensor):
+    # """
+    # forward method for interleaved-1f1b schedule
+    # requires:
+    # - 2 devices
+    # - 4 stages
+    # - n_layers is divisible by 4
+    # """
+    # def forward(self, tokens: torch.Tensor):
 
-        distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
+    #     distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
 
-        h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
-        start_pos = 0
+    #     h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
+    #     start_pos = 0
         
-        for layer in self.layers[:self.n_layers//4]:
-            h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #     for layer in self.layers[:self.n_layers//4]:
+    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
+    #     distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
 
-        for layer in self.layers[self.n_layers//4:self.n_layers//2]:
-            h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #     for layer in self.layers[self.n_layers//4:self.n_layers//2]:
+    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        distributed_stage(2, actor_id=0, optim=torch.optim.Adam)
+    #     distributed_stage(2, actor_id=0, optim=torch.optim.Adam)
 
-        for layer in self.layers[self.n_layers//2:3*self.n_layers//4]:
-            h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #     for layer in self.layers[self.n_layers//2:3*self.n_layers//4]:
+    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        distributed_stage(3, actor_id=1, optim=torch.optim.Adam)
+    #     distributed_stage(3, actor_id=1, optim=torch.optim.Adam)
 
-        for layer in self.layers[3*self.n_layers//4:]:
-            h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #     for layer in self.layers[3*self.n_layers//4:]:
+    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        h = self.norm(h) if self.norm else h
-        output = self.output(h).float() if self.output else h
+    #     h = self.norm(h) if self.norm else h
+    #     output = self.output(h).float() if self.output else h
 
-        return output
+    #     return output
 
     """
     forward method for 1f1b schedule
@@ -445,7 +445,7 @@ class Transformer(nn.Module):
     """
     def forward(self, tokens: torch.Tensor):
 
-        distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
+        distributed_stage(0, actor_id=0)
 
         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
         start_pos = 0
@@ -453,7 +453,7 @@ class Transformer(nn.Module):
         for layer in self.layers[:self.n_layers//2]:
             h = layer(h, start_pos, self.freqs_cis, self.mask)
 
-        distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
+        distributed_stage(1, actor_id=1)
 
         for layer in self.layers[self.n_layers//2:]:
             h = layer(h, start_pos, self.freqs_cis, self.mask)
