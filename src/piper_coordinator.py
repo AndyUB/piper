@@ -9,11 +9,12 @@ from .piper_utils import create_logger
 logger = create_logger("piper_coordinator", "INFO")
 
 @ray.remote(num_gpus=0.1)
-def run_dp_rank(dp_rank, dp_degree, world_size, master_addr, master_port, training_func: Callable, *args, **kwargs):
+def run_dp_rank(dp_rank, dp_degree, pp_degree, world_size, master_addr, master_port, training_func: Callable, *args, **kwargs):
     torch.manual_seed(0)
     logger.info(f"Running DP rank {dp_rank} of {dp_degree}")
     os.environ['PIPER_DP_RANK'] = str(dp_rank)
     os.environ['PIPER_DP_DEGREE'] = str(dp_degree)
+    os.environ['PIPER_PP_DEGREE'] = str(pp_degree)
     os.environ['PIPER_WORLD_SIZE'] = str(world_size)
     os.environ['PIPER_MASTER_ADDR'] = str(master_addr)
     os.environ['PIPER_MASTER_PORT'] = str(master_port)
@@ -29,15 +30,18 @@ def find_free_port():
 @ray.remote
 class PiperProgramCoordinator:
     """ Central Actor that Coordinates all the DP replicas of a single pipeline"""
-    def __init__(self, dp_degree, world_size):
+    def __init__(self, dp_degree, pp_degree):
         self.dp_degree = dp_degree
-        self.world_size = world_size
+        self.pp_degree = pp_degree
+        self.world_size = dp_degree * pp_degree
         self.master_port = find_free_port()
     
     def run_program(self, training_func: Callable, *args, **kwargs):
+        logger.info(f"Running program with {self.dp_degree} DP ranks and {self.pp_degree} PP ranks")
         ret = ray.get([run_dp_rank.remote(
                 dp_rank, 
                 self.dp_degree, 
+                self.pp_degree, 
                 self.world_size, 
                 "127.0.0.1", 
                 self.master_port, 

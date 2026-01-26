@@ -18,6 +18,7 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     world_size = int(os.environ['PIPER_WORLD_SIZE'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
+    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
 
     if actor_id is None:
         actor_id = stage_id
@@ -31,6 +32,7 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
             world_size,
             dp_rank=dp_rank, 
             dp_degree=dp_degree,
+            pp_degree=pp_degree,
             optim_fn=optim, 
         )
         piper_metadata.actors[actor_id] = actor

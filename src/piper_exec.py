@@ -192,6 +192,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                 device_id,stage_id, mb_idx, is_fwd, upd = task
                 actor_id = j
                 if upd:
+                    logger.debug(f"Controller updating stage {stage_id} mb {mb_idx}")
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
                     if num_bwd_targets == 0:
                         num_bwd_targets = 1
@@ -213,7 +214,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                         threads[mb_idx] = thread
                         thread.start()
                     events[mb_idx][stage_id].set()
-                    logger.debug(f"Controller set event for thread {mb_idx}stage {stage_id}: waiting for thread to grab lock")
+                    logger.debug(f"Controller set event for thread {mb_idx} stage {stage_id}: waiting for thread to grab lock")
                     # Wait for the thread to grab a lock on the actor mutex,
                     # signalled by unsetting the event
                     while events[mb_idx][stage_id].is_set():
@@ -223,6 +224,8 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch
                     num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
+                    # Hack to make single stage work
+                    if num_bwd_targets == 0: num_bwd_targets = 1
                     if mb_idx not in bwd_ref_dicts:
                         # if this is the first backward task for a microbatch, dispatch the
                         # backward task and cache the resulting ref(s)

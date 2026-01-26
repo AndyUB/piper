@@ -13,7 +13,7 @@ def setup_data_parallel(local_rank, data_parallel):
     dist.init_process_group(backend='nccl', rank=local_rank, world_size=data_parallel)
     torch.cuda.set_device(local_rank)
 
-def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, backend=None):
+def piper_setup(model, example_inputs, num_stages, pp_size, dynamic=False, backend=None):
     """
     Compile a model with the piper backend.
 
@@ -35,27 +35,23 @@ def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, b
     compiled = torch.compile(model, dynamic=dynamic, backend=backend)
 
     from .piper_utils import events_tls
-    events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(num_devices)])
+    events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(pp_size)])
     events_tls.events = [threading.Event() for _ in range(num_stages)]
     for event in events_tls.events:
         event.set()
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
-    if dp_rank > 1:
-        logger.info(f"DP rank {dp_rank} compiling {num_stages} stages...")
-    else:
-        logger.info(f"Compiling {num_stages} stages...")
+    logger.info(f"DP rank {dp_rank} compiling {num_stages} stages...")
 
     out = compiled(*example_inputs).get()
     
     piper_metadata.currently_compiling = False
 
+    logger.info(f"DP rank {dp_rank} joining process groups")
+
     ray.get([actor.join_process_groups.remote() for actor in piper_metadata.actors.values()])
 
-    if dp_rank > 1:
-        logger.info(f"Completed DP rank {dp_rank} setup for {len(piper_metadata.actors)} actors")
-    else:
-        logger.info(f"Completed setup for {len(piper_metadata.actors)} actors")
+    logger.info(f"DP rank {dp_rank} completed setup for {len(piper_metadata.actors)} actors")
 
     from ray.experimental.collective import create_collective_group
     
@@ -63,6 +59,6 @@ def piper_setup(model, example_inputs, num_stages, num_devices, dynamic=False, b
         list(piper_metadata.actors.values()),
         backend="nccl")
     
-    logger.info(f"Started NCCL group with {len(piper_metadata.actors)} actors")
+    logger.info(f"DP rank {dp_rank} Started NCCL group with {len(piper_metadata.actors)} actors")
     
     return compiled

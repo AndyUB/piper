@@ -90,6 +90,14 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
         schedule[stage][-i-1] = Task(stage_id=stage, device_id=stage, mb_idx=n_mbs-1, is_fwd=False, upd=True)
     return schedule
 
+no_pp_schedule = [
+    [
+        Task(device_id=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
+        Task(device_id=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False),
+        Task(device_id=0, stage_id=0, mb_idx=0, is_fwd=False, upd=True),
+    ]
+]
+
 pp2_interleaved_1f1b_grid_schedule = [
     [
         Task(device_id=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),

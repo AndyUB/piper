@@ -18,22 +18,23 @@ from .schedule_helpers import (
     build_gpipe_schedule, 
     print_schedule,
     pp2_interleaved_1f1b_grid_schedule, 
-    pp4_interleaved_1f1b_grid_schedule
+    pp4_interleaved_1f1b_grid_schedule,
+    no_pp_schedule
 )
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['LLAMA_DEBUG', 'LLAMA_1B', 'LLAMA_3B', 'LLAMA_8B'], default='LLAMA_DEBUG',
                         help='Model configuration: LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, or LLAMA_8B (default: LLAMA_DEBUG)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b'], default='1f1b',
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
                         help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
     # num_stages should be able to be inferred from the model code
     parser.add_argument('--num_stages', type=int, default=2,
                         help='Number of stages (default: 2)')
-    parser.add_argument('--devices', type=int, default=2,
-                        help='Number of devices/stages (default: 2)')
     parser.add_argument('--dp_degree', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
+    parser.add_argument('--pp_degree', type=int, default=2,
+                        help='Number of pipeline parallel degrees (default: 2)')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Batch size (default: 16)')
     parser.add_argument('--num_mbs', type=int, default=4,
@@ -118,7 +119,6 @@ def main(args):
     
     batch_size = args.batch_size
     num_mbs = args.num_mbs
-    num_devices = args.devices
     seq_len = args.seq_len
     warmup = args.warmup
     iters = args.iters
@@ -137,14 +137,16 @@ def main(args):
     model.to(device)
 
     num_stages = args.num_stages
-    compiled = piper_setup(model, [x], backend=piper, num_stages=num_stages, num_devices=num_devices)
+    compiled = piper_setup(model, [x], backend=piper, num_stages=num_stages, pp_size=args.pp_degree)
     
     assert num_stages == len(piper_metadata.dag) + 1
 
     schedule = None
     match args.schedule:
+        case "no-pp":
+            schedule = no_pp_schedule
         case "interleaved-1f1b":
-            schedule = pp2_interleaved_1f1b_grid_schedule if num_devices == 2 else pp4_interleaved_1f1b_grid_schedule
+            schedule = pp2_interleaved_1f1b_grid_schedule if args.pp_degree == 2 else pp4_interleaved_1f1b_grid_schedule
         case "1f1b":
             schedule = build_1f1b_schedule(num_mbs, num_stages)
             schedule[0][2] = schedule[0][4]
@@ -175,6 +177,7 @@ def main(args):
         ray.get([actor.verify_weights.remote() for actor in actors.values()])
 
     # Warmup
+    print(f"Running {warmup} warmup iterations...")
     for _ in range(warmup):
         iter_schedule()
 
@@ -184,6 +187,7 @@ def main(args):
 
     # Time training steps
     start = time.perf_counter()
+    print(f"Running {iters} timed iterations...")
     for _ in range(iters):
         iter_schedule()
     end = time.perf_counter()
@@ -210,11 +214,11 @@ def main(args):
             actor_id = ray.get(actor.id.remote())
             print_mean_timing_data(trace_data, actor_id)
         
-        ray.timeline(f"out/{args.model}-pp{num_devices//args.dp_degree}-dp{args.dp_degree}-{args.schedule}.json")
+    ray.timeline(f"out/{args.model}-pp{args.pp_degree}-dp{args.dp_degree}-{args.schedule}.json")
 
 if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
     args = parse_args()
-    piper_coordinator = PiperProgramCoordinator.remote(dp_degree=args.dp_degree, world_size=args.devices)
+    piper_coordinator = PiperProgramCoordinator.remote(dp_degree=args.dp_degree, pp_degree=args.pp_degree)
     ray.get(piper_coordinator.run_program.remote(main, args))
     ray.shutdown()
