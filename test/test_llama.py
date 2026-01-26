@@ -160,15 +160,15 @@ def main(args):
 
     # Send data to the actors
     actors = piper_metadata.actors
-    num_actors = len(actors)
-    ray.get(actors[0].send_input.remote(x))
-    ray.get(actors[num_actors-1].send_truth.remote(y))
+    # num_actors = len(actors)
+    # ray.get(actors[0].send_input.remote(x))
+    # ray.get(actors[num_actors-1].send_truth.remote(y))
 
     ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
 
     # Definte one iteration of the schedule
     def iter_schedule():
-        out = piper_exec(compiled, schedule, [None], None, loss_fn, num_mbs, num_stages)
+        out = piper_exec(compiled, schedule, [x], y, loss_fn, num_mbs, num_stages)
         # ray.wait(out, fetch_local=False)
         ray.get(out)
 
