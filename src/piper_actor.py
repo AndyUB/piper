@@ -90,7 +90,6 @@ class PiperActor:
     def get_peak_memory(self):
         return torch.cuda.max_memory_allocated() / (1024**3)
 
-    @ray.method
     def join_process_groups(self):
         master_addr = os.environ.get('PIPER_MASTER_ADDR', "127.0.0.1")
         master_port = os.environ.get('PIPER_MASTER_PORT', "10000")
@@ -160,7 +159,7 @@ class PiperActor:
         self.logger.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -308,7 +307,7 @@ class PiperActor:
         
         return out
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
