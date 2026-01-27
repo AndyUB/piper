@@ -1,0 +1,41 @@
+2026-01-14 20:04:37,768	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(PiperProgramCoordinator pid=130173)[0m 2026-01-14 20:04:46,661 - piper_coordinator - INFO - Running program with 1 DP ranks and 2 PP ranks
+[36m(run_dp_rank pid=130181)[0m Namespace(model='LLAMA_DEBUG', schedule='interleaved-1f1b', num_stages=4, dp_degree=1, pp_degree=2, batch_size=16, num_mbs=4, seq_len=256, warmup=1, iters=2, tracing=False, verify_weights=False)
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:04:54,241 - piper_compile - INFO - DP rank 0 compiling 4 stages...
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:04:54,294 - piper_backend - DEBUG - Initializing actor for global rank 0
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:04:58,317 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 with PID: 130194
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:04:58,317 - piper_actor - DEBUG - __init__ took 0.20ms
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:04:58,317 - piper_actor - DEBUG - Initialized actor 0 for global rank 0
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:05:00,750 - piper_actor - DEBUG - Compiling graph on actor 0 for stage id: 0 with inputs: 22
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:05:00,762 - piper_actor - DEBUG - compile_graph took 11.23ms
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:05:01,785 - piper_backend - DEBUG - Thread None global rank 0 waiting for stage 0
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:05:01,785 - piper_backend - DEBUG - Thread None global rank 0 running stage 0
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:05:01,785 - piper_backend - DEBUG - Thread None global rank 0 waiting for actor mutex 0
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:05:01,786 - piper_backend - DEBUG - Thread None global rank 0 got actor mutex 0
+[36m(run_dp_rank pid=130181)[0m 2026-01-14 20:05:01,787 - piper_backend - DEBUG - Initializing actor for global rank 1
+[36m(PiperActor pid=130194)[0m 2026-01-14 20:05:01,790 - piper_actor - DEBUG - Calling cpu forward 0 mb None on actor 0 global rank 0
+[36m(pid=gcs_server)[0m [2026-01-14 20:05:06,283 E 129353 129353] (gcs_server) gcs_server.cc:303: Failed to establish connection to the event+metrics exporter agent. Events and metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[33m(raylet)[0m [2026-01-14 20:05:10,933 E 130028 130028] (raylet) main.cc:1032: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperProgramCoordinator pid=130173)[0m [2026-01-14 20:05:11,978 E 130173 137513] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[2026-01-14 20:05:12,527 E 128954 130171] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 223, in <module>
+    ray.get(piper_coordinator.run_program.remote(main, args))
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 2967, in get
+    values, debugger_breakpoint = worker.get_objects(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 976, in get_objects
+    ] = self.core_worker.get_objects(
+  File "python/ray/_raylet.pyx", line 2875, in ray._raylet.CoreWorker.get_objects
+  File "python/ray/includes/common.pxi", line 99, in ray._raylet.check_status
+KeyboardInterrupt
+[36m(pid=137503)[0m [2026-01-14 20:05:12,512 E 137503 144359] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14[32m [repeated 255x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m

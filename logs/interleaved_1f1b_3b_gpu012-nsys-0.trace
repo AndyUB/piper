@@ -1,0 +1,99 @@
+2026-01-21 12:08:18,189	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(PiperProgramCoordinator pid=2477352)[0m 2026-01-21 12:08:27,876 - piper_coordinator - INFO - Running program with 1 DP ranks and 2 PP ranks
+[36m(run_dp_rank pid=2477526)[0m Namespace(model='LLAMA_3B', schedule='interleaved-1f1b', num_stages=4, dp_degree=1, pp_degree=2, batch_size=16, num_mbs=4, seq_len=256, warmup=5, iters=5, tracing=True, verify_weights=False)
+[36m(pid=gcs_server)[0m [2026-01-21 12:08:46,355 E 2476704 2476704] (gcs_server) gcs_server.cc:303: Failed to establish connection to the event+metrics exporter agent. Events and metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[33m(raylet)[0m [2026-01-21 12:08:51,950 E 2477182 2477182] (raylet) main.cc:1032: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperProgramCoordinator pid=2477352)[0m [2026-01-21 12:08:52,970 E 2477352 2485826] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[2026-01-21 12:08:53,539 E 2476532 2477351] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=2477526)[0m 2026-01-21 12:08:57,622 - piper_compile - INFO - DP rank 0 compiling 4 stages...
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(pid=2485803)[0m [2026-01-21 12:08:53,525 E 2485803 2492579] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14[32m [repeated 255x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(PiperActor pid=2494088)[0m 2026-01-21 12:09:30,805 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 with PID: 2494088
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(PiperActor pid=2494462)[0m 2026-01-21 12:09:51,855 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 with PID: 2494462
+[36m(PiperActor pid=2494088)[0m [2026-01-21 12:09:57,114 E 2494088 2494205] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperActor pid=2494462)[0m [2026-01-21 12:10:18,129 E 2494462 2494598] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=2477526)[0m 2026-01-21 12:10:19,730 - piper_compile - INFO - DP rank 0 joining process groups
+[36m(run_dp_rank pid=2477526)[0m 2026-01-21 12:10:20,272 - piper_compile - INFO - DP rank 0 completed setup for 2 actors
+[36m(run_dp_rank pid=2477526)[0m SCHEDULE:
+[36m(run_dp_rank pid=2477526)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=2477526)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=2477526)[0m 2026-01-21 12:10:20,693 - piper_compile - INFO - DP rank 0 Started NCCL group with 2 actors
+[36m(run_dp_rank pid=2477526)[0m Running 5 warmup iterations...
+[36m(PiperActor pid=2494088)[0m 2026-01-21 12:10:20,746 - piper_actor - INFO - Actor 0: Tracing enabled
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(NCCLUniqueIDStore pid=2495217)[0m [2026-01-21 12:11:01,085 E 2495217 2495363] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperActor pid=2494462)[0m 2026-01-21 12:10:20,746 - piper_actor - INFO - Actor 1: Tracing enabled
+[36m(run_dp_rank pid=2477526)[0m Running 5 timed iterations...
+[36m(run_dp_rank pid=2477526)[0m Iteration time: 6061 ms
+[36m(run_dp_rank pid=2477526)[0m interleaved-1f1b throughput: 2703 tokens/sec
+[36m(run_dp_rank pid=2477526)[0m Peak memory:
+[36m(run_dp_rank pid=2477526)[0m 	Actor 0: 46.8 GB
+[36m(run_dp_rank pid=2477526)[0m 	Actor 1: 57.5 GB
+[36m(run_dp_rank pid=2477526)[0m 
+[36m(run_dp_rank pid=2477526)[0m Timing and Memory statistics for Actor 0:
+[36m(run_dp_rank pid=2477526)[0m   Update:
+[36m(run_dp_rank pid=2477526)[0m     total: 39.802 ms
+[36m(run_dp_rank pid=2477526)[0m     peak_memory_delta: 4.028 GB
+[36m(run_dp_rank pid=2477526)[0m     peak_memory: 46.828 GB
+[36m(run_dp_rank pid=2477526)[0m   Stage 0:
+[36m(run_dp_rank pid=2477526)[0m     Forward:
+[36m(run_dp_rank pid=2477526)[0m       forward: 122.931 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 122.931 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 7.531 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 61.854 GB
+[36m(run_dp_rank pid=2477526)[0m     Backward:
+[36m(run_dp_rank pid=2477526)[0m       backward: 245.776 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 246.756 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 0.273 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 66.187 GB
+[36m(run_dp_rank pid=2477526)[0m   Stage 2:
+[36m(run_dp_rank pid=2477526)[0m     Forward:
+[36m(run_dp_rank pid=2477526)[0m       forward: 122.441 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 122.441 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 7.485 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 69.863 GB
+[36m(run_dp_rank pid=2477526)[0m     Backward:
+[36m(run_dp_rank pid=2477526)[0m       backward: 244.069 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 245.101 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 0.273 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 73.699 GB
+[36m(run_dp_rank pid=2477526)[0m 
+[36m(run_dp_rank pid=2477526)[0m Timing and Memory statistics for Actor 1:
+[36m(run_dp_rank pid=2477526)[0m   Update:
+[36m(run_dp_rank pid=2477526)[0m     total: 39.317 ms
+[36m(run_dp_rank pid=2477526)[0m     peak_memory_delta: 2.616 GB
+[36m(run_dp_rank pid=2477526)[0m     peak_memory: 57.452 GB
+[36m(run_dp_rank pid=2477526)[0m   Stage 1:
+[36m(run_dp_rank pid=2477526)[0m     Forward:
+[36m(run_dp_rank pid=2477526)[0m       forward: 122.426 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 122.426 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 7.485 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 61.497 GB
+[36m(run_dp_rank pid=2477526)[0m     Backward:
+[36m(run_dp_rank pid=2477526)[0m       backward: 245.749 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 247.369 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 0.273 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 69.055 GB
+[36m(run_dp_rank pid=2477526)[0m   Stage 3:
+[36m(run_dp_rank pid=2477526)[0m     Forward:
+[36m(run_dp_rank pid=2477526)[0m       forward: 183.369 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 183.369 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 9.489 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 71.737 GB
+[36m(run_dp_rank pid=2477526)[0m     Backward:
+[36m(run_dp_rank pid=2477526)[0m       backward: 378.167 ms
+[36m(run_dp_rank pid=2477526)[0m       total: 379.570 ms
+[36m(run_dp_rank pid=2477526)[0m       peak_memory_delta: 5.871 GB
+[36m(run_dp_rank pid=2477526)[0m       peak_memory: 77.562 GB

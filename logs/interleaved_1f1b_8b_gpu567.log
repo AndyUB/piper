@@ -1,0 +1,539 @@
+2026-01-21 02:44:59,880	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(PiperProgramCoordinator pid=976398)[0m 2026-01-21 02:45:09,316 - piper_coordinator - INFO - Running program with 1 DP ranks and 2 PP ranks
+[36m(run_dp_rank pid=975992)[0m Namespace(model='LLAMA_8B', schedule='interleaved-1f1b', num_stages=4, dp_degree=1, pp_degree=2, batch_size=16, num_mbs=4, seq_len=256, warmup=1, iters=2, tracing=False, verify_weights=False)
+[36m(pid=gcs_server)[0m [2026-01-21 02:45:26,922 E 974905 974905] (gcs_server) gcs_server.cc:303: Failed to establish connection to the event+metrics exporter agent. Events and metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[33m(raylet)[0m [2026-01-21 02:45:33,383 E 975446 975446] (raylet) main.cc:1032: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperProgramCoordinator pid=976398)[0m [2026-01-21 02:45:34,411 E 976398 982940] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[2026-01-21 02:45:35,013 E 974492 975711] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=975992)[0m 2026-01-21 02:46:04,766 - piper_compile - INFO - DP rank 0 compiling 4 stages...
+[36m(pid=982893)[0m [2026-01-21 02:45:34,995 E 982893 989655] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14[32m [repeated 255x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(PiperActor pid=975722)[0m 2026-01-21 02:46:08,649 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 with PID: 975722
+[36m(PiperActor pid=976581)[0m 2026-01-21 02:46:40,641 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 with PID: 976581
+[36m(run_dp_rank pid=975992)[0m 2026-01-21 02:47:28,075 - piper_compile - INFO - DP rank 0 joining process groups
+[36m(run_dp_rank pid=975992)[0m 2026-01-21 02:47:28,090 - piper_compile - INFO - DP rank 0 completed setup for 2 actors
+[36m(run_dp_rank pid=975992)[0m SCHEDULE:
+[36m(run_dp_rank pid=975992)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=975992)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=975992)[0m Running 1 warmup iterations...
+[36m(run_dp_rank pid=975992)[0m 2026-01-21 02:47:28,702 - piper_compile - INFO - DP rank 0 Started NCCL group with 2 actors
+[36m(PiperActor pid=975722)[0m 2026-01-21 02:47:28,736 - piper_actor - INFO - Actor 0: Tracing disabled
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 274, in <module>
+    ray.get(piper_coordinator.run_program.remote(main, args))
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 2967, in get
+    values, debugger_breakpoint = worker.get_objects(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 1015, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::PiperProgramCoordinator.run_program()[39m (pid=976398, ip=10.158.48.71, actor_id=52a060d8a717d11c9a40955701000000, repr=<src.piper_coordinator.PiperProgramCoordinator object at 0x7f6655542e90>)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 41, in run_program
+    ret = ray.get([run_dp_rank.remote(
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::run_dp_rank()[39m (pid=975992, ip=10.158.48.71)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 21, in run_dp_rank
+    return training_func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 226, in main
+    iter_schedule()
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 217, in iter_schedule
+    ray.get(out)
+ray.exceptions.ActorDiedError: The actor died unexpectedly before finishing this task.
+	class_name: PiperActor
+	actor_id: a7cebd8c07cd0c59e23e45fb01000000
+	pid: 975722
+	namespace: llama
+	ip: 10.158.48.71
+The actor is dead because it was killed by `ray.kill`.
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m Destroyed collective group f81a40ba-50d6-4d53-af72-050431cdb2ba due to a hanging/failed RDT transfer
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(150e0ae5b5e8031aa7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(5ac19c63138be8e4a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(d4edb85d9f84bb6b28643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(adf158a0151d2e65a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(246817b1f79153a228643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(1dd10a5fbc8d63aba7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(98c526c47ac8e262a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(0457fca750fb95a5a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(6a117c2744ab5b34a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(c656a86b2ddce36ba7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(dbf57def5431ec8b28643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(975efc5b97b2bd2ba7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(a9f78d069b24603828643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(67acd640ed47832da7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(c3eef975aa6beb4ca7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(bd006d2109686c6428643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(b3b8d588a56a590628643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(e755e666b85ffc2a28643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(aaaf60d631362cbd28643b3a35092073aa4dc78e0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m Something went wrong while freeing the RDT object!
+[36m(run_dp_rank pid=975992)[0m Traceback (most recent call last):
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/experimental/gpu_object_manager/gpu_object_manager.py", line 606, in free_object_primary_copy
+[36m(run_dp_rank pid=975992)[0m     src_actor.__ray_call__.options(concurrency_group="_ray_system").remote(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 712, in remote
+[36m(run_dp_rank pid=975992)[0m     return func_cls._remote(args=args, kwargs=kwargs, **options)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+[36m(run_dp_rank pid=975992)[0m     return fn(*args, **kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/util/tracing/tracing_helper.py", line 422, in _start_span
+[36m(run_dp_rank pid=975992)[0m     return method(self, args, kwargs, *_args, **_kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 890, in _remote
+[36m(run_dp_rank pid=975992)[0m     object_refs = invocation(args, kwargs)
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 870, in invocation
+[36m(run_dp_rank pid=975992)[0m     return dst_actor._actor_method_call(
+[36m(run_dp_rank pid=975992)[0m   File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/actor.py", line 2195, in _actor_method_call
+[36m(run_dp_rank pid=975992)[0m     object_refs = worker.core_worker.submit_actor_task(
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3671, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 3676, in ray._raylet.CoreWorker.submit_actor_task
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 695, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 686, in ray._raylet.prepare_args_and_increment_put_refs
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/_raylet.pyx", line 727, in ray._raylet.prepare_args_internal
+[36m(run_dp_rank pid=975992)[0m   File "python/ray/includes/common.pxi", line 107, in ray._raylet.check_status
+[36m(run_dp_rank pid=975992)[0m ValueError: An application is trying to access a Ray object whose owner is unknown(928ead34e47cd126a7cebd8c07cd0c59e23e45fb0100000001000000). Please make sure that all Ray objects you are trying to access are part of the current Ray session. Note that object IDs generated randomly (ObjectID.from_random()) or out-of-band (ObjectID.from_binary(...)) cannot be passed as a task argument because Ray does not know which task created them. If this was not how your object ID was generated, please file an issue at https://github.com/ray-project/ray/issues/
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) and dst actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(run_dp_rank pid=975992)[0m RDT transfer with src actor Actor(PiperActor, 28643b3a35092073aa4dc78e01000000) and dst actor Actor(PiperActor, a7cebd8c07cd0c59e23e45fb01000000) failed. Killing the actors. Transfer failed with exception: RDT transfer failed after 60.0s. You can increase the timeout by setting RAY_rdt_fetch_fail_timeout_milliseconds
+[36m(PiperActor pid=976581)[0m 2026-01-21 02:47:28,736 - piper_actor - INFO - Actor 1: Tracing disabled

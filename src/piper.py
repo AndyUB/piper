@@ -4,7 +4,12 @@ import os
 from .piper_actor import PiperActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
-from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger
+from .piper_utils import (
+    RemoteTensor,
+    serialize_graphmodule,
+    piper_metadata,
+    create_logger,
+)
 import threading
 
 logger = create_logger("piper_backend", "INFO")
@@ -13,12 +18,15 @@ logger = create_logger("piper_backend", "INFO")
 Annotation for stage boundaries, causes torch.compile graph break
 and sets metadata appropriately at compile time and runtime
 """
+
+
 @_disallow_in_graph_helper(throw_if_not_allowed=False)
 def distributed_stage(stage_id, actor_id=None, optim=None):
-    dp_rank = int(os.environ['PIPER_DP_RANK'])
-    world_size = int(os.environ['PIPER_WORLD_SIZE'])
-    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
-    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
+    # print(f"[Fn] distributed_stage(stage_id={stage_id}, actor_id={actor_id}) called")
+    dp_rank = int(os.environ["PIPER_DP_RANK"])
+    world_size = int(os.environ["PIPER_WORLD_SIZE"])
+    dp_degree = int(os.environ["PIPER_DP_DEGREE"])
+    pp_degree = int(os.environ["PIPER_PP_DEGREE"])
 
     if actor_id is None:
         actor_id = stage_id
@@ -27,25 +35,31 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
 
     if actor_id not in piper_metadata.actors:
         logger.debug(f"Initializing actor for global rank {global_rank}")
-        actor = PiperActor.options(num_gpus=1).remote(
-            actor_id, 
+        # actor = PiperActor.options(num_gpus=0.6).remote(
+        # actor = PiperActor.options(num_gpus=1).remote(
+        actor = PiperActor.options(
+            num_gpus=1, runtime_env={"nsight": "default"}
+        ).remote(
+            actor_id,
             world_size,
-            dp_rank=dp_rank, 
+            dp_rank=dp_rank,
             dp_degree=dp_degree,
             pp_degree=pp_degree,
-            optim_fn=optim, 
+            optim_fn=optim,
         )
         piper_metadata.actors[actor_id] = actor
-    
+
     piper_metadata.current_stage = stage_id
     piper_metadata.current_actor = actor_id
     piper_metadata.first_graph_of_stage = True
+    # print(f"[Fn] distributed_stage(stage_id={stage_id}, actor_id={actor_id}) end")
 
 
 """
 Piper backend for torch.compile sends a partial graph to a Ray actor
 for execution
 """
+
 
 @register_backend
 def piper(gm, example_inputs, **kwargs):
@@ -58,7 +72,7 @@ def piper(gm, example_inputs, **kwargs):
     input_idxs = []
     for i, (arg, ex) in enumerate(zip(graphargs, example_inputs)):
         # save indices of input tensors and model parameters
-        if 'self' not in str(arg):
+        if "self" not in str(arg):
             input_idxs.append(i)
 
         # convert symbolic ints and fake tensors to concrete values
@@ -84,8 +98,8 @@ def piper(gm, example_inputs, **kwargs):
     stage_id = piper_metadata.current_stage
     actor_id = piper_metadata.current_actor
     actor = piper_metadata.actors[actor_id]
-    dp_rank = int(os.environ['PIPER_DP_RANK'])
-    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
+    dp_rank = int(os.environ["PIPER_DP_RANK"])
+    dp_degree = int(os.environ["PIPER_DP_DEGREE"])
     global_rank = dp_rank * dp_degree + actor_id
     ray.get(
         actor.compile_graph.remote(
@@ -100,8 +114,10 @@ def piper(gm, example_inputs, **kwargs):
     # get a list of fake tensor outputs from the fx.Graph
     def symint_to_int(x):
         return int(x) if isinstance(x, torch.SymInt) else x
+
     def int_to_tensor(x):
         return torch.tensor(x) if isinstance(x, int) else x
+
     fakes = gm(*list(map(symint_to_int, serializable_examples)))
     fakes = list(map(int_to_tensor, fakes))
 
@@ -110,7 +126,7 @@ def piper(gm, example_inputs, **kwargs):
     if first_graph_of_stage:
         piper_metadata.first_graph_of_stage = False
 
-    # return a wrapper function that runs the fx.Graph on the actor and 
+    # return a wrapper function that runs the fx.Graph on the actor and
     # returns remote futures for each graph output
     def run_remote_subgraph(*args):
 
@@ -120,14 +136,23 @@ def piper(gm, example_inputs, **kwargs):
 
         # wait for a signal to run the partial graph
         if first_graph_of_stage:
-            logger.debug(f"Thread {mb_idx} global rank {global_rank} waiting for stage {stage_id}")
+            logger.debug(
+                f"Thread {mb_idx} global rank {global_rank} waiting for stage {stage_id}"
+            )
+            # logger.debug(f"Events TLS stages: {events_tls.events[stage_id]}")
             events_tls.events[stage_id].wait()
-            logger.debug(f"Thread {mb_idx} global rank {global_rank} running stage {stage_id}")
+            logger.debug(
+                f"Thread {mb_idx} global rank {global_rank} running stage {stage_id}"
+            )
 
         # Mutex ensures that only one thread submits a task to this actor at a time
-        logger.debug(f"Thread {mb_idx} global rank {global_rank} waiting for actor mutex {actor_id}")
+        logger.debug(
+            f"Thread {mb_idx} global rank {global_rank} waiting for actor mutex {actor_id}"
+        )
         with events_tls.actor_mutexes[actor_id]:
-            logger.debug(f"Thread {mb_idx} global rank {global_rank} got actor mutex {actor_id}")
+            logger.debug(
+                f"Thread {mb_idx} global rank {global_rank} got actor mutex {actor_id}"
+            )
 
             # clear the event for the next stage
             if first_graph_of_stage:
@@ -138,7 +163,7 @@ def piper(gm, example_inputs, **kwargs):
             for i in input_idxs:
                 input_tensors_only.append(args[i])
             args = input_tensors_only
-            
+
             # track stage dependencies
             for arg in args:
                 if isinstance(arg, RemoteTensor):
@@ -147,20 +172,28 @@ def piper(gm, example_inputs, **kwargs):
             # get Ray ObjectRefs from RemoteTensors
             def unwrap(x):
                 return x.get_ref() if isinstance(x, RemoteTensor) else x
+
             args = list(map(unwrap, args))
 
             if piper_metadata.currently_compiling:
                 # dispatch task without nccl transport
-                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(
+                    stage_id, mb_idx, *args
+                )
             else:
                 # dispatch with nccl transport
-                refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, mb_idx, *args)
+                refs = actor.forward.options(num_returns=len(fakes)).remote(
+                    stage_id, mb_idx, *args
+                )
 
             # wrap the remote futures with RemoteTensor
             if isinstance(refs, list):
                 assert len(fakes) == len(refs)
-                return [RemoteTensor(fake, ref, stage_id) for fake, ref in zip(fakes, refs)]
+                return [
+                    RemoteTensor(fake, ref, stage_id) for fake, ref in zip(fakes, refs)
+                ]
             else:
                 assert len(fakes) == 1
                 return [RemoteTensor(fakes[0], refs, stage_id)]
+
     return run_remote_subgraph

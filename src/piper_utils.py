@@ -15,6 +15,7 @@ Logger utility
 """
 
 def create_logger(name: str, log_level: str):
+    # log_level = "DEBUG"
     match log_level:
         case "DEBUG":
             log_level = logging.DEBUG

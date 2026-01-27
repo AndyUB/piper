@@ -13,16 +13,19 @@ from typing import Callable
 
 CLEANUP_MEMORY = False
 
+
 @ray.remote
 class PiperActor:
-    def __init__(self, actor_id, world_size, dp_rank=0, dp_degree=1, pp_degree=1, optim_fn=None):
+    def __init__(
+        self, actor_id, world_size, dp_rank=0, dp_degree=1, pp_degree=1, optim_fn=None
+    ):
         self.logger = create_logger("piper_actor", "INFO")
-        
+
         start = time.perf_counter()
 
         self.actor_id = actor_id
         self.optim_fn = optim_fn
-        
+
         # Data parallel attributes
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
@@ -37,7 +40,9 @@ class PiperActor:
         else:
             self.global_rank = dp_rank * dp_degree + actor_id
 
-        self.logger.info(f"Initializing Ray actor {actor_id} global rank {self.global_rank} with PID: {os.getpid()}")
+        self.logger.info(
+            f"Initializing Ray actor {actor_id} global rank {self.global_rank} with PID: {os.getpid()}"
+        )
 
         self.input = None
         self.truth = None
@@ -65,22 +70,26 @@ class PiperActor:
 
         # Timing infrastructure
         self.tracing = False  # Toggle for timing and memory tracing
-        self.trace_data = {'update': {'total': [], 'peak_memory_delta': [], 'peak_memory': []}}
+        self.trace_data = {
+            "update": {"total": [], "peak_memory_delta": [], "peak_memory": []}
+        }
 
         end = time.perf_counter()
         self.logger.debug(f"__init__ took {(end-start)*1000:.2f}ms")
 
-        self.logger.debug(f"Initialized actor {self.actor_id} for global rank {self.global_rank}")
+        self.logger.debug(
+            f"Initialized actor {self.actor_id} for global rank {self.global_rank}"
+        )
 
     def id(self):
         return self.actor_id
 
     def send_input(self, tensor):
-        self.input = tensor.to('cuda')
+        self.input = tensor.to("cuda")
         return "done"
-    
+
     def send_truth(self, tensor):
-        self.truth = tensor.to('cuda')
+        self.truth = tensor.to("cuda")
         return "done"
 
     def reset_peak_memory(self):
@@ -92,52 +101,65 @@ class PiperActor:
 
     @ray.method
     def join_process_groups(self):
-        master_addr = os.environ.get('PIPER_MASTER_ADDR', "127.0.0.1")
-        master_port = os.environ.get('PIPER_MASTER_PORT', "10000")
+        master_addr = os.environ.get("PIPER_MASTER_ADDR", "127.0.0.1")
+        master_port = os.environ.get("PIPER_MASTER_PORT", "10000")
         init_method = f"tcp://{master_addr}:{master_port}"
 
-        dist.init_process_group("nccl", init_method=init_method, rank=self.global_rank, world_size=self.world_size)
-        self.logger.debug(f"Actor {self.actor_id} global rank {self.global_rank} has GPU {os.environ['CUDA_VISIBLE_DEVICES']}, joined the global process group")
+        dist.init_process_group(
+            "nccl",
+            init_method=init_method,
+            rank=self.global_rank,
+            world_size=self.world_size,
+        )
+        self.logger.debug(
+            f"Actor {self.actor_id} global rank {self.global_rank} has GPU {os.environ['CUDA_VISIBLE_DEVICES']}, joined the global process group"
+        )
 
         if self.dp_degree > 1:
             self.join_dp_process_group()
-    
+
     def join_dp_process_group(self):
         # Every process needs to participate in every subgroup creation
         num_dp_groups = self.world_size // self.dp_degree
         for dp_group_id in range(num_dp_groups):
-            group_ranks = [(dp_group_id + num_dp_groups * i) for i in range(self.dp_degree)]
-            process_group = dist.new_group(ranks=group_ranks, backend='nccl')
+            group_ranks = [
+                (dp_group_id + num_dp_groups * i) for i in range(self.dp_degree)
+            ]
+            process_group = dist.new_group(ranks=group_ranks, backend="nccl")
             if self.global_rank % num_dp_groups == dp_group_id:
                 self.dp_group = process_group
-                self.logger.info(f"Global rank {self.global_rank} joined its dp group {dp_group_id} along with ranks {group_ranks}")
+                self.logger.info(
+                    f"Global rank {self.global_rank} joined its dp group {dp_group_id} along with ranks {group_ranks}"
+                )
 
     def compile_graph(self, stage_id, gm_data, compiler_fn, graphargs, input_idxs):
-        self.logger.debug(f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} with inputs: {len(graphargs)}")
+        self.logger.debug(
+            f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} with inputs: {len(graphargs)}"
+        )
         start = time.perf_counter()
 
         # set up tracing data structure
         self.trace_data[stage_id] = {
-            'forward': {
-                'forward': [],
-                'total': [],
-                'peak_memory_delta': [],
-                'peak_memory': []
+            "forward": {
+                "forward": [],
+                "total": [],
+                "peak_memory_delta": [],
+                "peak_memory": [],
             },
-            'backward': {
-                'backward': [],
-                'total': [],
-                'peak_memory_delta': [],
-                'peak_memory': []
+            "backward": {
+                "backward": [],
+                "total": [],
+                "peak_memory_delta": [],
+                "peak_memory": [],
             },
         }
 
         # compile the graph with the given graphargs
         gm = deserialize_graphmodule(gm_data)
-        
+
         # Store GraphModule reference
         self.graph_modules[stage_id] = gm
-        
+
         compiled_fn = compiler_fn(gm, graphargs)
         assert callable(compiled_fn), "compiler_fn did not return callable"
         self.compiled_fns[stage_id] = compiled_fn
@@ -152,7 +174,9 @@ class PiperActor:
 
         # initialize the optimizer for this stage
         if [param for param in self.parameters[stage_id] if param is not None]:
-            self.optims[stage_id] = self.optim_fn([param for param in self.parameters[stage_id] if param is not None])
+            self.optims[stage_id] = self.optim_fn(
+                [param for param in self.parameters[stage_id] if param is not None]
+            )
 
         del gm_data
 
@@ -162,7 +186,9 @@ class PiperActor:
 
     @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
-        self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
+        self.logger.debug(
+            f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
+        )
 
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
@@ -170,12 +196,13 @@ class PiperActor:
             forward_end_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
             beginning_event.record()
-        
+
         def pre_loaded_input(param):
             if param is None:
                 return self.input
             else:
                 return param
+
         args = list(map(pre_loaded_input, args))
 
         def unwrap_arg(arg):
@@ -184,10 +211,12 @@ class PiperActor:
                 return arg[0]
             else:
                 return arg
+
         args = list(map(unwrap_arg, args))
 
         def detach_arg(arg):
             return arg.detach().clone()
+
         args = list(map(detach_arg, args))
 
         # Ray object refs resolve to a single element list
@@ -195,6 +224,7 @@ class PiperActor:
             if isinstance(x, list) or isinstance(x, tuple):
                 assert len(x) == 1
             return x[0] if isinstance(x, list) or isinstance(x, tuple) else x
+
         args = list(map(unwrap, args))
 
         # place input tensors in the correct indices
@@ -220,11 +250,13 @@ class PiperActor:
         if self.tracing:
             forward_end_event.record()
             torch.cuda.synchronize()
-            
+
             # Calculate total forward time
             forward_time = forward_start_event.elapsed_time(forward_end_event)
-            
-            forward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - forward_start_memory) / (1024**3)
+
+            forward_peak_memory_delta_gb = (
+                torch.cuda.max_memory_allocated() - forward_start_memory
+            ) / (1024**3)
             forward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
         # save first output as activation BEFORE clearing input tensors
@@ -243,31 +275,38 @@ class PiperActor:
             torch.cuda.synchronize()
             total_time = forward_start_event.elapsed_time(end_event)
             # Store in trace_data (all microbatches stored sequentially)
-            self.trace_data[stage_id]['forward']['forward'].append(forward_time)
-            self.trace_data[stage_id]['forward']['total'].append(forward_time)
-            self.trace_data[stage_id]['forward']['peak_memory_delta'].append(forward_peak_memory_delta_gb)
-            self.trace_data[stage_id]['forward']['peak_memory'].append(forward_peak_memory_gb)
+            self.trace_data[stage_id]["forward"]["forward"].append(forward_time)
+            self.trace_data[stage_id]["forward"]["total"].append(forward_time)
+            self.trace_data[stage_id]["forward"]["peak_memory_delta"].append(
+                forward_peak_memory_delta_gb
+            )
+            self.trace_data[stage_id]["forward"]["peak_memory"].append(
+                forward_peak_memory_gb
+            )
 
             if isinstance(out, list) or isinstance(out, tuple):
                 self.fwd_objs[stage_id] = [torch.ones_like(t) for t in out]
             else:
                 self.fwd_objs[stage_id] = torch.ones_like(out)
-        
+
         if CLEANUP_MEMORY:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        
+
         return out
 
     def forward_no_nccl(self, stage_id: int, mb_idx: int, *args):
-        self.logger.debug(f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
+        self.logger.debug(
+            f"Calling cpu forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
+        )
 
         def pre_loaded_input(param):
             if param is None:
                 return self.input
             else:
                 return param
+
         args = list(map(pre_loaded_input, args))
 
         # Ray object refs resolve to a single element list
@@ -277,40 +316,48 @@ class PiperActor:
                 return x[0]
             else:
                 return x
+
         args = list(map(unwrap, args))
 
+        # self.logger.debug(f"[Debug] {self.actor_id} Point 1")
         # place input tensors in the correct indices
         for i, arg in zip(self.input_idxs[stage_id], args):
             self.parameters[stage_id][i] = arg
 
+        # self.logger.debug(f"[Debug] {self.actor_id} Point 2")
         # save first input as previous activation
         if stage_id != 0:
             assert args[0].requires_grad
             self.prev_activation[stage_id][mb_idx] = args[0]
 
+        # self.logger.debug(f"[Debug] {self.actor_id} Point 3")
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
-        
+        # self.logger.debug(f"[Debug] {self.actor_id} Point 4")
+
         # save first output as activation BEFORE clearing input tensors
         # This ensures the activation doesn't share memory with parameters
         # that might be modified when processing other stages on the same actor
         activation_tensor = out[0] if isinstance(out, (list, tuple)) else out
         self.activation[stage_id][mb_idx] = activation_tensor
-        
+
         # clear the input tensors
         for i in self.input_idxs[stage_id]:
             self.parameters[stage_id][i] = None
         del args
-        
+
         if CLEANUP_MEMORY:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        
+
+        # self.logger.debug(f"[Debug] {self.actor_id} forward_no_nccl done")
         return out
 
     @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
-        self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
+        self.logger.debug(
+            f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
+        )
 
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
@@ -320,15 +367,17 @@ class PiperActor:
             beginning_event.record()
 
         # get the activation for the current stage
-        assert mb_idx in self.activation[stage_id], f"mb_idx {mb_idx} not in activation[stage_id {stage_id}]"
+        assert (
+            mb_idx in self.activation[stage_id]
+        ), f"mb_idx {mb_idx} not in activation[stage_id {stage_id}]"
         activation = self.activation[stage_id][mb_idx]
-        
+
         # Record start event for backward timing
         if self.tracing:
             torch.cuda.reset_peak_memory_stats()
             backward_start_memory = torch.cuda.memory_allocated()
             backward_start_event.record()
-        
+
         # compute loss in the last stage. use the saved activation rather
         # than inp because the saved activation remembers the computation graph
         if loss_fn is not None:
@@ -341,7 +390,7 @@ class PiperActor:
             self.loss.append(loss.item())
             # Clean up loss tensor after extracting item
             del loss
-        # if not the last stage, backprop on the stored activation given 
+        # if not the last stage, backprop on the stored activation given
         # the input gradient from the subsequent stage
         else:
             assert inp is not None
@@ -352,11 +401,13 @@ class PiperActor:
         if self.tracing:
             backward_end_event.record()
             torch.cuda.synchronize()
-            
+
             # Calculate total backward time
             backward_time = backward_start_event.elapsed_time(backward_end_event)
-            
-            backward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - backward_start_memory) / (1024**3)
+
+            backward_peak_memory_delta_gb = (
+                torch.cuda.max_memory_allocated() - backward_start_memory
+            ) / (1024**3)
             backward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
         del self.activation[stage_id][mb_idx]
@@ -367,39 +418,49 @@ class PiperActor:
             ret = [self.prev_activation[stage_id][mb_idx]]
         else:
             ret = ["done"]
-        
+
         if self.tracing:
             end_event.record()
             torch.cuda.synchronize()
             total_time = beginning_event.elapsed_time(end_event)
             # Store in trace_data (all microbatches stored sequentially)
-            self.trace_data[stage_id]['backward']['backward'].append(backward_time)
-            self.trace_data[stage_id]['backward']['total'].append(total_time)
-            self.trace_data[stage_id]['backward']['peak_memory_delta'].append(backward_peak_memory_delta_gb)
-            self.trace_data[stage_id]['backward']['peak_memory'].append(backward_peak_memory_gb)
+            self.trace_data[stage_id]["backward"]["backward"].append(backward_time)
+            self.trace_data[stage_id]["backward"]["total"].append(total_time)
+            self.trace_data[stage_id]["backward"]["peak_memory_delta"].append(
+                backward_peak_memory_delta_gb
+            )
+            self.trace_data[stage_id]["backward"]["peak_memory"].append(
+                backward_peak_memory_gb
+            )
             if stage_id != 0:
                 self.bwd_objs[stage_id] = torch.ones_like(ret[0])
-        
+
         if CLEANUP_MEMORY:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        
+
         return ret + ret
 
     def synchronize_gradients(self):
-        """Synchronize gradients across all DP ranks for this stage using all-reduce."""     
-        self.logger.debug(f"Actor {self.actor_id} global rank {self.global_rank} synchronizing gradients")
-        
+        """Synchronize gradients across all DP ranks for this stage using all-reduce."""
+        self.logger.debug(
+            f"Actor {self.actor_id} global rank {self.global_rank} synchronizing gradients"
+        )
+
         # Iterate over all stages on this actor and synchronize their parameters
         for stage_id, parameters in self.parameters.items():
             for param in parameters:
                 if param is not None and param.grad is not None:
-                    dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
+                    dist.all_reduce(
+                        param.grad, op=dist.ReduceOp.AVG, group=self.dp_group
+                    )
 
     def update(self, *done_mbs):
-        self.logger.debug(f"Calling update on actor {self.actor_id} global rank {self.global_rank}")
-        
+        self.logger.debug(
+            f"Calling update on actor {self.actor_id} global rank {self.global_rank}"
+        )
+
         if self.tracing:
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
@@ -408,11 +469,11 @@ class PiperActor:
             update_start_memory = torch.cuda.memory_allocated()
 
             start_event.record()
-        
+
         # if dp degree > 1, synchronize the gradients
         if self.dp_degree > 1:
             self.synchronize_gradients()
-        
+
         # step the optimizer for each stage
         assert self.optim_fn
         for _, optim in self.optims.items():
@@ -425,12 +486,16 @@ class PiperActor:
             end_event.record()
             torch.cuda.synchronize()
             total_time = start_event.elapsed_time(end_event)
-            update_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - update_start_memory) / (1024**3)
+            update_peak_memory_delta_gb = (
+                torch.cuda.max_memory_allocated() - update_start_memory
+            ) / (1024**3)
             update_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
-            self.trace_data['update']['total'].append(total_time)
-            self.trace_data['update']['peak_memory_delta'].append(update_peak_memory_delta_gb)
-            self.trace_data['update']['peak_memory'].append(update_peak_memory_gb)
+            self.trace_data["update"]["total"].append(total_time)
+            self.trace_data["update"]["peak_memory_delta"].append(
+                update_peak_memory_delta_gb
+            )
+            self.trace_data["update"]["peak_memory"].append(update_peak_memory_gb)
 
         return losses
 
@@ -439,9 +504,13 @@ class PiperActor:
             for param in parameters:
                 if param is not None and param.grad is not None:
                     if len(param.shape) == 2:
-                        self.logger.info(f"Actor {self.actor_id} global rank {self.global_rank} stage {stage_id} {msg}: {param.shape, param[0][0], param.grad[0][0]}")
+                        self.logger.info(
+                            f"Actor {self.actor_id} global rank {self.global_rank} stage {stage_id} {msg}: {param.shape, param[0][0], param.grad[0][0]}"
+                        )
                     elif len(param.shape) == 1:
-                        self.logger.info(f"Actor {self.actor_id} global rank {self.global_rank} stage {stage_id} {msg}: {param.shape, param[0], param.grad[0]}")
+                        self.logger.info(
+                            f"Actor {self.actor_id} global rank {self.global_rank} stage {stage_id} {msg}: {param.shape, param[0], param.grad[0]}"
+                        )
                     else:
                         assert False, f"Unsupported parameter shape: {param.shape}"
                     return "done"
@@ -452,44 +521,50 @@ class PiperActor:
         """
         for stage_id in self.trace_data:
             self.trace_data[stage_id] = {
-                'forward': {
-                    'forward': [],
-                    'total': [],
-                    'peak_memory_delta': [],
-                    'peak_memory': []
+                "forward": {
+                    "forward": [],
+                    "total": [],
+                    "peak_memory_delta": [],
+                    "peak_memory": [],
                 },
-                'backward': {
-                    'backward': [],
-                    'total': [],
-                    'peak_memory_delta': [],
-                    'peak_memory': []
+                "backward": {
+                    "backward": [],
+                    "total": [],
+                    "peak_memory_delta": [],
+                    "peak_memory": [],
                 },
             }
-        self.trace_data['update'] = {
-            'total': [],
-            'peak_memory_delta': [],
-            'peak_memory': []
+        self.trace_data["update"] = {
+            "total": [],
+            "peak_memory_delta": [],
+            "peak_memory": [],
         }
-    
+
     def get_trace_data(self) -> dict:
         return self.trace_data
 
     def set_tracing(self, enabled: bool) -> None:
         """
         Enable or disable timing and memory tracing.
-        
+
         Args:
             enabled (bool): True to enable tracing, False to disable.
         """
         self.tracing = enabled
-        self.logger.info(f"Actor {self.actor_id}: Tracing {'enabled' if enabled else 'disabled'}")
+        self.logger.info(
+            f"Actor {self.actor_id}: Tracing {'enabled' if enabled else 'disabled'}"
+        )
 
     def start_mem_tracing(self) -> None:
         torch.cuda.memory._record_memory_history()
         return "done"
-    
+
     def stop_mem_tracing(self) -> None:
-        torch.cuda.memory._dump_snapshot(f"actor{self.actor_id}_memory_snapshot_mb4_gpipe.pickle")
-        self.logger.info(f"Saved memory snapshot to actor{self.actor_id}_memory_snapshot_mb4_gpipe.pickle")
+        torch.cuda.memory._dump_snapshot(
+            f"actor{self.actor_id}_memory_snapshot_mb4_gpipe.pickle"
+        )
+        self.logger.info(
+            f"Saved memory snapshot to actor{self.actor_id}_memory_snapshot_mb4_gpipe.pickle"
+        )
         torch.cuda.memory._record_memory_history(enabled=None)
         return "done"

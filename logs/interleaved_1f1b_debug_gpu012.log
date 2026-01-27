@@ -1,0 +1,27 @@
+2026-01-21 05:27:58,611	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(PiperProgramCoordinator pid=1550162)[0m 2026-01-21 05:28:08,584 - piper_coordinator - INFO - Running program with 1 DP ranks and 2 PP ranks
+[36m(run_dp_rank pid=1550170)[0m Namespace(model='LLAMA_DEBUG', schedule='interleaved-1f1b', num_stages=4, dp_degree=1, pp_degree=2, batch_size=16, num_mbs=4, seq_len=256, warmup=1, iters=2, tracing=False, verify_weights=False)
+[36m(run_dp_rank pid=1550170)[0m 2026-01-21 05:28:15,223 - piper_compile - INFO - DP rank 0 compiling 4 stages...
+[36m(PiperActor pid=1550217)[0m 2026-01-21 05:28:19,326 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 with PID: 1550217
+[36m(PiperActor pid=1550167)[0m 2026-01-21 05:28:26,280 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 with PID: 1550167
+[36m(pid=gcs_server)[0m [2026-01-21 05:28:26,710 E 1549442 1549442] (gcs_server) gcs_server.cc:303: Failed to establish connection to the event+metrics exporter agent. Events and metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=1550170)[0m 2026-01-21 05:28:30,484 - piper_compile - INFO - DP rank 0 joining process groups
+[36m(run_dp_rank pid=1550170)[0m 2026-01-21 05:28:31,081 - piper_compile - INFO - DP rank 0 completed setup for 2 actors
+[36m(run_dp_rank pid=1550170)[0m SCHEDULE:
+[36m(run_dp_rank pid=1550170)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=1550170)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=1550170)[0m Running 1 warmup iterations...
+[36m(run_dp_rank pid=1550170)[0m 2026-01-21 05:28:31,463 - piper_compile - INFO - DP rank 0 Started NCCL group with 2 actors
+[36m(PiperActor pid=1550217)[0m 2026-01-21 05:28:31,473 - piper_actor - INFO - Actor 0: Tracing disabled
+[33m(raylet)[0m [2026-01-21 05:28:32,960 E 1550012 1550012] (raylet) main.cc:1032: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperProgramCoordinator pid=1550162)[0m [2026-01-21 05:28:33,975 E 1550162 1557686] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[2026-01-21 05:28:34,580 E 1549248 1550161] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperActor pid=1550217)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/autograd/graph.py:841: UserWarning: Attempting to run cuBLAS, but there was no current CUDA context! Attempting to set the primary context... (Triggered internally at /pytorch/aten/src/ATen/cuda/CublasHandlePool.cpp:270.)
+[36m(PiperActor pid=1550217)[0m   return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[36m(run_dp_rank pid=1550170)[0m Running 2 timed iterations...
+[36m(run_dp_rank pid=1550170)[0m Iteration time: 306 ms
+[36m(run_dp_rank pid=1550170)[0m interleaved-1f1b throughput: 53462 tokens/sec
+[36m(PiperActor pid=1550167)[0m 2026-01-21 05:28:31,473 - piper_actor - INFO - Actor 1: Tracing disabled
+[36m(pid=1557649)[0m [2026-01-21 05:28:34,563 E 1557649 1564338] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14[32m [repeated 255x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m

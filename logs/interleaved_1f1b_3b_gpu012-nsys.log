@@ -1,0 +1,42 @@
+2026-01-21 18:32:34,450	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+session_dir = /home/wxdeng/ray_tmp/ray/session_2026-01-21_18-32-29_267473_3129471
+logs_dir    = /home/wxdeng/ray_tmp/ray/session_2026-01-21_18-32-29_267473_3129471/logs
+[36m(PiperProgramCoordinator pid=3130696)[0m 2026-01-21 18:32:43,698 - piper_coordinator - INFO - Running program with 1 DP ranks and 2 PP ranks
+[36m(run_dp_rank pid=3130659)[0m Namespace(model='LLAMA_3B', schedule='interleaved-1f1b', num_stages=4, dp_degree=1, pp_degree=2, batch_size=16, num_mbs=4, seq_len=256, warmup=5, iters=5, tracing=False, verify_weights=False)
+[36m(pid=gcs_server)[0m [2026-01-21 18:33:02,551 E 3129785 3129785] (gcs_server) gcs_server.cc:303: Failed to establish connection to the event+metrics exporter agent. Events and metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[33m(raylet)[0m [2026-01-21 18:33:08,098 E 3130511 3130511] (raylet) main.cc:1032: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperProgramCoordinator pid=3130696)[0m [2026-01-21 18:33:09,122 E 3130696 3138002] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[2026-01-21 18:33:09,693 E 3129471 3130657] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=3130659)[0m 2026-01-21 18:33:13,295 - piper_compile - INFO - DP rank 0 compiling 4 stages...
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(pid=3137848)[0m [2026-01-21 18:33:09,676 E 3137848 3144787] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14[32m [repeated 255x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(PiperActor pid=3156017)[0m 2026-01-21 18:33:47,424 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 with PID: 3156017
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(PiperActor pid=3164073)[0m 2026-01-21 18:34:08,303 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 with PID: 3164073
+[36m(PiperActor pid=3156017)[0m [2026-01-21 18:34:13,653 E 3156017 3158477] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperActor pid=3164073)[0m [2026-01-21 18:34:34,583 E 3164073 3166478] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(run_dp_rank pid=3130659)[0m 2026-01-21 18:34:36,407 - piper_compile - INFO - DP rank 0 joining process groups
+[36m(run_dp_rank pid=3130659)[0m 2026-01-21 18:34:37,074 - piper_compile - INFO - DP rank 0 completed setup for 2 actors
+[36m(run_dp_rank pid=3130659)[0m SCHEDULE:
+[36m(run_dp_rank pid=3130659)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=3130659)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=3130659)[0m 2026-01-21 18:34:37,457 - piper_compile - INFO - DP rank 0 Started NCCL group with 2 actors
+[36m(run_dp_rank pid=3130659)[0m Running 5 warmup iterations...
+[36m(PiperActor pid=3156017)[0m 2026-01-21 18:34:37,502 - piper_actor - INFO - Actor 0: Tracing disabled
+[33m(raylet)[0m WARNING: Device-side CUDA Event completion trace is currently enabled.
+[33m(raylet)[0m          This may increase runtime overhead and the likelihood of false
+[33m(raylet)[0m          dependencies across CUDA Streams. If you wish to avoid this, please
+[33m(raylet)[0m          disable the feature with --cuda-event-trace=false.
+[36m(NCCLUniqueIDStore pid=3180835)[0m [2026-01-21 18:35:17,532 E 3180835 3183092] core_worker_process.cc:842: Failed to establish connection to the metrics exporter agent. Metrics will not be exported. Exporter agent status: RpcError: Running out of retries to initialize the metrics agent. rpc_code: 14
+[36m(PiperActor pid=3164073)[0m 2026-01-21 18:34:37,502 - piper_actor - INFO - Actor 1: Tracing disabled
+[36m(run_dp_rank pid=3130659)[0m Running 5 timed iterations...
+[36m(run_dp_rank pid=3130659)[0m Iteration time: 5878 ms
+[36m(run_dp_rank pid=3130659)[0m interleaved-1f1b throughput: 2788 tokens/sec

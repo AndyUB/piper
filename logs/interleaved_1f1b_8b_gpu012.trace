@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 269, in <module>
+    ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 1818, in init
+    bootstrap_address = services.canonicalize_bootstrap_address(address, _temp_dir)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 532, in canonicalize_bootstrap_address
+    addr = get_ray_address_from_environment(addr, temp_dir)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 399, in get_ray_address_from_environment
+    gcs_addrs = find_gcs_addresses()
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 370, in find_gcs_addresses
+    return _find_address_from_flag("--gcs-address")
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 336, in _find_address_from_flag
+    for proc in psutil.process_iter(["cmdline"]):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/thirdparty_files/psutil/__init__.py", line 1525, in process_iter
+    a = set(pids())
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/thirdparty_files/psutil/__init__.py", line 1469, in pids
+    ret = sorted(_psplatform.pids())
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/thirdparty_files/psutil/_pslinux.py", line 1565, in pids
+    return [int(x) for x in os.listdir(path) if x.isdigit()]
+KeyboardInterrupt
