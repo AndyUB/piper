@@ -23,93 +23,9 @@ def apply_patches():
         return
     _patches_applied = True
 
-    _patch_torch_dynamo_compile()
-    _patch_torch_dynamo_guards()
     _patch_ray_actor_method()
 
     logger.info("Piper runtime patches applied successfully")
-
-
-def _patch_torch_dynamo_compile():
-    """
-    Patch torch._dynamo.convert_frame._compile to handle RemoteTensor.
-
-    Instead of tracing RemoteTensors, trace their underlying FakeTensor.
-    This prevents TorchDynamo from failing on non-traceable RemoteTensors.
-    """
-    try:
-        import torch._dynamo.convert_frame as convert_frame
-    except ImportError as e:
-        logger.warning(f"Could not import convert_frame: {e}")
-        return
-
-    # Import RemoteTensor lazily to avoid circular imports
-    def get_remote_tensor_class():
-        try:
-            from src.piper_utils import RemoteTensor
-            return RemoteTensor
-        except ImportError:
-            return None
-
-    original_compile = convert_frame._compile
-
-    @functools.wraps(original_compile)
-    def patched_compile(code, globals, locals, builtins, closure, *args, **kwargs):
-        RemoteTensor = get_remote_tensor_class()
-        if RemoteTensor is not None:
-            # Replace RemoteTensors with their underlying FakeTensor in locals
-            patched_locals = {}
-            for k, v in locals.items():
-                if isinstance(v, RemoteTensor):
-                    patched_locals[k] = v._fake
-                else:
-                    patched_locals[k] = v
-            locals = patched_locals
-
-        return original_compile(code, globals, locals, builtins, closure, *args, **kwargs)
-
-    convert_frame._compile = patched_compile
-    logger.debug("Patched torch._dynamo.convert_frame._compile")
-
-
-def _patch_torch_dynamo_guards():
-    """
-    Patch torch._dynamo.guards to handle RemoteTensor.
-
-    RemoteTensor causes recompilation bugs because it's not fully traceable
-    by TorchDynamo. This patch modifies guard behavior to prevent issues.
-    """
-    try:
-        import torch._dynamo.guards as guards_module
-    except ImportError as e:
-        logger.warning(f"Could not import guards: {e}")
-        return
-
-    def get_remote_tensor_class():
-        try:
-            from src.piper_utils import RemoteTensor
-            return RemoteTensor
-        except ImportError:
-            return None
-
-    # Patch GuardBuilder.TENSOR_MATCH to skip guards for RemoteTensor
-    if hasattr(guards_module, 'GuardBuilder'):
-        original_tensor_match = guards_module.GuardBuilder.TENSOR_MATCH
-
-        @functools.wraps(original_tensor_match)
-        def patched_tensor_match(self, guard, value=None):
-            RemoteTensor = get_remote_tensor_class()
-            if RemoteTensor is not None:
-                # Get the actual value being guarded
-                actual_value = value if value is not None else self.get(guard.name)
-                if isinstance(actual_value, RemoteTensor):
-                    # Skip TENSOR_MATCH for RemoteTensor - it will cause recompilation issues
-                    logger.debug(f"Skipping TENSOR_MATCH guard for RemoteTensor: {guard.name}")
-                    return
-            return original_tensor_match(self, guard, value)
-
-        guards_module.GuardBuilder.TENSOR_MATCH = patched_tensor_match
-        logger.debug("Patched torch._dynamo.guards.GuardBuilder.TENSOR_MATCH")
 
 
 def _patch_ray_actor_method():
