@@ -14,27 +14,14 @@ from piper.utils import deserialize_graphmodule, piper_metadata, create_logger
 from piper.backward_utils import get_param_groups, construct_reverse_graph, _get_grad_fn_or_grad_acc
 
 torch.set_float32_matmul_precision('high')
-torch._dynamo.config.compiled_autograd = True
+torch._dynamo.config.compiled_autograd = False
 
 CLEANUP_MEMORY = False
-
-def backward_backend(gm, example_inputs, **kwargs):
-    print("BACKWARD GRAPH")
-
-    placeholders = gm.graph.find_nodes(op="placeholder")
-    graphargs = [node.meta["grapharg"] for node in placeholders]
-    for arg in graphargs:
-        if isinstance(arg._example, list) or isinstance(arg._example, tuple):
-            for ex in arg._example:
-                print(f"Arg {ex.shape} | parameter: {isinstance(ex, Parameter)} | requires_grad: {ex.requires_grad}")
-    gm.print_readable()
-    
-    return gm
 
 @ray.remote
 class PiperActor:
     def __init__(self, actor_id, world_size, dp_rank=0, dp_degree=1, pp_degree=1, optim_fn=None):
-        self.logger = create_logger("piper_actor", "INFO")
+        self.logger = create_logger("piper_actor", "DEBUG")
         
         start = time.perf_counter()
 
@@ -110,7 +97,7 @@ class PiperActor:
     def get_peak_memory(self):
         return torch.cuda.max_memory_allocated() / (1024**3)
 
-    @ray.method
+    # @ray.method
     def join_process_groups(self):
         master_addr = os.environ.get('PIPER_MASTER_ADDR', "127.0.0.1")
         master_port = os.environ.get('PIPER_MASTER_PORT', "10000")
@@ -182,7 +169,7 @@ class PiperActor:
         self.logger.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -308,8 +295,8 @@ class PiperActor:
 
         # save first input as previous activation
         if stage_id != 0:
-            args[0].requires_grad_()
-            # assert args[0].requires_grad 
+            # args[0].requires_grad_()
+            assert args[0].requires_grad 
             self.prev_activation[stage_id][mb_idx] = args[0]
 
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
@@ -332,7 +319,7 @@ class PiperActor:
         
         return out
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -441,7 +428,7 @@ class PiperActor:
         assert self.optim_fn
         for _, optim in self.optims.items():
             optim.step()
-            optim.zero_grad(set_to_none=True)
+            optim.zero_grad()
         losses = self.loss
         self.loss.clear()
 
@@ -518,7 +505,7 @@ class PiperActor:
         torch.cuda.memory._record_memory_history(enabled=None)
         return "done"
     
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def get_object(self, is_fwd, stage_id):
         if is_fwd:
             return self.fwd_objs[stage_id]
@@ -534,11 +521,12 @@ class PiperActor:
         self.objs = objs
         return "done"
     
-
+    @ray.method(tensor_transport="nccl")
     def backward_input(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         is_last_stage = loss_fn is not None
         activation = self.activation[stage_id][mb_idx]
 
+        # Use loss instead of activation if this is the backward_input call for the last stage
         if is_last_stage:
             labels = self.truth if self.truth is not None else inp[0]
             loss = loss_fn(activation, labels)
@@ -553,34 +541,40 @@ class PiperActor:
 
         # In first stage, we treat the backward_input call like a NOOP
         if stage_id == 0:
-            gx = torch.zeros_like(activation)
+            gx = torch.zeros_like(activation) # May get slight performance boost if we don't send the full ones tensor
             return [gx, upstream_grads]
 
         stage_input = self.prev_activation[stage_id][mb_idx]
-        stage_params = [p for p in self.parameters[stage_id] if p is not None]
+        stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
 
+        # Lists of autograd nodes for the layer outputs, inputs, and parameters
         output_nodes = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [activation_or_loss]) if n is not None]
         input_nodes  = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [stage_input]) if n is not None]
         param_nodes   = [n for n in (_get_grad_fn_or_grad_acc(p) for p in stage_params) if n is not None]
 
+        # Use the autograd graph with edges reversed to compute parameter groups, which are groups 
+        # of parameters that share the same intermediate nodes. Intermediate nodes are the nodes that
+        # lie on both (1) a backward path from the output node(s) to the stage input nodes and 
+        # (2) in a path from the output node(s) a parameter node/gradient accumulator
         reverse_edges = construct_reverse_graph(output_nodes)
         param_groups = get_param_groups(input_nodes, param_nodes, reverse_edges)
 
-        # Hooks to capture grads at intermediate nodes. For use in backward_weight
+        # Hooks to capture grads at intermediate nodes. In backward_weight,
+        # we'll backprop from these intermediate values
         handles = []
         for pg in param_groups:
-            inters = pg["intermediates"]
-            if not inters:
+            intermediates = pg["intermediates"]
+            if not intermediates:
                 continue
 
-            pg["grads"] = [None] * len(inters)
+            pg["grads"] = [None] * len(intermediates)
 
-            for i, inter in enumerate(inters):
+            for i, intermediate_node in enumerate(intermediates):
                 def make_hook(group: Dict[str, Any], idx: int):
                     def hook(grad_inputs):
                         group["grads"][idx] = grad_inputs
                     return hook
-                handles.append(inter.register_prehook(make_hook(pg, i)))
+                handles.append(intermediate_node.register_prehook(make_hook(pg, i)))
 
         gx = torch.autograd.grad(
             outputs=activation_or_loss,
@@ -607,20 +601,22 @@ class PiperActor:
         for h in handles:
             h.remove()
 
+        # Save parameter groups for use in backward_weight
         self._bw_param_groups[stage_id][mb_idx] = param_groups
 
         return [gx, upstream_grads]
 
+    @ray.method(tensor_transport="nccl")
+    def backward_weight(self, stage_id: int, mb_idx: int, gx, upstream, loss_fn=None):
+        stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
 
-    def backward_weight(self, stage_id: int, mb_idx: int, upstream_ref, loss_fn=None):
-        stage_params = [p for p in self.parameters[stage_id] if p is not None]
-
-        # right now, we're only keeping gx to enforce temporal dependency
+        # We only pass to enforce temporal dependency.
         # upstream is only required for the stage 0 case
-        gx = ray.get(upstream_ref[0])
-        upstream = ray.get(upstream_ref[1])
+        gx = gx
+        upstream = upstream
 
-        # Special case to handle stage 0 since we don't create param_groups
+        # Special case to handle stage 0 since backward_input is a NOOP, 
+        # meaning no parameter groups are created
         if stage_id == 0:
             is_last_stage = loss_fn is not None
             activation = self.activation[stage_id][mb_idx]
@@ -647,16 +643,17 @@ class PiperActor:
                 f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(stage_params)}"
             )
             
-            for p, g in zip(stage_params, gparams):
+            for p, pg in zip(stage_params, gparams):
                 if p.grad is None:
-                    p.grad = g.clone()
+                    p.grad = pg.clone()
                 else:
-                    p.grad.add_(g)
+                    p.grad.add_(pg)
 
             del self.activation[stage_id][mb_idx]
 
             return [None] + ["done"]
 
+        # Create mapping from autograd nodes -> parameters
         grad_acc_to_weight: Dict[Node, Tuple[Parameter, int]] = {}
         for param in stage_params:
             node = _get_grad_fn_or_grad_acc(param)
@@ -664,19 +661,21 @@ class PiperActor:
 
         param_groups = self._bw_param_groups[stage_id][mb_idx]
 
-        # Perform the weight updates separately for each param_group
-        for g in param_groups:
-            inters: List[Node] = g.get("intermediates", [])
-            grads_list = g.get("grads", None)
+        # Perform the weight updates separately for each param_group, beginning
+        # backprop from each the intermediate node(s) of each group
+        for pg in param_groups:
+            intermediates: List[Node] = pg.get("intermediates", [])
+            intermediate_grads = pg.get("grads", None) # List of intermediate node gradients, captured by the hooks
 
-            # Groups with no intermediates: nothing to do via this mechanism
-            if not inters or grads_list is None:
+            # Skip groups without intermediate nodes (could happen in weird cases
+            # where one node is disconnected from the rest of the autograd graph for some reason)
+            if not intermediates or intermediate_grads is None:
                 continue
 
-            valid_edges: List[GradientEdge] = []
-            valid_grad_outs: List[torch.Tensor] = []
+            intermediate_edges: List[GradientEdge] = []
+            intermediate_edge_grads: List[torch.Tensor] = []
 
-            for inter, grad_inputs in zip(inters, grads_list):
+            for intermediate_node, grad_inputs in zip(intermediates, intermediate_grads):
                 if grad_inputs is None:
                     continue
 
@@ -684,36 +683,43 @@ class PiperActor:
                 if not gs:
                     continue
                 
+                # Sum all gradients arriving at the current intermediate node
+                # in case the node has multiple source of gradients
                 summed = sum(gs)
 
-                valid_edges.append(GradientEdge(inter, 0))
-                valid_grad_outs.append(summed)
+                # Create a GradientEdge for each intermediate node (we can backprop with respect to these)
+                # and store the summed gradient for that node
+                intermediate_edges.append(GradientEdge(intermediate_node, 0))
+                intermediate_edge_grads.append(summed)
 
-            del g["intermediates"]
+            del pg["intermediates"]
 
-            if not valid_edges:
+            if not intermediate_edges:
                 continue
 
-            mapped_param_nodes = [p for p in g["params"] if p in grad_acc_to_weight]
+            # Grab params for the param_nodes in this param group using our grad_acc_to_weight map from earlier
+            mapped_param_nodes = [p for p in pg["params"] if p in grad_acc_to_weight]
             if not mapped_param_nodes:
                 continue
 
+            # Use these parameters to create a GradientEdge that we'll use as our input to autograd.grad
             weight_edges = tuple(GradientEdge(p, 0) for p in mapped_param_nodes)
 
             gparams = torch.autograd.grad(
-                outputs=valid_edges,
+                outputs=intermediate_edges,
                 inputs=weight_edges,
-                grad_outputs=valid_grad_outs,
+                grad_outputs=intermediate_edge_grads,
                 retain_graph=False,
             )
 
-            del g["grads"]
+            del pg["grads"]
 
             assert len(gparams) == len(mapped_param_nodes), (
                 f"Stage {stage_id}: mismatch #param grads {len(gparams)} vs params {len(mapped_param_nodes)}"
             )
             
-            for param_node, dw in zip(g["params"], gparams):
+            # Finally, update gradients for the params in this param_group
+            for param_node, dw in zip(pg["params"], gparams):
                 if dw is None:
                     continue
 
@@ -725,17 +731,5 @@ class PiperActor:
                     weight.grad.add_(dw)
 
         return [None] + ["done"]
-
-
-    ##### Debugging param dump function #####
-    def get_param_grads(self, stage_id: int):
-        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
-        return [p.grad.detach().clone().cpu() if p.grad is not None else None
-                for p in stage_params]
-    
-    def get_params(self, stage_id: int):
-        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, Parameter)]
-        return [p.detach().clone().cpu() for p in stage_params]
-    ########
 
 

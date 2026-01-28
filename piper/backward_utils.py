@@ -1,3 +1,17 @@
+# ===========================================================================================
+# This file contains helper functions to implement the split backward pass.
+#
+# These helper functions were copied from the PyTorch pipelining backward implementation.
+#
+#   PyTorch Team,
+#   "torch.distributed.pipelining._backward",
+#   https://github.com/pytorch/pytorch/blob/main/torch/distributed/pipelining/_backward.py
+#
+# There are some minor implementation differences, but these functions are nearly identical.
+#
+# ===========================================================================================
+
+
 from __future__ import annotations
 
 import collections

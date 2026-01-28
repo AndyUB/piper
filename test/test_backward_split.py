@@ -120,15 +120,15 @@ def main():
     assert len(piper_params_after) == len(base_params_after), \
         "Mismatch in # of parameters between pipeline and baseline models"
 
-    for i, (g_pipe, g_base) in enumerate(zip(piper_grads, base_grads)):
-        if g_pipe is None and g_base is None:
-            print(f"Grad {i}: both None")
-            continue
-        if g_pipe is None or g_base is None:
-            print(f"Grad {i}: one is None, one not")
-            continue
-        diff = (g_pipe - g_base).abs().max().item()
-        print(f"Grad {i}: max |Δ| = {diff:.6e}")
+    # for i, (g_pipe, g_base) in enumerate(zip(piper_grads, base_grads)):
+    #     if g_pipe is None and g_base is None:
+    #         print(f"Grad {i}: both None")
+    #         continue
+    #     if g_pipe is None or g_base is None:
+    #         print(f"Grad {i}: one is None, one not")
+    #         continue
+    #     diff = (g_pipe - g_base).abs().max().item()
+    #     print(f"Grad {i}: max |Δ| = {diff:.6e}")
 
 
     max_abs_diff = 0.0

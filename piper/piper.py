@@ -1,13 +1,13 @@
 import ray
 import torch
-from piper.actor import StageActor
+from piper.actor import PiperActor
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
 from piper.utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger
 import os
 import threading
 
-logger = create_logger("piper_backend", "INFO")
+logger = create_logger("piper_backend", "DEBUG")
 
 """
 Annotation for stage boundaries, causes torch.compile graph break
@@ -114,7 +114,7 @@ def piper(gm, example_inputs, **kwargs):
     # returns remote futures for each graph output
     def run_remote_subgraph(*args):
 
-        from .piper_utils import events_tls
+        from piper.utils import events_tls
 
         mb_idx = events_tls.mb_idx
 

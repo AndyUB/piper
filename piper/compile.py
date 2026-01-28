@@ -1,12 +1,13 @@
 import ray
 import torch
-from piper_utils import piper_metadata, RemoteTensor, create_logger
+from piper.utils import piper_metadata, RemoteTensor, create_logger
 from torch._dynamo.backends.debugging import eager
+import torch.distributed as dist
 import threading
 import os
 import gc
 
-logger = create_logger("piper_compile", "INFO")
+logger = create_logger("piper_compile", "DEBUG")
 
 def setup_data_parallel(local_rank, data_parallel):
     """ Just adds every rank to the same process group"""
@@ -34,7 +35,7 @@ def piper_setup(model, example_inputs, num_stages, pp_size, dynamic=False, backe
 
     compiled = torch.compile(model, dynamic=dynamic, backend=backend)
 
-    from piper_utils import events_tls
+    from piper.utils import events_tls
     events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(pp_size)])
     events_tls.events = [threading.Event() for _ in range(num_stages)]
     for event in events_tls.events:

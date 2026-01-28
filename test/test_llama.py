@@ -13,7 +13,7 @@ from piper.utils import piper_metadata
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, build_zb1p_schedule, print_schedule
-from piper_coordinator import PiperProgramCoordinator
+from piper.piper_coordinator import PiperProgramCoordinator
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import (
@@ -115,8 +115,7 @@ def main(args):
     elif args.model == 'LLAMA_8B':
         llama_config = LLAMA_8B
     print(args) 
-    #local_rank = int(os.environ['LOCAL_RANK'])
-    #print(f"Got local_rank={local_rank}")
+
     loss_fn = torch.nn.CrossEntropyLoss()
     device = 'cuda'
     
@@ -125,6 +124,7 @@ def main(args):
     seq_len = args.seq_len
     warmup = args.warmup
     iters = args.iters
+    
     # creating the training data; might make this a new method to get the dataloader to work properly
     x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
     y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long).to(device)

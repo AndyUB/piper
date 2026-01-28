@@ -4,9 +4,9 @@ from typing import Callable
 import os
 import socket
 
-from piper_utils import create_logger
+from piper.utils import create_logger
 
-logger = create_logger("piper_coordinator", "INFO")
+logger = create_logger("piper_coordinator", "DEBUG")
 
 @ray.remote(num_gpus=0.1)
 def run_dp_rank(dp_rank, dp_degree, pp_degree, world_size, master_addr, master_port, training_func: Callable, *args, **kwargs):
