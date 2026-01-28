@@ -1,20 +1,21 @@
 import ray
 import torch
 import os
-from .piper_actor import PiperActor
+from .piper_actor import get_actor, dispatch_expert_ray
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
-from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger
+from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger, print_backward_graph, LOG_LEVEL
 import threading
 
-logger = create_logger("piper_backend", "DEBUG")
+logger = create_logger("piper_backend", LOG_LEVEL)
 
-"""
-Annotation for stage boundaries, causes torch.compile graph break
-and sets metadata appropriately at compile time
-"""
+
 @torch.compiler.disable
 def distributed_stage(stage_id, actor_id=None):
+    """
+    Annotation for stage boundaries, causes torch.compile graph break
+    and sets metadata appropriately at compile time
+    """
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     world_size = int(os.environ['PIPER_WORLD_SIZE'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
@@ -26,18 +27,13 @@ def distributed_stage(stage_id, actor_id=None):
     piper_metadata.current_actor = actor_id
     piper_metadata.first_graph_of_stage = True
 
-"""
-Piper backend for torch.compile sends a partial graph to a Ray actor
-for execution
-"""
 
-def split_gm_by_experts(gm):
+
+def split_gm_by_experts(gm, stage_id, pp_degree):
     """
-    Rough attempt to transform a graph module with expert annotations.
-    
-    Input: an FX GraphModule with custom metadata annotations for 'expert' calls
-        
-    Returns: a transformed GraphModule with expert calls extracted into separate sub-GraphModules
+    Transform a graph module with expert annotations by extracting
+    expert computations into submodules and distributing the expert
+    submodules to Ray actors.
     """
     import torch.fx as fx
     from collections import defaultdict
@@ -45,23 +41,26 @@ def split_gm_by_experts(gm):
     
     # Collect all nodes with custom metadata
     nodes_with_metadata = []
+    expert_metadata = {}
     for node in gm.graph.nodes:
         if 'custom' in node.meta:
             custom_meta = node.meta['custom']
             # Extract expert and batch_idx from metadata
             if isinstance(custom_meta, dict):
-                expert = custom_meta.get('expert')
-                if expert is not None:
-                    nodes_with_metadata.append((node, expert))
+                global_expert_id = custom_meta.get('global_expert_id')
+                local_expert_id = custom_meta.get('local_expert_id')
+                batch_idx = custom_meta.get('batch_idx')
+                if global_expert_id is not None:
+                    expert_metadata[global_expert_id] = (local_expert_id, batch_idx)
+                    nodes_with_metadata.append((node, global_expert_id, local_expert_id, batch_idx))
     
     assert nodes_with_metadata, "GraphModule must have 'expert' metadata"
     
     # Group nodes by expert ID for creating expert modules
     expert_code = defaultdict(list)  # expert_id -> list of all nodes for this expert
     
-    for node, expert in nodes_with_metadata:
-        print(f"Node: {node.name}, Expert: {expert}")
-        expert_code[expert].append(node)
+    for node, global_expert_id, _, _ in nodes_with_metadata:
+        expert_code[global_expert_id].append(node)
     
     expert_modules = {}
     
@@ -70,7 +69,6 @@ def split_gm_by_experts(gm):
         expert_node_mapping = {}
         
         expert_node_set = set(expert_nodes)
-        print(f"Expert {expert_id} nodes: {expert_nodes}")
         
         # Find all inputs needed by this expert (nodes that are not in the expert set)
         expert_inputs = set()
@@ -85,8 +83,6 @@ def split_gm_by_experts(gm):
             placeholder = expert_graph.placeholder(input_node.name)
             expert_node_mapping[input_node] = placeholder
             input_placeholders[input_node] = placeholder
-        
-        print(f"Expert {expert_id} input placeholders: {input_placeholders}")
 
         # Find outputs of this expert (nodes used outside the expert set)
         expert_outputs = []
@@ -99,8 +95,6 @@ def split_gm_by_experts(gm):
         # If no external users, use the last node(s) as output
         if not expert_outputs:
             expert_outputs = [expert_nodes[-1]] if expert_nodes else []
-        
-        print(f"Expert {expert_id} output nodes: {expert_outputs}")
 
         # Topological sort of expert nodes
         def get_dependencies(node):
@@ -118,8 +112,6 @@ def split_gm_by_experts(gm):
                     ordered_expert_nodes.append(node)
                     remaining.remove(node)
                     break
-        
-        print(f"Expert {expert_id} ordered nodes: {ordered_expert_nodes}")
         
         # Copy expert nodes to the expert graph in topological order
         for node in ordered_expert_nodes:
@@ -146,11 +138,31 @@ def split_gm_by_experts(gm):
         for node in ordered_expert_nodes:
             if node.op == "placeholder":
                 input_placeholders[node] = node
+
+        # Load the module on the corresponding actor
+        input_idxs, param_idxs = [], []
+        params = []
+        placeholders = expert_gm.graph.find_nodes(op="placeholder")
+        for i, placeholder in enumerate(placeholders):
+            if "grapharg" in placeholder.meta:
+                if 'self' in str(placeholder.meta["grapharg"]):
+                    param_idxs.append(i)
+                    params.append(placeholder.meta["grapharg"]._example())
+                else:
+                    input_idxs.append(i)
+                    params.append(None)
+            else:
+                input_idxs.append(i)
+                params.append(None)
+
+        # logger.debug(f"Submodule {expert_id} input_idxs: {input_idxs} param_idxs: {param_idxs}, params: {[p.shape if p is not None else None for p in params]}")
+        local_expert_id, batch_idx = expert_metadata[expert_id]
+        expert_metadata[expert_id] = (local_expert_id, batch_idx, input_idxs)
+        actor_id = local_expert_id % pp_degree
+        actor = get_actor(actor_id)
+        ray.get(actor.load_expert.remote(stage_id, expert_id, local_expert_id, batch_idx, expert_gm, input_idxs, param_idxs, params))
+
         expert_modules[expert_id] = (expert_gm, input_placeholders, expert_outputs, expert_nodes, ordered_expert_nodes)
-        
-        print(f"\nExpert {expert_id} graph module:")
-        expert_gm.print_readable()
-        print()
 
     # Create a new top-level graph and replace expert nodes with call_module
     new_graph = fx.Graph()
@@ -214,7 +226,6 @@ def split_gm_by_experts(gm):
                     # Map inputs in the same order as placeholders
                     # Use the inputs that the first node of this expert needs
                     mapped_args = []
-                    print(f"Expert {expert_id} input placeholders: {input_placeholders}")
                     for input_node in input_placeholders.keys():
                         if input_node in node_mapping:
                             mapped_args.append(node_mapping[input_node])
@@ -224,11 +235,15 @@ def split_gm_by_experts(gm):
                             node_mapping[input_node] = new_input_node
                             mapped_args.append(new_input_node)
                     
-                    # Create call_module node at the position of the first expert node for this expert
+                    # Dispatch expert module to a Ray actor at the position of the first expert node for this expert
                     module_name = f"expert_{expert_id}"
-                    print(f"Creating call_module node for {module_name} with inputs: {mapped_args}")
-                    print()
-                    call_node = new_graph.call_module(module_name, tuple(mapped_args))
+                    local_expert_id, batch_idx, input_idxs = expert_metadata[expert_id]
+                    input_tensors_only = []
+                    for i in input_idxs:
+                        input_tensors_only.append(mapped_args[i])
+                    # expert_module_node = new_graph.get_attr(module_name)
+                    ray_call_args = [expert_id, local_expert_id, batch_idx, pp_degree] + input_tensors_only
+                    call_node = new_graph.call_function(dispatch_expert_ray, tuple(ray_call_args))
                     expert_call_replaced[expert_id] = (call_node, expert_outputs)
                 
                 # Map expert nodes to the call_module output
@@ -294,20 +309,29 @@ def split_gm_by_experts(gm):
     
     new_gm.recompile()
     
-    print("\nNew top-level graph module:")
-    new_gm.print_readable()
-    print()
-    
     return new_gm
 
 @register_backend
 def piper(gm, example_inputs, **kwargs):
+    """
+    torch.compile backend loads the graph module on 
+    a Ray actor and returns a callback that remotely
+    runs the graph module. 
+    """
     logger.debug(f"Compiling subgraph {id(gm)}")
 
-    # TODO: conditionally call if expert annotations are present
-    gm = split_gm_by_experts(gm)
+    if not piper_metadata.currently_compiling:
+        gm.print_readable()
+        assert False, "Piper backend called outside of compilation"
 
-    assert False, "Not yet implemented: distribute expert submodules to actors"
+    # Distribute expert submodules to actors if there are expert annotations
+    stage_id = piper_metadata.current_stage
+    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
+    original_gm = gm
+    gm = split_gm_by_experts(gm, stage_id, pp_degree)
+
+    # For the top-level graph, log which arguments are input tensors
+    # vs parameter tensors and make sure all example inputs are serializable
 
     placeholders = gm.graph.find_nodes(op="placeholder")
     graphargs = [node.meta["grapharg"] for node in placeholders]
@@ -345,18 +369,18 @@ def piper(gm, example_inputs, **kwargs):
     # send the fx.Graph and model attributes to the actor
     stage_id = piper_metadata.current_stage
     actor_id = piper_metadata.current_actor
-    actor = piper_metadata.actors[actor_id]
+    actor = get_actor(actor_id)
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
     global_rank = dp_rank * dp_degree + actor_id
-    subgraph_id = id(gm)
+    graph_id = id(gm)
     original_param_id = sum([id(example_inputs[i]) for i in param_idxs])
     
     ray.get(
-        actor.compile_graph.remote(
+        actor.load_graph.remote(
             stage_id,
-            subgraph_id,
+            graph_id,
             original_param_id,
             payload,
             torch._dynamo.backends.debugging.eager,
@@ -365,20 +389,22 @@ def piper(gm, example_inputs, **kwargs):
         )
     )
 
-    # get a list of fake tensor outputs from the fx.Graph
+    # Get fake tensor representations of the graph output(s)
     def symint_to_int(x):
         return int(x) if isinstance(x, torch.SymInt) else x
     def int_to_tensor(x):
         return torch.tensor(x) if isinstance(x, int) else x
-    fakes = gm(*list(map(symint_to_int, serializable_examples)))
+    example_inputs = list(map(symint_to_int, serializable_examples))
+    fakes = original_gm(*example_inputs)
     fakes = list(map(int_to_tensor, fakes))
+
+    # logger.debug(f"Stage {stage_id} backward graph:")
+    # print_backward_graph(logger.debug, fakes[0])
 
     # wait for a signal to run this graph if it's the first graph of the stage
     first_graph_of_stage = piper_metadata.first_graph_of_stage
     if first_graph_of_stage:
         piper_metadata.first_graph_of_stage = False
-
-
     
     # return a wrapper function that runs the fx.Graph on the actor and 
     # returns remote futures for each graph output
@@ -410,7 +436,7 @@ def piper(gm, example_inputs, **kwargs):
             if param_id != original_param_id:
                 logger.debug(f"Calling subgraph with new params")
                 if piper_metadata.currently_compiling:
-                    ray.get(actor.add_param_group.remote(stage_id, subgraph_id, param_id, args, input_idxs))
+                    ray.get(actor.add_param_group.remote(stage_id, graph_id, param_id, args, input_idxs))
 
             # ignore model parameter arguments (stored on the actor)
             input_tensors_only = []
@@ -432,15 +458,15 @@ def piper(gm, example_inputs, **kwargs):
 
             if piper_metadata.currently_compiling:
                 # dispatch task without nccl transport
-                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(stage_id, subgraph_id, param_id, mb_idx, *args)
+                refs = actor.forward_cpu.options(num_returns=len(fakes)).remote(stage_id, graph_id, param_id, mb_idx, *args)
             else:
                 # dispatch with nccl transport
-                refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, subgraph_id, param_id, mb_idx, *args)
+                refs = actor.forward.options(num_returns=len(fakes)).remote(stage_id, graph_id, param_id, mb_idx, *args)
 
-            # return [ref.to('cpu') for ref in ray.get(refs)]
             # wrap the remote futures with RemoteTensor
             # if piper_metadata.currently_compiling:
-            #     return [ref.to('cpu') for ref in ray.get(refs)]
+            #     return [t.to('cpu') for t in ray.get(refs)]
+
             if isinstance(refs, list):
                 assert len(fakes) == len(refs)
                 return [RemoteTensor(fake, ref, stage_id) for fake, ref in zip(fakes, refs)]

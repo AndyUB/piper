@@ -141,11 +141,12 @@ class MixtureOfExperts(nn.Module):
         outputs = []
         for batch_idx in range(batch_size):
             expert_idx = batch_idx % self.num_experts
+            expert_id = id(self.experts[expert_idx])
             batch = x[batch_idx:batch_idx+1]
-            with torch.fx.traceback.annotate({"expert": expert_idx}):
+            with torch.fx.traceback.annotate({"global_expert_id": expert_id, "local_expert_id": expert_idx, "batch_idx": batch_idx}):
                 expert_output = self.experts[expert_idx](batch)
             outputs.append(expert_output)
-        output = torch.stack(outputs)
+        output = torch.stack(outputs, dim=-1).squeeze()
             
         return output
 

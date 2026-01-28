@@ -10,6 +10,33 @@ from collections import defaultdict
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 from typing import Any, Optional
 
+LOG_LEVEL = "INFO"
+
+""" 
+Print the backward graph of a tensor
+"""
+
+def print_backward_graph(printer, tensor, prefix=""):
+    seen = set()
+    def _print(t, indent=0):
+        fn = t.grad_fn if hasattr(t, 'grad_fn') and t.grad_fn is not None else None
+        if fn is None:
+            printer(" " * indent + f"{prefix}Tensor: no grad_fn")
+            return
+        if fn in seen:
+            printer(" " * indent + f"{prefix}{type(fn).__name__} (recursive/ref)")
+            return
+        seen.add(fn)
+        printer(" " * indent + f"{prefix}{type(fn).__name__}")
+        for next_fn, _ in fn.next_functions:
+            if next_fn is not None and hasattr(next_fn, 'variable'):
+                printer(" " * (indent + 2) + f"{prefix}Variable: {type(next_fn.variable).__name__}")
+            elif next_fn is not None:
+                _print(type('Dummy', (), {'grad_fn': next_fn})(), indent + 2)
+            else:
+                printer(" " * (indent + 2) + f"{prefix}None")
+    _print(tensor, 0)
+
 """
 Logger utility
 """
@@ -51,9 +78,11 @@ events_tls = ThreadLocal()
 class PiperMetadata:
     actors = dict()
     dag = set()
+    world_size = None
     currently_compiling = True
     current_stage = None
     current_actor = None
+    actor_self = None
     first_graph_of_stage = None
     parallelism_configs = {'dp': 1}
 
@@ -292,11 +321,19 @@ def serialize_graphmodule(gm: fx.GraphModule) -> str:
             "kwargs": encode_arg(n.kwargs),
         })
 
+    # Serialize all direct child modules that are GraphModules
+    submodules = {}
+    for name, module in gm.named_children():
+        if isinstance(module, fx.GraphModule):
+            # Recursively serialize GraphModule submodules
+            submodules[name] = serialize_graphmodule(module)
+
     data = {
         "nodes": nodes,
         "state_dict": {k: v.detach().cpu().tolist() for k, v in gm.state_dict().items()},
         # save which device parameters were on, optional:
         "param_devices": {k: str(v.device) for k, v in gm.state_dict().items()},
+        "submodules": submodules,  # Add serialized submodules
     }
     serialized = json.dumps(data, ensure_ascii=False)
 
@@ -346,7 +383,30 @@ def deserialize_graphmodule(s: str) -> fx.GraphModule:
             raise NotImplementedError(f"op {op} not handled")
         name_to_node[n["name"]] = node
 
-    gm = fx.GraphModule(torch.nn.Module(), g)
+    # Create root module and add submodules before creating GraphModule
+    root_module = torch.nn.Module()
+    
+    # Deserialize and add submodules
+    submodules = data.get("submodules", {})
+    for module_name, serialized_submodule in submodules.items():
+        # Recursively deserialize submodule
+        submodule_gm = deserialize_graphmodule(serialized_submodule)
+        # Add as direct child module (handles both simple names and nested paths)
+        # For nested paths like "layer.expert_0", we need to create intermediate modules
+        parts = module_name.split(".")
+        if len(parts) == 1:
+            # Simple name, add directly
+            root_module.add_module(module_name, submodule_gm)
+        else:
+            # Nested path, create intermediate modules
+            current = root_module
+            for part in parts[:-1]:
+                if not hasattr(current, part):
+                    current.add_module(part, torch.nn.Module())
+                current = getattr(current, part)
+            current.add_module(parts[-1], submodule_gm)
+    
+    gm = fx.GraphModule(root_module, g)
     state = {k: torch.tensor(v) for k, v in data["state_dict"].items()}
     gm.load_state_dict(state, strict=False)
     return gm

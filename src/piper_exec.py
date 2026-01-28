@@ -6,9 +6,9 @@ from typing import NamedTuple
 import threading
 import time
 
-from .piper_utils import piper_metadata, create_logger
+from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 
-logger = create_logger("piper_exec", "DEBUG")
+logger = create_logger("piper_exec", LOG_LEVEL)
 
 class Task(NamedTuple):
     device_id: int
@@ -239,7 +239,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                 actors[actor_id]
                                 .backward.options(num_returns=num_bwd_targets*2)
                                 .remote(
-                                    stage_id, mb_idx, fwd_ref.get_ref(), loss_fn=loss_fn
+                                    stage_id, mb_idx, fwd_ref.get_ref(), truth=truth, loss_fn=loss_fn
                                 )
                             )
                     else:

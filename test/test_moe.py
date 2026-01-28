@@ -9,7 +9,6 @@ from src.piper_compile import piper_setup
 from src.piper_exec import piper_exec
 from src.piper import distributed_stage, piper
 from src.piper_actor import get_actor
-from src.piper_expert import PiperExpert
 
 from .schedule_helpers import no_pp, print_schedule, build_1f1b_schedule
 
@@ -20,13 +19,17 @@ class MoETransformer(nn.Module):
         super().__init__()
 
         self.embedding = nn.Embedding(vocab_size, hidden_dim)
-        self.moe = MixtureOfExperts(hidden_dim, hidden_dim, experts_per_layer, FFNExpert, k=k)
+        self.moe1 = MixtureOfExperts(hidden_dim, hidden_dim, experts_per_layer, FFNExpert, k=k)
+        self.moe2 = MixtureOfExperts(hidden_dim, hidden_dim, experts_per_layer, FFNExpert, k=k)
         self.output = nn.Linear(hidden_dim, vocab_size)
 
     def forward(self, x):
         distributed_stage(0)
         x = self.embedding(x)
-        x = self.moe(x)
+        x = self.moe1(x)
+
+        distributed_stage(1)
+        x = self.moe2(x)
         return self.output(x)
     
 
@@ -58,8 +61,15 @@ def main(args):
     num_devices = world_size
     num_mbs = args.num_mbs
 
-    model = piper_setup(MoETransformer, (vocab_size, 2, 2, 1, world_size), torch.optim.Adam, [x], num_stages=num_stages, num_devices=num_devices)
-
+    model, model_nocompile = piper_setup(
+        MoETransformer, 
+        (vocab_size, 2, 2, 1, world_size), 
+        torch.optim.Adam, 
+        [x], 
+        num_stages=num_stages, 
+        num_devices=num_devices,
+        check_correct=True)
+    
     if args.num_stages == 1:
         schedule = no_pp
     else:
@@ -67,8 +77,34 @@ def main(args):
     loss_fn = torch.nn.CrossEntropyLoss()
 
     print_schedule(schedule)
+    
+    warmup = 0
+    iters = 1
+    for i in range(warmup):
+        losses = piper_exec(model, schedule, [x], y, loss_fn, num_mbs, num_stages)
 
-    # losses = piper_exec(model, schedule, [x], y, loss_fn, num_mbs=num_mbs, num_stages=num_stages)
+    start = time.perf_counter()
+    for i in range(iters):
+        piper_exec(model, schedule, [x], y, loss_fn, num_mbs, num_stages)
+    end = time.perf_counter()
+    print(f"Piper exec time: {1e3*(end - start)/iters:.2f}ms")
+
+    optim = torch.optim.Adam(model_nocompile.parameters(), lr=0.001)
+    def iter_baseline():
+        out = model_nocompile(x)
+        loss = loss_fn(out, y)
+        loss.backward()
+        optim.step()
+        optim.zero_grad()
+
+    for i in range(warmup):
+        iter_baseline()
+
+    start = time.perf_counter()
+    for i in range(iters):
+        iter_baseline()
+    end = time.perf_counter()
+    print(f"baseline time: {1e3*(end - start)/iters:.2f}ms")
     
     ray.timeline(f"out/moe.json")
 
