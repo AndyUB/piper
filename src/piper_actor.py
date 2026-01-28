@@ -102,7 +102,7 @@ class PiperActor:
     @ray.method
     def join_process_groups(self):
         master_addr = os.environ.get("PIPER_MASTER_ADDR", "127.0.0.1")
-        master_port = os.environ.get("PIPER_MASTER_PORT", "10000")
+        master_port = os.environ.get("PIPER_MASTER_PORT", "12345")
         init_method = f"tcp://{master_addr}:{master_port}"
 
         dist.init_process_group(

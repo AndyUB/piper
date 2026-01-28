@@ -24,8 +24,15 @@ export PYTHONUNBUFFERED=1
 #     --tracing \
 #     --model LLAMA_3B > $LOG_DIR/1f1b_3b_gpu012-nsys.trace 2>&1
 
+# python3 -m test.test_llama \
+#     --iters 5 \
+#     --num_stages 2 \
+#     --schedule 1f1b \
+#     --model LLAMA_3B > $LOG_DIR/1f1b_3b_gpu012-nsys.log 2>&1
+
 python3 -m test.test_llama \
-    --iters 5 \
+    --warmup 1 \
+    --iters 1 \
     --num_stages 2 \
     --schedule 1f1b \
-    --model LLAMA_3B > $LOG_DIR/1f1b_3b_gpu012-nsys.log 2>&1
+    --model LLAMA_3B > $LOG_DIR/1f1b_3b_gpu012-nsys-min.log 2>&1

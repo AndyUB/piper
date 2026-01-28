@@ -8,6 +8,8 @@ export RAY_TMPDIR="$RAY_TMP"
 # export CUDA_VISIBLE_DEVICES=0,1,2 # worked for LLAMA_DEBUG
 # export CUDA_VISIBLE_DEVICES=5,6,7 # fails for LLAMA_1B and LLAMA_8B
 # export CUDA_VISIBLE_DEVICES=4,5,6 # fails for LLAMA_1B, LLAMA_DEBUG
+# export CUDA_VISIBLE_DEVICES=2,3,4
+
 export PYTHONUNBUFFERED=1
 
 # python3 -m test.test_llama \
@@ -42,11 +44,11 @@ export PYTHONUNBUFFERED=1
 #     --model LLAMA_3B > $LOG_DIR/interleaved_1f1b_3b_gpu012-nsys.log 2>&1
 
 python3 -m test.test_llama \
-    --warmup_iters 1 \
+    --warmup 1 \
     --iters 1 \
     --num_stages 4 \
     --schedule interleaved-1f1b \
-    --model LLAMA_3B > $LOG_DIR/interleaved_1f1b_3b_gpu012-nsys.log 2>&1
+    --model LLAMA_3B > $LOG_DIR/interleaved_1f1b_3b_gpu012-nsys-min.log 2>&1
 
 # python3 -m test.test_llama \
 #     --iters 5 \
