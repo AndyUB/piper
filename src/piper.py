@@ -1,3 +1,5 @@
+from . import piper_patches
+
 import ray
 import torch
 import os
