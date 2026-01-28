@@ -27,7 +27,7 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
 
     if actor_id not in piper_metadata.actors:
         logger.debug(f"Initializing actor for global rank {global_rank}")
-        actor = PiperActor.options(num_gpus=1).remote(
+        actor = PiperActor.options(num_gpus=0.9).remote(
             actor_id, 
             world_size,
             dp_rank=dp_rank, 

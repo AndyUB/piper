@@ -169,7 +169,7 @@ class PiperActor:
         self.logger.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -319,7 +319,7 @@ class PiperActor:
         
         return out
 
-    @ray.method(tensor_transport="nccl")
+    # @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 

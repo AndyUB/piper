@@ -101,6 +101,10 @@ class RemoteTensor(torch.Tensor):
         return self._stage_id
 
     def get(self):
+        # return fake tensor during compilation
+        if self._obj_ref is None:
+            return self._fake
+
         if self._resolved is None:
             obj = ray.get(self._obj_ref)
             if isinstance(obj, list) or isinstance(obj, tuple):
@@ -111,18 +115,11 @@ class RemoteTensor(torch.Tensor):
         return self._resolved
     
     def get_ref(self):
+        if self._obj_ref is None:
+            raise RuntimeError("Cannot get ObjectRef from a compile-time RemoteTensor")
         return self._obj_ref
 
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        if piper_metadata.currently_compiling:
-            def unwrap_fake(x):
-                if isinstance(x, RemoteTensor):
-                    return x._fake
-                return x
-            args = torch.utils._pytree.tree_map(unwrap_fake, args)
-            kwargs = torch.utils._pytree.tree_map(unwrap_fake, kwargs or {})
-            return func(*args, **kwargs)
-            
         def unwrap(x):
             if isinstance(x, RemoteTensor):
                 return x.get()
@@ -138,6 +135,23 @@ class RemoteTensor(torch.Tensor):
 
         out = func(*args, **kwargs)
         return out
+    
+    def __tensor_flatten__(self):
+        return (["_fake"], {})
+
+    @classmethod
+    def __tensor_unflatten__(cls, inner_tensors, metadata, outer_size, outer_stride):
+        fake = inner_tensors["_fake"]
+        return cls(fake, None, None)
+    
+    def __repr__(self):
+        """Custom repr that avoids triggering masked_select from tensor formatting."""
+        return (
+            f"RemoteTensor(shape={tuple(self.shape)}, dtype={self.dtype}, "
+            f"device={self.device}, stage_id={self._stage_id})"
+        )
+        
+torch._dynamo.config.traceable_tensor_subclasses.add(RemoteTensor)
 
 """
 Serialize/deserialize an fx.GraphModule

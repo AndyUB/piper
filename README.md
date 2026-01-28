@@ -9,34 +9,7 @@ We assume a Linux-based environment
 2. Install the requirements in `requirements.txt`
 3. Modify PyTorch and Ray dependencies according to the instructions below
 
-## Modifying dependencies
-
-**PyTorch**
-
-Piper RemoteTensor is not traceable by TorchDynamo. 
-- WIP: following FakeTensor, register operator implementations that will make RemoteTensor transparently traceable by TorchDynamo.
-- Modification: Add to the beginning of [`transform` in convert_frame.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/convert_frame.py#L1257):
-```
-####### PIPER MODIFICATION START #######
-# Instead of tracing RemoteTensors, trace their
-# underlying FakeTensor
-from src.piper_utils import RemoteTensor
-for k, v in locals.items():
-    if isinstance(v, RemoteTensor):
-        locals[k] = v._fake
-####### PIPER MODIFICATION END #######
-```
-
-Piper RemoteTensor causes recompilation bugs because it's not traceable by TorchDynamo. 
-- WIP: same as above
-- Modification: Add at the beginning of [`CheckFunctionManager.__init__` in guards.py](https://github.com/pytorch/pytorch/blob/f9724db4921288a096e331cee835abd43257fbd6/torch/_dynamo/guards.py#L3532):
-```
-####### PIPER MODIFICATION START #######
-def filter_guards(guard):
-    return not guard.inner_create_fn().__name__ == "TENSOR_MATCH"
-guards = list(filter(filter_guards, guards))
-####### PIPER MODIFICATION END #######
-```
+## Modifying Ray dependency
 
 **Ray**
 
@@ -67,4 +40,14 @@ else:
             object_ref, self._actor, tensor_transport
         )
 ####### PIPER MODIFICATION END #######
+```
+
+## Training Llama in Piper
+The llama test program `test/test_llama.py` supports GPipe, 1F1B and interleaved 1F1B schedules for 2 or 4 devices.
+The `test/models/llama.py` file has example `forward` methods for one stage, two stage, and four stage partitions. 
+Ensure that the correct `forward` method is uncommented for the desired schedule (e.g. two stage for 1F1B on 2 devices, four stage for interleaved 1F1B on two devices). 
+DP training can also be turned on with the `dp_degree` flag.
+Run the Llama test program for the 1F1B schedule for two devices:
+```
+python3 -m test.test_llama --model LLAMA_DEBUG --schedule 1f1b --num_stages 2 --pp_degree 2 --dp_degree 1
 ```
