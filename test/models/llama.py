@@ -436,38 +436,12 @@ class Transformer(nn.Module):
 
     #     return output
 
-    # """
-    # forward method for 1f1b schedule
-    # requires:
-    # - 2 devices
-    # - 2 stages
-    # - n_layers is divisible by 2
-    # """
-    # def forward(self, tokens: torch.Tensor):
-
-    #     distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
-
-    #     h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
-    #     start_pos = 0
-        
-    #     for layer in self.layers[:self.n_layers//2]:
-    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
-
-    #     distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
-
-    #     for layer in self.layers[self.n_layers//2:]:
-    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
-
-    #     h = self.norm(h) if self.norm else h
-    #     output = self.output(h).float() if self.output else h
-
-    #     return output
-
     """
-    forward method for no pp
+    forward method for 1f1b schedule
     requires:
-    - 1 device
-    - 1 stages
+    - 2 devices
+    - 2 stages
+    - n_layers is divisible by 2
     """
     def forward(self, tokens: torch.Tensor):
 
@@ -476,10 +450,36 @@ class Transformer(nn.Module):
         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
         start_pos = 0
         
-        for layer in self.layers:
+        for layer in self.layers[:self.n_layers//2]:
+            h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+        distributed_stage(1, actor_id=1, optim=torch.optim.Adam)
+
+        for layer in self.layers[self.n_layers//2:]:
             h = layer(h, start_pos, self.freqs_cis, self.mask)
 
         h = self.norm(h) if self.norm else h
         output = self.output(h).float() if self.output else h
 
         return output
+
+    # """
+    # forward method for no pp
+    # requires:
+    # - 1 device
+    # - 1 stages
+    # """
+    # def forward(self, tokens: torch.Tensor):
+
+    #     distributed_stage(0, actor_id=0, optim=torch.optim.Adam)
+
+    #     h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
+    #     start_pos = 0
+        
+    #     for layer in self.layers:
+    #         h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     h = self.norm(h) if self.norm else h
+    #     output = self.output(h).float() if self.output else h
+
+    #     return output
