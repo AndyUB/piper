@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 271, in <module>
+    ray.init(include_dashboard=True, log_to_driver=True, namespace="llama", dashboard_host="127.0.0.1", dashboard_port=10086)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 1902, in init
+    _global_node = ray._private.node.Node(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/node.py", line 340, in __init__
+    self.start_head_processes()
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/node.py", line 1381, in start_head_processes
+    self.start_api_server(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/node.py", line 1097, in start_api_server
+    self._webui_url, process_info = ray._private.services.start_api_server(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 1409, in start_api_server
+    raise e from e
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/services.py", line 1220, in start_api_server
+    raise ValueError(
+ValueError: Failed to bind to 127.0.0.1:10086 because it's already occupied. You can use `ray start --dashboard-port ...` or `ray.init(dashboard_port=...)` to select a different port.

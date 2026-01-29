@@ -12,6 +12,7 @@ import torch.distributed as dist
 from typing import Callable
 
 CLEANUP_MEMORY = False
+FORCE_SYNC = True
 
 
 @ray.remote
@@ -186,9 +187,9 @@ class PiperActor:
 
     @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
-        self.logger.debug(
-            f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
-        )
+        # self.logger.debug(
+        #     f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
+        # )
 
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
@@ -276,7 +277,7 @@ class PiperActor:
             total_time = forward_start_event.elapsed_time(end_event)
             # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]["forward"]["forward"].append(forward_time)
-            self.trace_data[stage_id]["forward"]["total"].append(forward_time)
+            self.trace_data[stage_id]["forward"]["total"].append(total_time)
             self.trace_data[stage_id]["forward"]["peak_memory_delta"].append(
                 forward_peak_memory_delta_gb
             )

@@ -136,23 +136,23 @@ def piper(gm, example_inputs, **kwargs):
 
         # wait for a signal to run the partial graph
         if first_graph_of_stage:
-            logger.debug(
-                f"Thread {mb_idx} global rank {global_rank} waiting for stage {stage_id}"
-            )
+            # logger.debug(
+            #     f"Thread {mb_idx} global rank {global_rank} waiting for stage {stage_id}"
+            # )
             # logger.debug(f"Events TLS stages: {events_tls.events[stage_id]}")
             events_tls.events[stage_id].wait()
-            logger.debug(
-                f"Thread {mb_idx} global rank {global_rank} running stage {stage_id}"
-            )
+            # logger.debug(
+            #     f"Thread {mb_idx} global rank {global_rank} running stage {stage_id}"
+            # )
 
         # Mutex ensures that only one thread submits a task to this actor at a time
-        logger.debug(
-            f"Thread {mb_idx} global rank {global_rank} waiting for actor mutex {actor_id}"
-        )
+        # logger.debug(
+        #     f"Thread {mb_idx} global rank {global_rank} waiting for actor mutex {actor_id}"
+        # )
         with events_tls.actor_mutexes[actor_id]:
-            logger.debug(
-                f"Thread {mb_idx} global rank {global_rank} got actor mutex {actor_id}"
-            )
+            # logger.debug(
+            #     f"Thread {mb_idx} global rank {global_rank} got actor mutex {actor_id}"
+            # )
 
             # clear the event for the next stage
             if first_graph_of_stage:
@@ -177,14 +177,14 @@ def piper(gm, example_inputs, **kwargs):
 
             if piper_metadata.currently_compiling:
                 # dispatch task without nccl transport
-                refs = actor.forward_no_nccl.options(num_returns=len(fakes)).remote(
-                    stage_id, mb_idx, *args
-                )
+                refs = actor.forward_no_nccl.options(
+                    num_returns=len(fakes), name=f"fwd_no_nccl_s{stage_id}_mb{mb_idx}"
+                ).remote(stage_id, mb_idx, *args)
             else:
                 # dispatch with nccl transport
-                refs = actor.forward.options(num_returns=len(fakes)).remote(
-                    stage_id, mb_idx, *args
-                )
+                refs = actor.forward.options(
+                    num_returns=len(fakes), name=f"fwd_s{stage_id}_mb{mb_idx}"
+                ).remote(stage_id, mb_idx, *args)
 
             # wrap the remote futures with RemoteTensor
             if isinstance(refs, list):

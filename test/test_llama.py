@@ -255,9 +255,15 @@ def main(args):
             print(f"\tActor {actor_id}: {peak_memory:.1f} GB")
 
         # Get tracing data from actors
+        print("=" * 40)
         for actor in actors.values():
             trace_data = ray.get(actor.get_trace_data.remote())
             actor_id = ray.get(actor.id.remote())
+            print(f"Raw trace data from Actor {actor_id}:")
+            import json
+
+            print(json.dumps(trace_data, indent=4))
+            print("=" * 40)
             print_mean_timing_data(trace_data, actor_id)
 
     ray.timeline(
@@ -268,7 +274,13 @@ def main(args):
 if __name__ == "__main__":
     import ray._private.worker as worker
 
-    ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
+    ray.init(
+        include_dashboard=True,
+        log_to_driver=True,
+        namespace="llama",
+        dashboard_host="127.0.0.1",
+        dashboard_port=11015,
+    )
     print("session_dir =", worker._global_node.get_session_dir_path())
     print("logs_dir    =", worker._global_node.get_logs_dir_path())
 
@@ -277,4 +289,5 @@ if __name__ == "__main__":
         dp_degree=args.dp_degree, pp_degree=args.pp_degree
     )
     ray.get(piper_coordinator.run_program.remote(main, args))
-    ray.shutdown()
+    time.sleep(3600)
+    # ray.shutdown()
