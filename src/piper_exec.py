@@ -1,13 +1,14 @@
 import os
+import ray
 import torch
 import torch.distributed as dist
 from typing import NamedTuple
 import threading
 import time
 
-from .piper_utils import piper_metadata, create_logger
+from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 
-logger = create_logger("piper_exec", "INFO")
+logger = create_logger("piper_exec", LOG_LEVEL)
 
 class Task(NamedTuple):
     device_id: int
@@ -177,6 +178,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
     threads = dict()
     
     def run_model(inputs, mb_idx, events, actor_mutexes):
+        logger.debug(f"Controller launching thread {mb_idx}")
         from .piper_utils import events_tls
         events_tls.events = events
         events_tls.mb_idx = mb_idx
@@ -191,12 +193,11 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
             if task:
                 device_id,stage_id, mb_idx, is_fwd, upd = task
                 actor_id = j
+                num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
+                if num_bwd_targets == 0:
+                    num_bwd_targets = 1
                 if upd:
                     logger.debug(f"Controller updating stage {stage_id} mb {mb_idx}")
-                    num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
-                    if num_bwd_targets == 0:
-                        num_bwd_targets = 1
-
                     done_refs = set()
                     for _, bwd_ref_dict in bwd_ref_dicts.items():
                         bwd_refs = bwd_ref_dict[stage_id]
@@ -223,9 +224,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                 else:
                     # log order of task dispatch by printing
                     # also see output_graph.py:1785 where we log forward dispatch
-                    num_bwd_targets = len(get_backward_targets(stage_id, dag_edges))
-                    # Hack to make single stage work
-                    if num_bwd_targets == 0: num_bwd_targets = 1
                     if mb_idx not in bwd_ref_dicts:
                         # if this is the first backward task for a microbatch, dispatch the
                         # backward task and cache the resulting ref(s)
@@ -241,7 +239,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                 actors[actor_id]
                                 .backward.options(num_returns=num_bwd_targets*2)
                                 .remote(
-                                    stage_id, mb_idx, fwd_ref.get_ref(), loss_fn=loss_fn
+                                    stage_id, mb_idx, fwd_ref.get_ref(), truth=truth, loss_fn=loss_fn
                                 )
                             )
                     else:
@@ -280,8 +278,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                         bwd_refs = bwd_ref_dicts[mb_idx][to_stage]
                         bwd_ref = bwd_refs[idx]
                         # dispatch the current stage's backward and cache the resulting ref(s)
-                        if num_bwd_targets == 0:
-                            num_bwd_targets = 1
                         logger.debug(f"Controller waiting for actor {actor_id} mutex")
                         with actor_mutexes[actor_id]:
                             logger.debug(f"Controller got actor {actor_id} mutex, launching backward stage {stage_id} mb {mb_idx}")
@@ -290,4 +286,4 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                 .backward.options(num_returns=num_bwd_targets*2)
                                 .remote(stage_id, mb_idx, bwd_ref)
                             )
-    return ret
+    return ray.get(ret)

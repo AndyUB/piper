@@ -4,14 +4,14 @@ from typing import Callable
 import os
 import socket
 
-from .piper_utils import create_logger
+from .piper_utils import create_logger, LOG_LEVEL
 
-logger = create_logger("piper_coordinator", "INFO")
 
 @ray.remote(num_gpus=0.1)
 def run_dp_rank(dp_rank, dp_degree, pp_degree, world_size, master_addr, master_port, training_func: Callable, *args, **kwargs):
-    torch.manual_seed(0)
-    logger.info(f"Running DP rank {dp_rank} of {dp_degree}")
+    logger = create_logger("piper_coordinator", LOG_LEVEL)
+    logger.debug(f"Running DP rank {dp_rank+1} of {dp_degree}")
+
     os.environ['PIPER_DP_RANK'] = str(dp_rank)
     os.environ['PIPER_DP_DEGREE'] = str(dp_degree)
     os.environ['PIPER_PP_DEGREE'] = str(pp_degree)
@@ -37,19 +37,17 @@ class PiperProgramCoordinator:
         self.master_port = find_free_port()
     
     def run_program(self, training_func: Callable, *args, **kwargs):
-        logger.info(f"Running program with {self.dp_degree} DP ranks and {self.pp_degree} PP ranks")
-        ret = ray.get([run_dp_rank.remote(
+        return ray.get([run_dp_rank.remote(
                 dp_rank, 
                 self.dp_degree, 
-                self.pp_degree, 
+                self.pp_degree,
                 self.world_size, 
                 "127.0.0.1", 
                 self.master_port, 
-                training_func, 
+                training_func,
                 *args, 
                 **kwargs) 
             for dp_rank in range(self.dp_degree)])
-        return ret
     
 
             

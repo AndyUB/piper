@@ -29,35 +29,6 @@ def build_gpipe_schedule(n_mbs: int, n_stages: int):
         schedule[stage][-i-1] = Task(stage_id=stage, device_id=stage, mb_idx=0, is_fwd=False, upd=True)
     return schedule
 
-# def build_1f1b_schedule(n_mbs: int, n_stages: int):
-#     steps = n_mbs + n_stages - 1
-#     schedule = [[None] * (steps * 2 + 1) for _ in range(n_stages)]
-#     stage_mb = [[0, 0] for _ in range(n_stages)]
-#     for step in range(n_stages):
-#         for stage_id in range(n_stages):
-#             if step >= stage_id:
-#                 mb_idx = stage_mb[stage_id][0]
-#                 if mb_idx >= 0 and mb_idx < n_mbs:
-#                     schedule[stage_id][step] = Task(
-#                         device_id=stage_id, stage_id=stage_id, 
-#                         mb_idx=mb_idx, is_fwd=True, upd=False
-#                     )
-#                     stage_mb[stage_id][0] += 1
-#     for step in range(n_stages, 2 * steps):
-#         relative_step = step - n_stages
-#         for stage_id in range(n_stages):
-#             inv_stage = n_stages - stage_id - 1
-#             if relative_step >= inv_stage:
-#                 fwd_or_bwd = 1 - (relative_step + inv_stage) % 2
-#                 task_type = True if fwd_or_bwd == 0 else False
-#                 mb_idx = stage_mb[stage_id][fwd_or_bwd]
-#                 if mb_idx >= 0 and mb_idx < n_mbs:
-#                     schedule[stage_id][step] = Task(
-#                         device_id=stage_id, stage_id=stage_id,
-#                         mb_idx=mb_idx, is_fwd=task_type, upd=False
-#                     )
-#                     stage_mb[stage_id][fwd_or_bwd] += 1
-#     return schedule
 def build_1f1b_schedule(n_mbs: int, n_stages: int):
     steps = n_mbs + n_stages - 1
     schedule = [[None] * (steps * 2 + 1) for _ in range(n_stages)]

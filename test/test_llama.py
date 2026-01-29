@@ -47,8 +47,6 @@ def parse_args():
                         help='Number of timing iterations (default: 20)')
     parser.add_argument('--tracing', action='store_true', default=False,
                         help='Enable tracing')
-    parser.add_argument('--verify_weights', action='store_true', default=False,
-                        help='Print model weights before and after training to verify that they are synchronized')
     return parser.parse_args()
 
 
@@ -103,41 +101,37 @@ def print_mean_timing_data(trace_data: dict, actor_id: int) -> None:
 def main(args):
     
     # Set model configuration based on argument
-    if args.model == 'LLAMA_DEBUG':
-        llama_config = LLAMA_DEBUG
-    elif args.model == 'LLAMA_1B':
-        llama_config = LLAMA_1B
-    elif args.model == 'LLAMA_3B':
-        llama_config = LLAMA_3B
-    elif args.model == 'LLAMA_8B':
-        llama_config = LLAMA_8B
+    match args.model:
+        case 'LLAMA_DEBUG':
+            llama_config = LLAMA_DEBUG
+        case 'LLAMA_1B':
+            llama_config = LLAMA_1B
+        case 'LLAMA_3B':
+            llama_config = LLAMA_3B
+        case 'LLAMA_8B':
+            llama_config = LLAMA_8B
     print(args) 
-    #local_rank = int(os.environ['LOCAL_RANK'])
-    #print(f"Got local_rank={local_rank}")
+
     loss_fn = torch.nn.CrossEntropyLoss()
-    device = 'cuda'
     
     batch_size = args.batch_size
     num_mbs = args.num_mbs
     seq_len = args.seq_len
     warmup = args.warmup
     iters = args.iters
-    # creating the training data; might make this a new method to get the dataloader to work properly
-    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
-    y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long).to(device)
+    
+    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
+    y = torch.randn((batch_size, seq_len, llama_config.vocab_size))
 
     # Generate different input data for each data parallel rank so that model weights get updated differently
     if args.dp_degree > 1:
         dp_rank = int(os.environ['PIPER_DP_RANK'])
         torch.manual_seed(dp_rank)
-        x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
+        x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
         torch.manual_seed(0)
 
-    model = Transformer(llama_config, seq_len, device)
-    model.to(device)
-
     num_stages = args.num_stages
-    compiled = piper_setup(model, [x], backend=piper, num_stages=num_stages, pp_size=args.pp_degree)
+    compiled = piper_setup(Transformer, (llama_config, seq_len), torch.optim.Adam, [x], num_stages, args.pp_degree)
     
     assert num_stages == len(piper_metadata.dag) + 1
 
@@ -158,8 +152,9 @@ def main(args):
     print("SCHEDULE:")
     print_schedule(schedule)
 
-    # Send data to the actors
     actors = piper_metadata.actors
+
+    # Send data to actors ahead of time
     # num_actors = len(actors)
     # ray.get(actors[0].send_input.remote(x))
     # ray.get(actors[num_actors-1].send_truth.remote(y))
@@ -168,13 +163,7 @@ def main(args):
 
     # Definte one iteration of the schedule
     def iter_schedule():
-        out = piper_exec(compiled, schedule, [x], y, loss_fn, num_mbs, num_stages)
-        # ray.wait(out, fetch_local=False)
-        ray.get(out)
-
-    if args.verify_weights:
-        # print model weights before training
-        ray.get([actor.verify_weights.remote() for actor in actors.values()])
+        losses = piper_exec(compiled, schedule, [x], y, loss_fn, num_mbs, num_stages)
 
     # Warmup
     print(f"Running {warmup} warmup iterations...")
@@ -191,10 +180,6 @@ def main(args):
     for _ in range(iters):
         iter_schedule()
     end = time.perf_counter()
-
-    if args.verify_weights:
-        # Ensure that model weights are synchronized after training
-        ray.get([actor.verify_weights.remote() for actor in actors.values()])
     
     print(f"Iteration time: {(end - start)*1e3/iters:.0f} ms")
     print(
