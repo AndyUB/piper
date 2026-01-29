@@ -30,10 +30,10 @@ def find_free_port():
 @ray.remote
 class PiperProgramCoordinator:
     """ Central Actor that Coordinates all the DP replicas of a single pipeline"""
-    def __init__(self, dp_degree, pp_degree, world_size):
+    def __init__(self, dp_degree, pp_degree):
         self.dp_degree = dp_degree
         self.pp_degree = pp_degree
-        self.world_size = world_size
+        self.world_size = dp_degree * pp_degree
         self.master_port = find_free_port()
     
     def run_program(self, training_func: Callable, *args, **kwargs):

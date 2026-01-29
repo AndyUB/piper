@@ -350,7 +350,7 @@ def partition(*args):
 
 
 class Transformer(nn.Module):
-    def __init__(self, params: ModelArgs, seq_len: int, device):
+    def __init__(self, params: ModelArgs, seq_len: int):
         super().__init__()
         self.params = params
         self.vocab_size = params.vocab_size
@@ -393,11 +393,11 @@ class Transformer(nn.Module):
             params.dim // params.n_heads,
             self.seq_len,
             params.rope_theta,
-        )#.to(device)
+        )
 
         mask = torch.full((self.seq_len, self.seq_len), float("-inf"))
         mask = torch.triu(mask, diagonal=1)
-        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask])#.to(device)
+        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask])
 
     # """
     # forward method for interleaved-1f1b schedule

@@ -215,7 +215,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                         threads[mb_idx] = thread
                         thread.start()
                     events[mb_idx][stage_id].set()
-                    logger.debug(f"Controller set event for thread {mb_idx}stage {stage_id}: waiting for thread to grab lock")
+                    logger.debug(f"Controller set event for thread {mb_idx} stage {stage_id}: waiting for thread to grab lock")
                     # Wait for the thread to grab a lock on the actor mutex,
                     # signalled by unsetting the event
                     while events[mb_idx][stage_id].is_set():
