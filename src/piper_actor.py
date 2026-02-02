@@ -140,19 +140,25 @@ class PiperActor:
         start = time.perf_counter()
 
         # set up tracing data structure
+        # self.trace_data[stage_id] = {
+        #     "forward": {
+        #         "forward": [],
+        #         "forward_ref": [],
+        #         "total": [],
+        #         "peak_memory_delta": [],
+        #         "peak_memory": [],
+        #     },
+        #     "backward": {
+        #         "backward": [],
+        #         "backward_ref": [],
+        #         "total": [],
+        #         "peak_memory_delta": [],
+        #         "peak_memory": [],
+        #     },
+        # }
         self.trace_data[stage_id] = {
-            "forward": {
-                "forward": [],
-                "total": [],
-                "peak_memory_delta": [],
-                "peak_memory": [],
-            },
-            "backward": {
-                "backward": [],
-                "total": [],
-                "peak_memory_delta": [],
-                "peak_memory": [],
-            },
+            "forward": defaultdict(list),
+            "backward": defaultdict(list),
         }
 
         # compile the graph with the given graphargs
@@ -190,6 +196,8 @@ class PiperActor:
         # self.logger.debug(
         #     f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
         # )
+        if FORCE_SYNC:
+            start_time = time.perf_counter()
 
         if self.tracing:
             beginning_event = torch.cuda.Event(enable_timing=True)
@@ -244,11 +252,21 @@ class PiperActor:
             forward_start_memory = torch.cuda.memory_allocated()
             forward_start_event.record()
 
+        if FORCE_SYNC:
+            sync_start = torch.cuda.Event(enable_timing=True)
+            sync_end = torch.cuda.Event(enable_timing=True)
+            sync_start_time = time.perf_counter()
+            sync_start.record()
+
         # Call compiled function
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
 
         if FORCE_SYNC:
-            torch.cuda.synchronize()
+            sync_end.record()
+            sync_end.synchronize()
+            sync_time = sync_start.elapsed_time(sync_end)
+            sync_end_time = time.perf_counter()
+            sync_time_ref = (sync_end_time - sync_start_time) * 1000
 
         # Record end event and calculate forward timing
         if self.tracing:
@@ -277,7 +295,7 @@ class PiperActor:
         if self.tracing:
             end_event.record()
             torch.cuda.synchronize()
-            total_time = forward_start_event.elapsed_time(end_event)
+            total_time = beginning_event.elapsed_time(end_event)
             # Store in trace_data (all microbatches stored sequentially)
             self.trace_data[stage_id]["forward"]["forward"].append(forward_time)
             self.trace_data[stage_id]["forward"]["total"].append(total_time)
@@ -297,6 +315,13 @@ class PiperActor:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+        if FORCE_SYNC:
+            end_time = time.perf_counter()
+            total_fn_time = (end_time - start_time) * 1000
+            self.trace_data[stage_id]["forward"]["forward"].append(sync_time)
+            self.trace_data[stage_id]["forward"]["total"].append(total_fn_time)
+            self.trace_data[stage_id]["forward"]["forward_ref"].append(sync_time_ref)
 
         return out
 
@@ -359,6 +384,9 @@ class PiperActor:
 
     @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+        if FORCE_SYNC:
+            start_time = time.perf_counter()
+
         self.logger.debug(
             f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}"
         )
@@ -382,6 +410,12 @@ class PiperActor:
             backward_start_memory = torch.cuda.memory_allocated()
             backward_start_event.record()
 
+        if FORCE_SYNC:
+            sync_start = torch.cuda.Event(enable_timing=True)
+            sync_end = torch.cuda.Event(enable_timing=True)
+            sync_start_time = time.perf_counter()
+            sync_start.record()
+
         # compute loss in the last stage. use the saved activation rather
         # than inp because the saved activation remembers the computation graph
         if loss_fn is not None:
@@ -402,7 +436,11 @@ class PiperActor:
             activation.backward(gradient=inp)
 
         if FORCE_SYNC:
-            torch.cuda.synchronize()
+            sync_end.record()
+            sync_end.synchronize()
+            sync_time = sync_start.elapsed_time(sync_end)
+            sync_end_time = time.perf_counter()
+            sync_time_ref = (sync_end_time - sync_start_time) * 1000
 
         # Record end event and calculate backward timing
         if self.tracing:
@@ -446,6 +484,13 @@ class PiperActor:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+        if FORCE_SYNC:
+            end_time = time.perf_counter()
+            total_fn_time = (end_time - start_time) * 1000
+            self.trace_data[stage_id]["backward"]["backward"].append(sync_time)
+            self.trace_data[stage_id]["backward"]["total"].append(total_fn_time)
+            self.trace_data[stage_id]["backward"]["backward_ref"].append(sync_time_ref)
 
         return ret + ret
 
@@ -557,6 +602,9 @@ class PiperActor:
         Args:
             enabled (bool): True to enable tracing, False to disable.
         """
+        if FORCE_SYNC:
+            enabled = False
+
         self.tracing = enabled
         self.logger.info(
             f"Actor {self.actor_id}: Tracing {'enabled' if enabled else 'disabled'}"

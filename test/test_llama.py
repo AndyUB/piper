@@ -266,6 +266,19 @@ def main(args):
             print("=" * 40)
             print_mean_timing_data(trace_data, actor_id)
 
+    from src.piper_actor import FORCE_SYNC
+
+    if FORCE_SYNC:
+        for actor in actors.values():
+            trace_data = ray.get(actor.get_trace_data.remote())
+            actor_id = ray.get(actor.id.remote())
+            print(f"(Force sync) trace data from Actor {actor_id}:")
+            import json
+
+            print(json.dumps(trace_data, indent=4))
+            print("=" * 40)
+            print_mean_timing_data(trace_data, actor_id)
+
     ray.timeline(
         f"out/{args.model}-pp{args.pp_degree}-dp{args.dp_degree}-{args.schedule}.json"
     )
