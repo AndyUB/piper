@@ -7,7 +7,7 @@ from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
 
 from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger, print_backward_graph, LOG_LEVEL
-from .piper_graph_transform import split_gm_by_experts
+from .piper_graph_transform import split_gm_by_experts, get_dp_comm_ops
 from .piper_actor import get_actor
 
 logger = create_logger("piper_backend", LOG_LEVEL)
@@ -51,35 +51,33 @@ def piper(gm, example_inputs, **kwargs):
     original_gm = gm
     gm = split_gm_by_experts(gm, stage_id, pp_degree)
 
+    # Get the data parallel communication operations
+    comm_ops, ids = get_dp_comm_ops(example_inputs)
+
     # For the top-level graph, log which arguments are input tensors
     # vs parameter tensors and make sure all example inputs are serializable
 
     placeholders = gm.graph.find_nodes(op="placeholder")
     graphargs = [node.meta["grapharg"] for node in placeholders]
 
+    # get the indices of input vs parameters tensors
+    input_idxs = []
+    param_idxs = []
+    for i, arg in enumerate(example_inputs):
+        if isinstance(arg, torch.nn.Parameter):
+            param_idxs.append(i)
+        else:
+            input_idxs.append(i)
+
     # make sure example inputs are serializable by turning symbolic
     # ints and fake tensors into concrete values
     serializable_examples = []
-    input_idxs = []
-    param_idxs = []
-    for i, (arg, ex) in enumerate(zip(graphargs, example_inputs)):
-        # save indices of input tensors and model parameters
-        if 'self' not in str(arg):
-            input_idxs.append(i)
-        else:
-            param_idxs.append(i)
+    for ex in example_inputs:
         # convert symbolic ints and fake tensors to concrete values
         if isinstance(ex, torch.SymInt):
             serializable_examples.append(int(ex))
         elif isinstance(ex, torch._subclasses.fake_tensor.FakeTensor):
-            new = torch.full(
-                ex.shape,
-                0,
-                dtype=ex.dtype,
-                device=ex.device,
-                layout=ex.layout,
-                requires_grad=ex.requires_grad,
-            )
+            new = torch.full(ex.shape, 0, dtype=ex.dtype, device=ex.device, layout=ex.layout, requires_grad=ex.requires_grad)
             serializable_examples.append(new)
         else:
             serializable_examples.append(ex)
@@ -91,20 +89,27 @@ def piper(gm, example_inputs, **kwargs):
     stage_id = piper_metadata.current_stage
     actor_id = piper_metadata.current_actor
     actor = get_actor(actor_id)
+    naive_gradient_sync = piper_metadata.naive_gradient_sync
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
     global_rank = dp_rank * dp_degree + actor_id
     
+    # load the stage graph and params on the actor
     ray.get(
         actor.load_graph.remote(
             stage_id,
             payload,
-            torch._dynamo.backends.debugging.eager,
+            comm_ops,
             serializable_examples,
+            ids,
             input_idxs,
         )
     )
+
+    # start the communication loop on the actor
+    if dp_degree > 1 and not naive_gradient_sync:
+        actor.comm_loop.remote(stage_id)
 
     # Get fake tensor representations of the graph output(s)
     def symint_to_int(x):
@@ -112,7 +117,9 @@ def piper(gm, example_inputs, **kwargs):
     def int_to_tensor(x):
         return torch.tensor(x) if isinstance(x, int) else x
     example_inputs = list(map(symint_to_int, serializable_examples))
+    example_inputs = [t.to('cuda') for t in example_inputs]
     fakes = original_gm(*example_inputs)
+    fakes = [t.to('cpu') for t in fakes]
     fakes = list(map(int_to_tensor, fakes))
 
     # wait for a signal to run this graph if it's the first graph of the stage

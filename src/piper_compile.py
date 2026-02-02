@@ -12,28 +12,18 @@ from .piper import piper
 logger = create_logger("piper_compile", LOG_LEVEL)
 
 
-def piper_setup(model_class, model_args, optim_fn, example_inputs, num_stages, pp_degree, dynamic=False, check_correct=False):
+def piper_setup(model_class, model_args, optim_fn, example_inputs, num_stages, pp_degree, num_mbs, naive_gradient_sync=False, dynamic=False, check_correct=False):
     """
     Compile a model with the piper backend.
-
-    Args:
-        model: A model to compile.
-        example_inputs: Example inputs to the model.
-        dynamic: Whether to compile in dynamic mode.
-        backend: The backend to use for compilation.
-
-    Returns:
-        A tuple of (compiled_model, piper_metadata) where piper_metadata contains
-        the actors, stage_fns, and other state populated during compilation.
     """
-    create_actors(pp_degree, optim_fn)
+    piper_metadata.currently_compiling = True
+    piper_metadata.naive_gradient_sync = naive_gradient_sync
+    create_actors(pp_degree, optim_fn, num_mbs, naive_gradient_sync)
 
     model = model_class(*model_args)
 
     if check_correct:
         model_nocompile = copy.deepcopy(model)
-
-    piper_metadata.currently_compiling = True
 
     compiled = torch.compile(model, dynamic=dynamic, backend=piper)
 

@@ -10,6 +10,8 @@ from collections import defaultdict
 from torch._subclasses.fake_tensor import FakeTensor, FakeTensorMode
 from typing import Any, Optional
 
+import src.piper_patches
+
 LOG_LEVEL = "INFO"
 
 """ 
@@ -85,6 +87,7 @@ class PiperMetadata:
     actor_self = None
     first_graph_of_stage = None
     parallelism_configs = {'dp': 1}
+    naive_gradient_sync = False
 
 piper_metadata = PiperMetadata()
 

@@ -14,11 +14,10 @@ from typing import Callable
 from .piper_utils import deserialize_graphmodule, create_logger, RemoteTensor, print_backward_graph, LOG_LEVEL
 
 CLEANUP_MEMORY = False
-torch.autograd.set_detect_anomaly(True)
 
 logger = create_logger("piper_actor", LOG_LEVEL)
 
-def create_actors(num_actors, optim_class):
+def create_actors(num_actors, optim_class, num_mbs, naive_gradient_sync=False):
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     world_size = int(os.environ['PIPER_WORLD_SIZE'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
@@ -27,7 +26,7 @@ def create_actors(num_actors, optim_class):
     from .piper_utils import piper_metadata
     for actor_id in range(num_actors):
         global_rank = dp_rank * dp_degree + actor_id
-        actor = PiperActor.options(num_gpus=0.9, max_concurrency=2).remote(actor_id, optim_class, world_size, dp_rank=dp_rank, dp_degree=dp_degree, pp_degree=pp_degree)
+        actor = PiperActor.options(num_gpus=1, max_concurrency=3).remote(actor_id, optim_class, world_size, num_mbs, naive_gradient_sync, dp_rank=dp_rank, dp_degree=dp_degree, pp_degree=pp_degree)
         piper_metadata.actors[actor_id] = actor
 
     ray.get([actor.load_actor_handles.remote(piper_metadata.actors) for actor in piper_metadata.actors.values()])
@@ -123,17 +122,19 @@ torch.compiler.allow_in_graph(dispatch_expert_ray)
 
 @ray.remote
 class PiperActor:
-    def __init__(self, actor_id, optim_class, world_size, dp_rank=0, dp_degree=1, pp_degree=1):
+    def __init__(self, actor_id, optim_class, world_size, num_mbs, naive_gradient_sync=False, dp_rank=0, dp_degree=1, pp_degree=1):
         self.logger = create_logger("piper_actor", LOG_LEVEL)
 
         self.actor_id = actor_id
         self.optim_class = optim_class
+        self.naive_gradient_sync = naive_gradient_sync
         
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
         self.pp_degree = pp_degree
         self.world_size = world_size
 
+        self.num_mbs = num_mbs
         self.dp_group = None
         self.device = 'cuda'
 
@@ -177,10 +178,22 @@ class PiperActor:
         self.expert_input_activations = defaultdict(dict)
         # map (expert_id, batch_idx) -> output activation for backward
         self.expert_output_activations = defaultdict(dict)
-
+        # map stage id -> data parallel communication operations
+        self.comm_ops = dict()
+        # map stage id -> tensor id -> comm op status
+        self.comm_op_status = defaultdict(lambda: defaultdict(int))
+        # map stage id -> tensor id -> comm op handle
+        self.comm_op_handles = defaultdict(dict)
         # Timing infrastructure
         self.tracing = False  # Toggle for timing and memory tracing
-        self.trace_data = {'update': {'total': [], 'peak_memory_delta': [], 'peak_memory': []}}
+        self.trace_data = {
+            'update': {
+                'total': [], 
+                'sync': [], 
+                'optim': [], 
+                'peak_memory_delta': [], 
+                'peak_memory': []
+            }}
 
         from .piper_utils import piper_metadata
         piper_metadata.actor_self = self
@@ -221,8 +234,63 @@ class PiperActor:
                 self.dp_group = process_group
                 self.logger.info(f"Global rank {self.global_rank} joined its dp group {dp_group_id} along with ranks {group_ranks}")
 
-    def load_graph(self, stage_id: int, gm_data, compiler_fn, graphargs, input_idxs):
-        self.logger.debug(f"Compiling graph on actor {self.actor_id} for stage id: {stage_id} with inputs: {len(graphargs)} and input indices: {input_idxs}")
+    def prepare_comm_ops(self, stage_id, comm_ops, graphargs, ids):
+        def hook_maker(tensor_id):
+            def post_backward_hook(grad):
+                self.comm_op_status[stage_id][tensor_id] += 1
+                self.logger.debug(f"post_accumulate_grad_hook called: dp_rank: {self.dp_rank}, tensor_id={tensor_id}, shape={grad.shape}, status={self.comm_op_status[stage_id][tensor_id]}")
+                return grad
+            return post_backward_hook
+        
+        comm_op_ids = [op.tensor_id for op in comm_ops]
+        for (t, i) in zip(graphargs, ids):
+            if i in comm_op_ids:
+               comm_op = comm_ops[comm_op_ids.index(i)]
+               comm_op.tensor = t
+               match comm_op.op:
+                   case "allreduce":
+                        if comm_op.pass_type == "backward" and comm_op.dep == "post":
+                            tensor_id = i
+                            tensor_shape = t.shape
+                            self.logger.debug(f"Registering post_accumulate_grad_hook on dp_rank: {self.dp_rank}, tensor_id={tensor_id}, shape={tensor_shape}")
+                            t.register_post_accumulate_grad_hook(hook_maker(tensor_id))
+                        else:
+                            raise ValueError(f"Unknown comm op type or dependency: {comm_op.op} {comm_op.dep}")
+                   case _:
+                       raise ValueError(f"Unknown communication operation: {comm_op.op}")
+
+    def comm_loop(self, stage_id):
+        comm_stream = torch.cuda.Stream()
+        self.logger.info(f"Running comm loop for stage {stage_id} on actor {self.actor_id} global rank {self.global_rank}")
+        for comm_op in self.comm_ops[stage_id]:
+            done = False
+            while not done:
+                if comm_op.op == "allreduce" and comm_op.pass_type == "backward" and comm_op.dep == "post" and comm_op.group == "dp":
+                    # perform the all reduce when all gradients have been accumulated
+                    if self.comm_op_status[stage_id][comm_op.tensor_id] == self.num_mbs:
+                        with torch.cuda.stream(comm_stream):
+                            handle = dist.all_reduce(comm_op.tensor, op=dist.ReduceOp.AVG, group=self.dp_group, async_op=True)
+                        # -1 indicates that the all reduce has been performed
+                        self.comm_op_status[stage_id][comm_op.tensor_id] = 0
+                        self.comm_op_handles[stage_id][comm_op.tensor_id] = handle
+                        done = True
+                else:
+                    raise ValueError(f"Unknown comm op: {comm_op}")
+                # time.sleep(0.001)
+
+    def wait_for_comm_ops(self):
+        self.logger.debug(f"Actor {self.actor_id} global rank {self.global_rank} waiting for comm ops")
+        for stage_id, comm_ops in self.comm_ops.items():
+            for comm_op in comm_ops:
+                done = False
+                while not done:
+                    if comm_op.tensor_id in self.comm_op_handles[stage_id]:
+                        self.comm_op_handles[stage_id][comm_op.tensor_id].wait()
+                        done = True
+                    # time.sleep(0.001)
+
+    def load_graph(self, stage_id: int, gm_data, comm_ops, graphargs, ids, input_idxs):
+        self.logger.info(f"Loading stage {stage_id} graph on actor {self.actor_id} global rank {self.global_rank}")
 
         # set up tracing data structure
         if stage_id not in self.trace_data:
@@ -247,40 +315,38 @@ class PiperActor:
         # Store GraphModule reference
         self.graph_modules[stage_id] = gm
         self.forward_fns[stage_id] = gm.forward
-        
-        # save the parameters and initialize the optimizer
-        self.add_param_group(stage_id, graphargs, input_idxs)
 
-        del gm_data
-
-    def add_param_group(self, stage_id: int, params, input_idxs):
-        self.logger.debug(f"Adding param group for stage {stage_id}")
-
-        if stage_id in self.parameters:
-            self.logger.debug(f"Param group already exists for stage {stage_id}")
-            return
-        
         # place parameters on the device
         def move_to_device(idx, arg):
             if idx not in input_idxs:
                 return arg.to(self.device).detach().requires_grad_(True)
             else:
                 return arg.to(self.device)
+        params = graphargs
         params = list(map(move_to_device, range(len(params)), params))
 
         # discard the graphargs that correspond to input tensors
         for i in input_idxs:
             params[i] = None
 
-        # save the parameters
+        # prepare tensors with comm ops
+        if not self.naive_gradient_sync:
+            self.prepare_comm_ops(stage_id, comm_ops, params, ids)
+        self.comm_ops[stage_id] = list(reversed(comm_ops))
+
+        # save parameters
         self.input_idxs[stage_id] = input_idxs
         self.parameters[stage_id] = params
 
         # add the parameters to the optimizer for this stage
+        all_params = [param for param in params if param is not None]
         if stage_id not in self.optims:
-            self.optims[stage_id] = self.optim_class([param for param in params if param is not None])
+            self.optims[stage_id] = self.optim_class(all_params)
         else:
-            self.optims[stage_id].add_param_group({'params': [param for param in params if param is not None]})
+            self.optims[stage_id].add_param_group({'params': all_params})
+
+        del gm_data
+
 
     def load_expert(self, stage_id, expert_id, local_expert_id, batch_idx, expert_module, input_idxs, param_idxs, params):
         self.logger.debug(f"Loading expert {expert_id} on actor {self.actor_id} global rank {self.global_rank}")
@@ -377,7 +443,7 @@ class PiperActor:
         
         return grad_inputs
     
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -516,7 +582,7 @@ class PiperActor:
         
         return out
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, truth=None, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -596,21 +662,19 @@ class PiperActor:
         return [ret] * 2
 
     def synchronize_gradients(self):
-        """Synchronize gradients across all DP ranks for this stage using all-reduce."""     
         self.logger.debug(f"Actor {self.actor_id} global rank {self.global_rank} synchronizing gradients")
-        
         # Iterate over all stages on this actor and synchronize their parameters
         for stage_id, parameters in self.parameters.items():
             for param in parameters:
                 if param is not None and param.grad is not None:
                     dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
-        self.logger.info(f"Actor {self.actor_id} global rank {self.global_rank} finished synchronizing gradients")
 
     def update(self, *done_mbs):
-        self.logger.debug(f"Calling update on actor {self.actor_id} global rank {self.global_rank}")
-        
         if self.tracing:
             start_event = torch.cuda.Event(enable_timing=True)
+            start_sync = torch.cuda.Event(enable_timing=True)
+            end_sync = torch.cuda.Event(enable_timing=True)
+            start_optim = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
 
             torch.cuda.reset_peak_memory_stats()
@@ -618,9 +682,20 @@ class PiperActor:
 
             start_event.record()
         
-        # if dp degree > 1, synchronize the gradients
+        if self.tracing:
+            start_sync.record()
+
+        # if dp degree > 1, make sure all gradients are synchronized before optimizer step
+        # TODO: this does not allow overlapping with the optimizer step
         if self.dp_degree > 1:
-            self.synchronize_gradients()
+            if self.naive_gradient_sync:
+                self.synchronize_gradients()
+            else:
+                self.wait_for_comm_ops()
+        
+        if self.tracing:
+            end_sync.record()
+            start_optim.record()
         
         # step the optimizer for each stage
         for _, optim in self.optims.items():
@@ -633,10 +708,14 @@ class PiperActor:
             end_event.record()
             torch.cuda.synchronize()
             total_time = start_event.elapsed_time(end_event)
+            sync_time = start_sync.elapsed_time(end_sync)
+            optim_time = start_optim.elapsed_time(end_event)
             update_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - update_start_memory) / (1024**3)
             update_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
             self.trace_data['update']['total'].append(total_time)
+            self.trace_data['update']['sync'].append(sync_time)
+            self.trace_data['update']['optim'].append(optim_time)
             self.trace_data['update']['peak_memory_delta'].append(update_peak_memory_delta_gb)
             self.trace_data['update']['peak_memory'].append(update_peak_memory_gb)
 
@@ -663,10 +742,12 @@ class PiperActor:
             }
         self.trace_data['update'] = {
             'total': [],
+            'sync': [],
+            'optim': [],
             'peak_memory_delta': [],
             'peak_memory': []
         }
-    
+
     def get_trace_data(self) -> dict:
         return self.trace_data
 

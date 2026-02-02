@@ -9,6 +9,20 @@ from .piper_utils import create_logger, LOG_LEVEL
 
 logger = create_logger("piper_graph_transform", LOG_LEVEL)
 
+class CommOp:
+    def __init__(self, tensor_id: int, dep: str, pass_type: str, op: str, group: str):
+        self.tensor = None # this gets set on the actor
+        self.tensor_id = tensor_id
+        self.dep = dep # "pre" or "post"
+        self.pass_type = pass_type # "forward" or "backward"
+        self.op = op # "allreduce", "allgather", "scatter", "alltoall"
+        self.group = group # "dp" or "pp"
+
+def get_dp_comm_ops(example_inputs):
+    dp_comm_ops = [CommOp(id(t), "post", "backward", "allreduce", "dp") for t in example_inputs if isinstance(t, torch.nn.Parameter)]
+    ids = [id(t) for t in example_inputs]
+    return [op for op in dp_comm_ops if op is not None], ids
+
 def split_gm_by_experts(gm, stage_id, pp_degree):
     """
     Transform a graph module with expert annotations by extracting

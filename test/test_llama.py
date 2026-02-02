@@ -47,6 +47,8 @@ def parse_args():
                         help='Number of timing iterations (default: 20)')
     parser.add_argument('--tracing', action='store_true', default=False,
                         help='Enable tracing')
+    parser.add_argument('--naive_gradient_sync', action='store_true', default=False,
+                        help='Enable naive gradient sync')
     return parser.parse_args()
 
 
@@ -131,7 +133,16 @@ def main(args):
         torch.manual_seed(0)
 
     num_stages = args.num_stages
-    compiled = piper_setup(Transformer, (llama_config, seq_len), torch.optim.Adam, [x], num_stages, args.pp_degree)
+    compiled = piper_setup(
+        Transformer, 
+        (llama_config, seq_len), 
+        torch.optim.Adam, 
+        [x], 
+        num_stages, 
+        args.pp_degree,
+        num_mbs,
+        naive_gradient_sync=args.naive_gradient_sync,
+    )
     
     assert num_stages == len(piper_metadata.dag) + 1
 
@@ -143,9 +154,6 @@ def main(args):
             schedule = pp2_interleaved_1f1b_grid_schedule if args.pp_degree == 2 else pp4_interleaved_1f1b_grid_schedule
         case "1f1b":
             schedule = build_1f1b_schedule(num_mbs, num_stages)
-            schedule[0][2] = schedule[0][4]
-            schedule[0][4] = schedule[0][6]
-            schedule[0][6] = None
         case "gpipe":
             schedule = build_gpipe_schedule(num_mbs, num_stages)
     
@@ -159,8 +167,6 @@ def main(args):
     # ray.get(actors[0].send_input.remote(x))
     # ray.get(actors[num_actors-1].send_truth.remote(y))
 
-    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
-
     # Definte one iteration of the schedule
     def iter_schedule():
         losses = piper_exec(compiled, schedule, [x], y, loss_fn, num_mbs, num_stages)
@@ -171,8 +177,7 @@ def main(args):
         iter_schedule()
 
     # Clear tracing data
-    ray.get([actor.clear_trace_data.remote() for actor in actors.values()])
-    ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
+    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
 
     # Time training steps
     start = time.perf_counter()
@@ -198,12 +203,19 @@ def main(args):
             trace_data = ray.get(actor.get_trace_data.remote())
             actor_id = ray.get(actor.id.remote())
             print_mean_timing_data(trace_data, actor_id)
-        
-    ray.timeline(f"out/{args.model}-pp{args.pp_degree}-dp{args.dp_degree}-{args.schedule}.json")
+    
+    if args.naive_gradient_sync:
+        suffix = "-naive-sync"
+    else:
+        suffix = ""
+    timeline_filename = f"out/{args.model}-pp{args.pp_degree}-dp{args.dp_degree}-{args.schedule}{suffix}.json"
+    ray.timeline(timeline_filename)
+    print(f"\nRay timeline saved to: {timeline_filename}")
 
 if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")
     args = parse_args()
     piper_coordinator = PiperProgramCoordinator.remote(dp_degree=args.dp_degree, pp_degree=args.pp_degree)
     ray.get(piper_coordinator.run_program.remote(main, args))
+    time.sleep(3)
     ray.shutdown()
