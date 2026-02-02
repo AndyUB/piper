@@ -247,6 +247,9 @@ class PiperActor:
         # Call compiled function
         out = self.compiled_fns[stage_id](*self.parameters[stage_id])
 
+        if FORCE_SYNC:
+            torch.cuda.synchronize()
+
         # Record end event and calculate forward timing
         if self.tracing:
             forward_end_event.record()
@@ -397,6 +400,9 @@ class PiperActor:
             assert inp is not None
             assert activation.shape == inp.shape
             activation.backward(gradient=inp)
+
+        if FORCE_SYNC:
+            torch.cuda.synchronize()
 
         # Record end event and calculate backward timing
         if self.tracing:

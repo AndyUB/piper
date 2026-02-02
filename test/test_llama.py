@@ -275,7 +275,7 @@ if __name__ == "__main__":
     import ray._private.worker as worker
 
     ray.init(
-        include_dashboard=True,
+        include_dashboard=False,
         log_to_driver=True,
         namespace="llama",
         dashboard_host="127.0.0.1",
@@ -285,9 +285,9 @@ if __name__ == "__main__":
     print("logs_dir    =", worker._global_node.get_logs_dir_path())
 
     args = parse_args()
-    piper_coordinator = PiperProgramCoordinator.remote(
+    piper_coordinator = PiperProgramCoordinator.options(num_gpus=0.1).remote(
         dp_degree=args.dp_degree, pp_degree=args.pp_degree
     )
     ray.get(piper_coordinator.run_program.remote(main, args))
-    time.sleep(3600)
-    # ray.shutdown()
+    # time.sleep(3600)
+    ray.shutdown()

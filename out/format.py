@@ -8,7 +8,8 @@ if __name__ == "__main__":
         clean = False
 
     # file = "LLAMA_3B-pp2-dp1-interleaved-1f1b-v3.dashboard"
-    file = "LLAMA_3B-pp2-dp1-1f1b-min_v3"
+    # file = "LLAMA_3B-pp2-dp1-1f1b-min_v3"
+    file = "../logs-force-sync/LLAMA_3B-pp2-dp1-interleaved-1f1b_gpu312"
     with open(f"{file}.json", "r") as f:
         data = json.load(f)
 

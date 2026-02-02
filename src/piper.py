@@ -38,7 +38,9 @@ def distributed_stage(stage_id, actor_id=None, optim=None):
         # actor = PiperActor.options(num_gpus=0.6).remote(
         # actor = PiperActor.options(num_gpus=1).remote(
         actor = PiperActor.options(
-            num_gpus=1, runtime_env={"nsight": "default"}
+            # num_gpus=0.8, runtime_env={"nsight": "default"}
+            num_gpus=1,
+            runtime_env={"nsight": "default"},
         ).remote(
             actor_id,
             world_size,
