@@ -140,26 +140,26 @@ class PiperActor:
         start = time.perf_counter()
 
         # set up tracing data structure
-        # self.trace_data[stage_id] = {
-        #     "forward": {
-        #         "forward": [],
-        #         "forward_ref": [],
-        #         "total": [],
-        #         "peak_memory_delta": [],
-        #         "peak_memory": [],
-        #     },
-        #     "backward": {
-        #         "backward": [],
-        #         "backward_ref": [],
-        #         "total": [],
-        #         "peak_memory_delta": [],
-        #         "peak_memory": [],
-        #     },
-        # }
         self.trace_data[stage_id] = {
-            "forward": defaultdict(list),
-            "backward": defaultdict(list),
+            "forward": {
+                "forward": [],
+                "forward_ref": [],
+                "total": [],
+                "peak_memory_delta": [],
+                "peak_memory": [],
+            },
+            "backward": {
+                "backward": [],
+                "backward_ref": [],
+                "total": [],
+                "peak_memory_delta": [],
+                "peak_memory": [],
+            },
         }
+        # self.trace_data[stage_id] = {
+        #     "forward": defaultdict(list),
+        #     "backward": defaultdict(list),
+        # }
 
         # compile the graph with the given graphargs
         gm = deserialize_graphmodule(gm_data)
@@ -575,12 +575,14 @@ class PiperActor:
             self.trace_data[stage_id] = {
                 "forward": {
                     "forward": [],
+                    "forward_ref": [],
                     "total": [],
                     "peak_memory_delta": [],
                     "peak_memory": [],
                 },
                 "backward": {
                     "backward": [],
+                    "backward_ref": [],
                     "total": [],
                     "peak_memory_delta": [],
                     "peak_memory": [],
