@@ -15,7 +15,7 @@ CLEANUP_MEMORY = False
 FORCE_SYNC = True
 
 
-@ray.remote
+@ray.remote(concurrency_groups={"compute": 1, "_ray_system": 1})
 class PiperActor:
     def __init__(
         self, actor_id, world_size, dp_rank=0, dp_degree=1, pp_degree=1, optim_fn=None
