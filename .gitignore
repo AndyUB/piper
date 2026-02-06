@@ -2,4 +2,5 @@ __pycache__/
 
 .venv
 piper.egg-info/
-out/
+out/*
+!out/clean_ray_timeline.py
