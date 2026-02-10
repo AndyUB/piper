@@ -5,57 +5,36 @@ import os
 import gc
 import copy
 
-from .piper_actor import create_actors
-from .piper_utils import piper_metadata, RemoteTensor, create_logger, LOG_LEVEL
+from .piper_actor import _create_actors
+from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 from .piper import piper
 
 logger = create_logger("piper_compile", LOG_LEVEL)
 
 
-def piper_setup(model_class, model_args, optim_fn, example_inputs, num_stages, pp_degree, num_mbs, naive_gradient_sync=False, dynamic=False, check_correct=False):
+def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, naive_gradient_sync=False):
     """
     Compile a model with the piper backend.
     """
-    piper_metadata.currently_compiling = True
     piper_metadata.naive_gradient_sync = naive_gradient_sync
-    create_actors(pp_degree, optim_fn, num_mbs, naive_gradient_sync)
+
+    num_devices = len(schedule)
+    num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
+    piper_metadata.stage_to_device = {task.stage_id: task.device_id for row in schedule for task in row if task is not None}
+
+    _create_actors(num_devices, optim_fn, num_mbs, naive_gradient_sync)
+    ray.get([actor._join_process_groups.remote() for actor in piper_metadata.actors.values()])
 
     model = model_class(*model_args)
 
-    if check_correct:
-        model_nocompile = copy.deepcopy(model)
-
-    compiled = torch.compile(model, dynamic=dynamic, backend=piper)
-
-    from .piper_utils import events_tls
-    events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(pp_degree)])
-    events_tls.events = [threading.Event() for _ in range(num_stages)]
-    for event in events_tls.events:
-        event.set()
+    compiled = torch.compile(model, backend=piper)
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
-    logger.info(f"DP rank {dp_rank+1} compiling {num_stages} stages...")
+    logger.info(f"DP rank {dp_rank+1} compiling...")
 
-    output = compiled(*example_inputs).get()
+    output = compiled(*example_inputs)
 
-    if check_correct:
-        correct_output = model_nocompile(*example_inputs)
-        if not torch.allclose(output, correct_output):
-            logger.error(f"Model output is not correct")
-            logger.error(f"Compiled output: {output}")
-            logger.error(f"Correct output: {correct_output}")
-        else:
-            logger.info(f"Model output is correct")
-
-    logger.info(f"DP rank {dp_rank+1} finished compiling model. DAG: {piper_metadata.dag}")
-    
-    piper_metadata.currently_compiling = False
-
-    logger.info(f"DP rank {dp_rank} joining process groups")
-
-    ray.get([actor.join_process_groups.remote() for actor in piper_metadata.actors.values()])
-
-    logger.info(f"Completed DP rank {dp_rank+1} setup for {len(piper_metadata.actors)} actors")
+    logger.info(f"DP rank {dp_rank+1} done.")
 
     from ray.experimental.collective import create_collective_group
     
@@ -63,6 +42,6 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, num_stages, p
         list(piper_metadata.actors.values()),
         backend="nccl")
     
-    logger.info(f"DP rank {dp_rank} Started NCCL group with {len(piper_metadata.actors)} actors")
+    logger.info(f"DP rank {dp_rank} Started NCCL group with {len(piper_metadata.actors)} actors and DAG {piper_metadata.dag}")
     
     return compiled

@@ -39,6 +39,7 @@ def print_backward_graph(printer, tensor, prefix=""):
                 printer(" " * (indent + 2) + f"{prefix}None")
     _print(tensor, 0)
 
+
 """
 Logger utility
 """
@@ -66,133 +67,25 @@ def create_logger(name: str, log_level: str):
     
     return logger
 
+
 """
 Piper thread local storage for tracking Piper actors, stages, and microbatches
 """
 
-class ThreadLocal(threading.local):
-    events = None
-    mb_idx = None
-    actor_mutexes = None
-
-events_tls = ThreadLocal()
-
 class PiperMetadata:
     actors = dict()
     dag = set()
-    world_size = None
-    currently_compiling = True
-    current_stage = None
-    current_actor = None
-    actor_self = None
-    first_graph_of_stage = None
-    parallelism_configs = {'dp': 1}
+    stage_to_device = dict()
     naive_gradient_sync = False
 
 piper_metadata = PiperMetadata()
 
-"""
-Remote tensors wrap Ray ObjectRefs
-"""
-
-_fake_tensor_mode = FakeTensorMode()
-_fake_tensor_converter = _fake_tensor_mode.fake_tensor_converter
-
-class RemoteTensorKey:
-    def __init__(self):
-        self.key = str(uuid.uuid4())
-
-class RemoteTensor(torch.Tensor):
-    _fake: torch.Tensor
-    _stage_id: Optional[int]
-    _obj_ref: ray._raylet.ObjectRef
-    _resolved: Any
-
-    def __new__(cls, 
-                fake: FakeTensor, 
-                obj_ref: ray._raylet.ObjectRef,
-                stage_id: Optional[int] = None):
-        instance = torch.Tensor._make_wrapper_subclass(
-            cls,
-            fake.size(),
-            strides=fake.stride(),
-            storage_offset=fake.storage_offset(),
-            device=fake.device,  # This is the device of of either input tensor or first tensor of a list
-            dtype=fake.dtype,
-            layout=fake.layout,
-            requires_grad=fake.requires_grad,
-        )
-        instance._obj_ref = obj_ref
-        instance._fake = fake
-        instance._stage_id = stage_id
-        instance._resolved = None
-        instance.key = RemoteTensorKey()
-        return instance
-
-    def get_stage_id(self):
-        return self._stage_id
-
-    def get(self):
-        # return fake tensor during compilation
-        if self._obj_ref is None:
-            return self._fake
-
-        if self._resolved is None:
-            obj = ray.get(self._obj_ref)
-            if isinstance(obj, list) or isinstance(obj, tuple):
-                assert len(obj) == 1
-                self._resolved = obj[0]
-            else:
-                self._resolved = obj
-        self._resolved = self._resolved.to('cpu')
-        return self._resolved
-    
-    def get_ref(self):
-        if self._obj_ref is None:
-            raise RuntimeError("Cannot get ObjectRef from a compile-time RemoteTensor")
-        return self._obj_ref
-
-    def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
-        def unwrap(x):
-            if isinstance(x, RemoteTensor):
-                return x.get()
-            elif isinstance(x, (list, tuple)):
-                return type(x)(unwrap(v) for v in x)
-            elif isinstance(x, dict):
-                return {k: unwrap(v) for k, v in x.items()}
-            else:
-                return x
-
-        args = torch.utils._pytree.tree_map(unwrap, args)
-        kwargs = torch.utils._pytree.tree_map(unwrap, kwargs or {})
-
-        out = func(*args, **kwargs)
-        return out
-    
-    def __tensor_flatten__(self):
-        return (["_fake"], {})
-
-    @classmethod
-    def __tensor_unflatten__(cls, inner_tensors, metadata, outer_size, outer_stride):
-        fake = inner_tensors["_fake"]
-        return cls(fake, None, None)
-    
-    def __repr__(self):
-        """Custom repr that avoids triggering masked_select from tensor formatting."""
-        if self._resolved is not None:
-            return self._resolved.__repr__()
-        return (
-            f"RemoteTensor(shape={tuple(self.shape)}, dtype={self.dtype}, "
-            f"device={self.device}, stage_id={self._stage_id})"
-        )
-        
-torch._dynamo.config.traceable_tensor_subclasses.add(RemoteTensor)
 
 """
 Serialize/deserialize an fx.GraphModule
 """
 
-def encode_arg(a):
+def _encode_arg(a):
     if isinstance(a, fx.Node):
         return {"__node__": a.name}
     if isinstance(a, torch.device):
@@ -201,20 +94,20 @@ def encode_arg(a):
         return {"__dtype__": str(a).replace("torch.", "")}
     if isinstance(a, slice):
         return {"__slice__": True,
-                "start": encode_arg(a.start),
-                "stop": encode_arg(a.stop),
-                "step": encode_arg(a.step)}
+                "start": _encode_arg(a.start),
+                "stop": _encode_arg(a.stop),
+                "step": _encode_arg(a.step)}
     if a is Ellipsis:
         return {"__ellipsis__": True}
     if isinstance(a, tuple):  # <-- preserve tuples
-        return {"__tuple__": [encode_arg(x) for x in a]}
+        return {"__tuple__": [_encode_arg(x) for x in a]}
     if isinstance(a, list):
-        return [encode_arg(x) for x in a]
+        return [_encode_arg(x) for x in a]
     if isinstance(a, dict):
-        return {k: encode_arg(v) for k, v in a.items()}
+        return {k: _encode_arg(v) for k, v in a.items()}
     return a
 
-def decode_arg(a, name_to_node):
+def _decode_arg(a, name_to_node):
     if isinstance(a, dict):
         if "__node__" in a:
             return name_to_node[a["__node__"]]
@@ -224,26 +117,26 @@ def decode_arg(a, name_to_node):
             return getattr(torch, a["__dtype__"])
         if "__slice__" in a:
             return slice(
-                decode_arg(a["start"], name_to_node),
-                decode_arg(a["stop"], name_to_node),
-                decode_arg(a["step"], name_to_node),
+                _decode_arg(a["start"], name_to_node),
+                _decode_arg(a["stop"], name_to_node),
+                _decode_arg(a["step"], name_to_node),
             )
         if "__ellipsis__" in a:
             return Ellipsis
         if "__tuple__" in a:  # <-- reconstruct tuples
-            return tuple(decode_arg(x, name_to_node) for x in a["__tuple__"])
+            return tuple(_decode_arg(x, name_to_node) for x in a["__tuple__"])
         # generic dict
-        return {k: decode_arg(v, name_to_node) for k, v in a.items()}
+        return {k: _decode_arg(v, name_to_node) for k, v in a.items()}
     if isinstance(a, list):
-        return [decode_arg(x, name_to_node) for x in a]
+        return [_decode_arg(x, name_to_node) for x in a]
     return a
 
 def _is_op_overload(obj):
     # Works across PyTorch versions without importing private types directly
     return obj.__class__.__module__.startswith("torch._ops") or obj.__class__.__name__.startswith("OpOverload")
 
-def serialize_target(t):
-    # print("SERIALIZING", t)
+def _serialize_target(t):
+    # print("SERIALIZING", t, type(t))
     # call_method uses a string method name, pass through
     if isinstance(t, str):
         return {"kind": "string", "value": t}
@@ -262,6 +155,49 @@ def serialize_target(t):
 
     # regular python function or built-in
     if inspect.isfunction(t) or inspect.isbuiltin(t):
+        # Special handling for torch.autograd.Function.apply methods
+        # These are static methods that may have the wrong module in inspect.getmodule
+        if t.__name__ == "apply":
+            qualname = getattr(t, "__qualname__", "")
+            mod = inspect.getmodule(t)
+            
+            # If qualname contains a class name (e.g., "AllToAllSingleFunction.apply")
+            if "." in qualname:
+                class_name = qualname.split(".")[0]
+                # Try to find the class by searching common modules
+                # First try the module where the function was found
+                if mod and hasattr(mod, class_name):
+                    func_class = getattr(mod, class_name)
+                    if isinstance(func_class, type) and issubclass(func_class, torch.autograd.Function):
+                        # Serialize as the Function class with .apply
+                        return {"kind": "py_obj", "module": func_class.__module__, "qualname": func_class.__qualname__ + ".apply"}
+                
+                # If not found, search sys.modules for the class
+                # This handles the case where inspect.getmodule returns torch.autograd.function
+                # instead of the actual module where the Function class is defined
+                import sys
+                for module_name, module_obj in sys.modules.items():
+                    if module_obj is not None and hasattr(module_obj, class_name):
+                        try:
+                            func_class = getattr(module_obj, class_name)
+                            if isinstance(func_class, type) and issubclass(func_class, torch.autograd.Function):
+                                # Serialize as the Function class with .apply
+                                return {"kind": "py_obj", "module": func_class.__module__, "qualname": func_class.__qualname__ + ".apply"}
+                        except (TypeError, AttributeError):
+                            continue
+                
+                # If still not found and we have a qualname, try to import the module directly
+                # based on common patterns (e.g., if class is AllToAllSingleFunction, try src.piper_graph_transform)
+                if class_name.startswith("AllToAll"):
+                    try:
+                        from src import piper_graph_transform
+                        if hasattr(piper_graph_transform, class_name):
+                            func_class = getattr(piper_graph_transform, class_name)
+                            if isinstance(func_class, type) and issubclass(func_class, torch.autograd.Function):
+                                return {"kind": "py_obj", "module": func_class.__module__, "qualname": func_class.__qualname__ + ".apply"}
+                    except (ImportError, AttributeError):
+                        pass
+        
         mod = inspect.getmodule(t)
         if mod is None:
             raise ValueError(f"Cannot serialize function without module: {t}")
@@ -290,8 +226,7 @@ def _resolve_qualname(mod, qualname):
         obj = getattr(obj, part)
     return obj
 
-def deserialize_target(payload):
-    # print("DESERIALIZING", payload)
+def _deserialize_target(payload):
     kind = payload["kind"]
 
     if kind == "string":
@@ -303,7 +238,13 @@ def deserialize_target(payload):
 
     if kind == "py_obj":
         mod = importlib.import_module(payload["module"])
-        return _resolve_qualname(mod, payload["qualname"])
+        try:
+            return _resolve_qualname(mod, payload["qualname"])
+        except AttributeError as e:
+            # Provide better error message for debugging
+            raise AttributeError(
+                f"Failed to resolve qualname '{payload['qualname']}' in module '{payload['module']}': {e}"
+            ) from e
 
     if kind == "torch_op":
         obj = torch.ops
@@ -313,15 +254,15 @@ def deserialize_target(payload):
 
     raise NotImplementedError(f"Unknown target kind: {kind}")
 
-def serialize_graphmodule(gm: fx.GraphModule) -> str:
+def _serialize_graphmodule(gm: fx.GraphModule) -> str:
     nodes = []
     for n in gm.graph.nodes:
         nodes.append({
             "name": n.name,
             "op": n.op,
-            "target": serialize_target(n.target) if n.op in ("call_function", "call_method", "call_module", "get_attr") else None,
-            "args": encode_arg(n.args),
-            "kwargs": encode_arg(n.kwargs),
+            "target": _serialize_target(n.target) if n.op in ("call_function", "call_method", "call_module", "get_attr") else None,
+            "args": _encode_arg(n.args),
+            "kwargs": _encode_arg(n.kwargs),
         })
 
     # Serialize all direct child modules that are GraphModules
@@ -329,7 +270,7 @@ def serialize_graphmodule(gm: fx.GraphModule) -> str:
     for name, module in gm.named_children():
         if isinstance(module, fx.GraphModule):
             # Recursively serialize GraphModule submodules
-            submodules[name] = serialize_graphmodule(module)
+            submodules[name] = _serialize_graphmodule(module)
 
     data = {
         "nodes": nodes,
@@ -352,7 +293,7 @@ def _unwrap_output_arg(decoded):
         return decoded[0]
     return decoded
 
-def deserialize_graphmodule(s: str) -> fx.GraphModule:
+def _deserialize_graphmodule(s: str) -> fx.GraphModule:
     data = json.loads(s)
     g = fx.Graph()
     name_to_node = {}
@@ -362,25 +303,25 @@ def deserialize_graphmodule(s: str) -> fx.GraphModule:
         if op == "placeholder":
             node = g.placeholder(n["name"])
         elif op == "output":
-            decoded = decode_arg(n["args"], name_to_node)
+            decoded = _decode_arg(n["args"], name_to_node)
             node = g.output(_unwrap_output_arg(decoded))
         elif op == "call_function":
-            target = deserialize_target(n["target"])
-            args = decode_arg(n["args"], name_to_node)
-            kwargs = decode_arg(n["kwargs"], name_to_node)
+            target = _deserialize_target(n["target"])
+            args = _decode_arg(n["args"], name_to_node)
+            kwargs = _decode_arg(n["kwargs"], name_to_node)
             node = g.call_function(target, tuple(args), kwargs)
         elif op == "call_method":
-            target = deserialize_target(n["target"])
-            args = decode_arg(n["args"], name_to_node)
-            kwargs = decode_arg(n["kwargs"], name_to_node)
+            target = _deserialize_target(n["target"])
+            args = _decode_arg(n["args"], name_to_node)
+            kwargs = _decode_arg(n["kwargs"], name_to_node)
             node = g.call_method(target, tuple(args), kwargs)
         elif op == "call_module":
-            target = deserialize_target(n["target"])
-            args = decode_arg(n["args"], name_to_node)
-            kwargs = decode_arg(n["kwargs"], name_to_node)
+            target = _deserialize_target(n["target"])
+            args = _decode_arg(n["args"], name_to_node)
+            kwargs = _decode_arg(n["kwargs"], name_to_node)
             node = g.call_module(target, tuple(args), kwargs)
         elif op == "get_attr":
-            target = deserialize_target(n["target"])
+            target = _deserialize_target(n["target"])
             node = g.get_attr(target)
         else:
             raise NotImplementedError(f"op {op} not handled")
@@ -393,7 +334,7 @@ def deserialize_graphmodule(s: str) -> fx.GraphModule:
     submodules = data.get("submodules", {})
     for module_name, serialized_submodule in submodules.items():
         # Recursively deserialize submodule
-        submodule_gm = deserialize_graphmodule(serialized_submodule)
+        submodule_gm = _deserialize_graphmodule(serialized_submodule)
         # Add as direct child module (handles both simple names and nested paths)
         # For nested paths like "layer.expert_0", we need to create intermediate modules
         parts = module_name.split(".")

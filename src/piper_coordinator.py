@@ -18,6 +18,7 @@ def run_dp_rank(dp_rank, dp_degree, pp_degree, world_size, master_addr, master_p
     os.environ['PIPER_WORLD_SIZE'] = str(world_size)
     os.environ['PIPER_MASTER_ADDR'] = str(master_addr)
     os.environ['PIPER_MASTER_PORT'] = str(master_port)
+    os.environ['TORCH_LOGS'] = "+graph_breaks"
     return training_func(*args, **kwargs)
 
 def find_free_port():

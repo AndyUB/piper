@@ -28,9 +28,6 @@ def parse_args():
                         help='Model configuration: LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, or LLAMA_8B (default: LLAMA_DEBUG)')
     parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
                         help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
-    # num_stages should be able to be inferred from the model code
-    parser.add_argument('--num_stages', type=int, default=2,
-                        help='Number of stages (default: 2)')
     parser.add_argument('--dp_degree', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
     parser.add_argument('--pp_degree', type=int, default=2,
@@ -132,20 +129,6 @@ def main(args):
         x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
         torch.manual_seed(0)
 
-    num_stages = args.num_stages
-    compiled = piper_setup(
-        Transformer, 
-        (llama_config, seq_len), 
-        torch.optim.Adam, 
-        [x], 
-        num_stages, 
-        args.pp_degree,
-        num_mbs,
-        naive_gradient_sync=args.naive_gradient_sync,
-    )
-    
-    assert num_stages == len(piper_metadata.dag) + 1
-
     schedule = None
     match args.schedule:
         case "no-pp":
@@ -153,23 +136,30 @@ def main(args):
         case "interleaved-1f1b":
             schedule = pp2_interleaved_1f1b_grid_schedule if args.pp_degree == 2 else pp4_interleaved_1f1b_grid_schedule
         case "1f1b":
-            schedule = build_1f1b_schedule(num_mbs, num_stages)
+            schedule = build_1f1b_schedule(num_mbs, args.pp_degree)
         case "gpipe":
-            schedule = build_gpipe_schedule(num_mbs, num_stages)
-    
-    print("SCHEDULE:")
+            schedule = build_gpipe_schedule(num_mbs, args.pp_degree)
+    print("Schedule:")
     print_schedule(schedule)
 
+    compiled = piper_setup(
+        Transformer, 
+        (llama_config, seq_len), 
+        torch.optim.Adam, 
+        [x], 
+        schedule
+    )
+    
     actors = piper_metadata.actors
 
     # Send data to actors ahead of time
     # num_actors = len(actors)
-    # ray.get(actors[0].send_input.remote(x))
-    # ray.get(actors[num_actors-1].send_truth.remote(y))
+    # ray.get(actors[0].load_input.remote(x))
+    # ray.get(actors[num_actors-1].load_labels.remote(y))
 
     # Definte one iteration of the schedule
     def iter_schedule():
-        losses = piper_exec(compiled, schedule, [x], y, loss_fn, num_mbs, num_stages)
+        losses = piper_exec(compiled, schedule, [x], y, loss_fn)
 
     # Warmup
     print(f"Running {warmup} warmup iterations...")
