@@ -22,80 +22,6 @@ from .schedule_helpers import (
     no_pp_schedule
 )
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
-    parser.add_argument('--model', choices=['LLAMA_DEBUG', 'LLAMA_1B', 'LLAMA_3B', 'LLAMA_8B'], default='LLAMA_DEBUG',
-                        help='Model configuration: LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, or LLAMA_8B (default: LLAMA_DEBUG)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
-                        help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
-    parser.add_argument('--dp_degree', type=int, default=1,
-                        help='Number of data parallel degrees (default: 1)')
-    parser.add_argument('--pp_degree', type=int, default=2,
-                        help='Number of pipeline parallel degrees (default: 2)')
-    parser.add_argument('--batch_size', type=int, default=16,
-                        help='Batch size (default: 16)')
-    parser.add_argument('--num_mbs', type=int, default=4,
-                        help='Number of microbatches (default: 4)')
-    parser.add_argument('--seq_len', type=int, default=256,
-                        help='Sequence length (default: 256)')
-    parser.add_argument('--warmup', type=int, default=5,
-                        help='Number of warmup iterations (default: 5)')
-    parser.add_argument('--iters', type=int, default=20,
-                        help='Number of timing iterations (default: 20)')
-    parser.add_argument('--tracing', action='store_true', default=False,
-                        help='Enable tracing')
-    parser.add_argument('--naive_gradient_sync', action='store_true', default=False,
-                        help='Enable naive gradient sync')
-    return parser.parse_args()
-
-
-def print_mean_timing_data(trace_data: dict, actor_id: int) -> None:
-    """Prints mean timing and memory statistics from trace_data for a given actor.
-
-    Args:
-        trace_data (dict): Trace data dictionary from the actor containing timing and memory metrics.
-        actor_id (int): The ID of the actor.
-    """
-    import numpy as np
-
-    print(f"\nTiming and Memory statistics for Actor {actor_id}:")
-    
-    for stage_id, stage_data in trace_data.items():
-        if stage_id == 'update':
-            # Handle update data (global optimizer step)
-            print(f"  Update:")
-            for metric, values in stage_data.items():
-                if not values:
-                    mean_val = float('nan')
-                else:
-                    mean_val = float(np.mean(values))
-                
-                if 'memory' in metric:
-                    if 'delta' in metric:
-                        print(f"    {metric}: {mean_val:.3f} GB")
-                    else:
-                        print(f"    {metric}: {mean_val:.3f} GB")
-                else:
-                    print(f"    {metric}: {mean_val:.3f} ms")
-        else:
-            # Handle stage data (forward/backward passes)
-            print(f"  Stage {stage_id}:")
-            for phase, phase_data in stage_data.items():
-                print(f"    {phase.capitalize()}:")
-                for metric, values in phase_data.items():
-                    if not values:
-                        mean_val = float('nan')
-                    else:
-                        mean_val = float(np.mean(values))
-                    
-                    if 'memory' in metric:
-                        if 'delta' in metric:
-                            print(f"      {metric}: {mean_val:.3f} GB")
-                        else:
-                            print(f"      {metric}: {mean_val:.3f} GB")
-                    else:
-                        print(f"      {metric}: {mean_val:.3f} ms")
-
 
 def main(args):
     
@@ -200,6 +126,81 @@ def main(args):
     timeline_filename = f"out/{args.model}-pp{args.pp_degree}-dp{args.dp_degree}-{args.schedule}{suffix}.json"
     ray.timeline(timeline_filename)
     print(f"\nRay timeline saved to: {timeline_filename}")
+
+
+def print_mean_timing_data(trace_data: dict, actor_id: int) -> None:
+    """Prints mean timing and memory statistics from trace_data for a given actor.
+
+    Args:
+        trace_data (dict): Trace data dictionary from the actor containing timing and memory metrics.
+        actor_id (int): The ID of the actor.
+    """
+    import numpy as np
+
+    print(f"\nTiming and Memory statistics for Actor {actor_id}:")
+    
+    for stage_id, stage_data in trace_data.items():
+        if stage_id == 'update':
+            # Handle update data (global optimizer step)
+            print(f"  Update:")
+            for metric, values in stage_data.items():
+                if not values:
+                    mean_val = float('nan')
+                else:
+                    mean_val = float(np.mean(values))
+                
+                if 'memory' in metric:
+                    if 'delta' in metric:
+                        print(f"    {metric}: {mean_val:.3f} GB")
+                    else:
+                        print(f"    {metric}: {mean_val:.3f} GB")
+                else:
+                    print(f"    {metric}: {mean_val:.3f} ms")
+        else:
+            # Handle stage data (forward/backward passes)
+            print(f"  Stage {stage_id}:")
+            for phase, phase_data in stage_data.items():
+                print(f"    {phase.capitalize()}:")
+                for metric, values in phase_data.items():
+                    if not values:
+                        mean_val = float('nan')
+                    else:
+                        mean_val = float(np.mean(values))
+                    
+                    if 'memory' in metric:
+                        if 'delta' in metric:
+                            print(f"      {metric}: {mean_val:.3f} GB")
+                        else:
+                            print(f"      {metric}: {mean_val:.3f} GB")
+                    else:
+                        print(f"      {metric}: {mean_val:.3f} ms")
+
+                        
+def parse_args():
+    parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
+    parser.add_argument('--model', choices=['LLAMA_DEBUG', 'LLAMA_1B', 'LLAMA_3B', 'LLAMA_8B'], default='LLAMA_DEBUG',
+                        help='Model configuration: LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, or LLAMA_8B (default: LLAMA_DEBUG)')
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
+                        help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
+    parser.add_argument('--dp_degree', type=int, default=1,
+                        help='Number of data parallel degrees (default: 1)')
+    parser.add_argument('--pp_degree', type=int, default=2,
+                        help='Number of pipeline parallel degrees (default: 2)')
+    parser.add_argument('--batch_size', type=int, default=16,
+                        help='Batch size (default: 16)')
+    parser.add_argument('--num_mbs', type=int, default=4,
+                        help='Number of microbatches (default: 4)')
+    parser.add_argument('--seq_len', type=int, default=256,
+                        help='Sequence length (default: 256)')
+    parser.add_argument('--warmup', type=int, default=5,
+                        help='Number of warmup iterations (default: 5)')
+    parser.add_argument('--iters', type=int, default=20,
+                        help='Number of timing iterations (default: 20)')
+    parser.add_argument('--tracing', action='store_true', default=False,
+                        help='Enable tracing')
+    parser.add_argument('--naive_gradient_sync', action='store_true', default=False,
+                        help='Enable naive gradient sync')
+    return parser.parse_args()
 
 if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama")

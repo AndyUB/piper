@@ -59,7 +59,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         ctx.global_rank = actor_self.global_rank
         ctx.stream = actor_self.a2a_stream
 
-        logger.info(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
+        logger.debug(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
         
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
@@ -76,7 +76,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         end_event.record(ctx.stream)
         torch.cuda.synchronize()
         time = start_event.elapsed_time(end_event)
-        logger.info(f"Completed AllToAllSingleFunction forward rank={ctx.global_rank} time={time:.2f} ms")
+        logger.debug(f"Completed AllToAllSingleFunction forward rank={ctx.global_rank} time={time:.2f} ms")
 
         return output
     
@@ -88,7 +88,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         The backward of all_to_all_single is another all_to_all_single operation
         that reverses the communication pattern.
         """
-        logger.info(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
+        logger.debug(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
 
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
@@ -112,7 +112,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         end_event.record(ctx.stream)
         torch.cuda.synchronize()
         time = start_event.elapsed_time(end_event)
-        logger.info(f"Completed AllToAllSingleFunction backward rank={ctx.global_rank} time={time:.2f} ms")
+        logger.debug(f"Completed AllToAllSingleFunction backward rank={ctx.global_rank} time={time:.2f} ms")
         
         # Return gradients: grad_output flows to grad_input, None for group
         return grad_input, grad_input, None

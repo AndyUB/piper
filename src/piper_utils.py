@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 import src.piper_patches
 
-LOG_LEVEL = "DEBUG"
+LOG_LEVEL = "INFO"
 
 """ 
 Print the backward graph of a tensor
