@@ -150,12 +150,11 @@ def main(args):
         schedule
     )
     
-    actors = piper_metadata.actors
 
     # Send data to actors ahead of time
-    # num_actors = len(actors)
-    # ray.get(actors[0].load_input.remote(x))
-    # ray.get(actors[num_actors-1].load_labels.remote(y))
+    actors = piper_metadata.actors
+    ray.get(actors[0].load_input.remote([x]))
+    ray.get(actors[len(actors)-1].load_labels.remote(y))
 
     # Definte one iteration of the schedule
     def iter_schedule():

@@ -6,7 +6,7 @@ import os
 from torch._dynamo.backends.registry import register_backend
 
 from .piper_utils import _serialize_graphmodule, piper_metadata, create_logger, LOG_LEVEL
-from .piper_graph_transform import _get_dp_comm_ops, _split_gm_by_stages, _insert_comm_ops
+from .piper_graph_transform import _get_dp_comm_ops, _split_gm_by_stages, _insert_a2a_ops, _insert_p2p_ops
 from .piper_actor import _get_actor
 
 logger = create_logger("piper_backend", LOG_LEVEL)
@@ -17,28 +17,34 @@ def piper(gm, example_inputs, **kwargs):
 
     original_gm = gm
     top_level_gm, submodules = _split_gm_by_stages(gm)
+    num_stages = len(piper_metadata.stage_to_device.keys())
+    dp_rank = int(os.environ['PIPER_DP_RANK'])
+    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
+    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
 
     refs = []
     actor_stages = []
-    for (stage_id, stage_gm, input_idxs, params_with_holes, placeholders) in submodules:
-        stage_gm = _insert_comm_ops(stage_gm)
+    for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
+        stage_gm = _insert_a2a_ops(stage_gm)
+        # if dp_rank == 0:
+        #     stage_gm.print_readable()
+        comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
+
         actor_id = piper_metadata.stage_to_device[stage_id]
-        comm_ops, tids = _get_dp_comm_ops(params_with_holes, placeholders)
         actor = _get_actor(actor_id)
         actor_stages.append((actor, stage_id))
+
         stage_gm_data = _serialize_graphmodule(stage_gm)
         logger.debug(f"Loading stage {stage_id} on actor {actor_id}")
         refs.append(actor._load_stage.remote(
             stage_id, 
             stage_gm_data, 
             comm_ops,
-            params_with_holes,
+            graphargs,
             tids,
             input_idxs,
         ))
     ray.get(refs)
-
-    [actor._comm_loop.remote(stage_id) for (actor, stage_id) in actor_stages]
 
     # TODO: build dag by analyzing stage dependencies
     # this only supports sequential pipelines

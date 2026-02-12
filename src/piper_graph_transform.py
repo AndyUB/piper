@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Optional
 import operator
 import os
+import time
 from torch.autograd import Function
 
 from .piper_utils import create_logger, LOG_LEVEL, piper_metadata
@@ -23,16 +24,14 @@ class CommOp:
         self.op = op # "allreduce", "allgather", "scatter", "alltoall"
         self.group = group # "dp" or "pp"
 
-def _get_dp_comm_ops(example_inputs, placeholders):
+def _get_dp_comm_ops(inputs, placeholders):
     dp_comm_ops = []
     ids = []
-    for p, t in zip(placeholders, example_inputs):
+    for p, t in zip(placeholders, inputs):
         ids.append(id(t))
         if isinstance(t, torch.nn.Parameter) and t.requires_grad:
             dp_comm_ops.append(CommOp(id(t), p.name, "post", "backward", "allreduce", "dp"))
-    logger.debug(f"Got {len(dp_comm_ops)} dp comm ops for {len(example_inputs)} example inputs")
     return dp_comm_ops, ids
-
 
 class AllToAllSingleFunction(torch.autograd.Function):
     """
@@ -57,14 +56,28 @@ class AllToAllSingleFunction(torch.autograd.Function):
         from .piper_utils import piper_metadata
         actor_self = piper_metadata.actor_self
         ctx.group = actor_self.dp_group
+        ctx.global_rank = actor_self.global_rank
+        ctx.stream = actor_self.a2a_stream
+
+        logger.info(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
+        
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+        start_event.record(ctx.stream)
         
         # Ensure input_tensor is contiguous (all_to_all_single requires contiguous tensors)
         # TODO: performance cost?
         input_tensor = input_tensor.contiguous()
         
         # Perform the communication (modifies output in-place)
-        dist.all_to_all_single(output, input_tensor, group=ctx.group)
+        with torch.cuda.stream(ctx.stream):
+            dist.all_to_all_single(output, input_tensor, group=ctx.group)
         
+        end_event.record(ctx.stream)
+        torch.cuda.synchronize()
+        time = start_event.elapsed_time(end_event)
+        logger.info(f"Completed AllToAllSingleFunction forward rank={ctx.global_rank} time={time:.2f} ms")
+
         return output
     
     @staticmethod
@@ -75,6 +88,12 @@ class AllToAllSingleFunction(torch.autograd.Function):
         The backward of all_to_all_single is another all_to_all_single operation
         that reverses the communication pattern.
         """
+        logger.info(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
+
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+        start_event.record(ctx.stream)
+
         if grad_output is None:
             return None, None, None
         
@@ -87,10 +106,13 @@ class AllToAllSingleFunction(torch.autograd.Function):
         
         # Reverse the communication: all_to_all_single in backward
         # This propagates gradients from output back to input
-        if ctx.group is None:
-            dist.all_to_all_single(grad_input, grad_output)
-        else:
+        with torch.cuda.stream(ctx.stream):
             dist.all_to_all_single(grad_input, grad_output, group=ctx.group)
+
+        end_event.record(ctx.stream)
+        torch.cuda.synchronize()
+        time = start_event.elapsed_time(end_event)
+        logger.info(f"Completed AllToAllSingleFunction backward rank={ctx.global_rank} time={time:.2f} ms")
         
         # Return gradients: grad_output flows to grad_input, None for group
         return grad_input, grad_input, None
@@ -233,10 +255,39 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                 new_get_attr = stage_graph.node_copy(node, lambda n: n)
                 stage_node_mapping[node] = new_get_attr
         
-        # Create placeholders for inputs in original graph order to ensure correct argument ordering
-        # Preserve all metadata from original nodes
+        # Create placeholders for inputs with proper ordering
+        # For stages > 0, inputs from previous stage outputs should be ordered
+        # according to their order in the previous stage's outputs
         input_placeholders = {}
-        input_order = []  # Track order of inputs as they appear in original graph
+        input_order = []  # Track order of inputs
+        
+        # Get outputs from previous stage (if it exists) to determine ordering
+        prev_stage_outputs_ordered = []
+        if stage_annotation_id > 0:
+            prev_stage_id = stage_annotation_id - 1
+            if prev_stage_id in stage_modules:
+                _, _, _, prev_stage_outputs_list, _, _, _, _, _ = stage_modules[prev_stage_id]
+                prev_stage_outputs_ordered = prev_stage_outputs_list
+        
+        # For stages > 0, first add inputs that come from previous stage outputs
+        # in the order they appear in the previous stage's outputs
+        if stage_annotation_id > 0 and prev_stage_outputs_ordered:
+            for prev_output_node in prev_stage_outputs_ordered:
+                if prev_output_node in stage_inputs and prev_output_node not in input_placeholders:
+                    # If the input is already a placeholder, use node_copy to preserve all metadata
+                    if prev_output_node.op == "placeholder":
+                        placeholder = stage_graph.node_copy(prev_output_node, lambda n: n)
+                    else:
+                        # For computed nodes, create a placeholder but preserve metadata
+                        placeholder = stage_graph.placeholder(prev_output_node.name)
+                        # Copy all metadata from the original node
+                        placeholder.meta.update(prev_output_node.meta)
+                    stage_node_mapping[prev_output_node] = placeholder
+                    input_placeholders[prev_output_node] = placeholder
+                    input_order.append(prev_output_node)
+        
+        # Then add any remaining inputs in original graph order
+        # (these are typically placeholders or other inputs not from previous stage)
         for node in gm.graph.nodes:
             if node in stage_inputs and node not in input_placeholders:
                 # If the input is already a placeholder, use node_copy to preserve all metadata
@@ -384,7 +435,6 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
 
         # Create output node
         if stage_outputs:
-            print(f"Stage {stage_annotation_id} outputs: {[node.name for node in stage_outputs]}")
             output_values = [stage_node_mapping[node] for node in stage_outputs]
             if len(output_values) == 1:
                 stage_graph.output(output_values[0])
@@ -404,7 +454,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         # Load the module on the corresponding actor
         # Track which inputs come from previous stage outputs
         input_idxs = []
-        params = []
+        graphargs = []
         placeholders = stage_gm.graph.find_nodes(op="placeholder")
         
         # Create reverse mapping from placeholder to original node
@@ -418,24 +468,22 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
             prev_stage_outputs = set(prev_stage_outputs_list)
         
         for i, placeholder in enumerate(placeholders):
+            if "grapharg" in placeholder.meta:
+                graphargs.append(placeholder.meta["grapharg"]._example())
+            else:
+                assert (stage_annotation_id == 0 and 'self' not in placeholder.name) or (stage_annotation_id > 0 and placeholder_to_original.get(placeholder) in prev_stage_outputs)
+                graphargs.append(torch.zeros(placeholder.meta["example_value"].shape, dtype=placeholder.meta["example_value"].dtype, requires_grad=placeholder.meta["example_value"].requires_grad))
             # For the first stage, the input indices are everything that's not an attribute
             if stage_annotation_id == 0:
-                if 'self' in placeholder.name:
-                    params.append(placeholder.meta["grapharg"]._example())
-                else:
+                if 'self' not in placeholder.name:
                     input_idxs.append(i)
-                    params.append(None)
             # For subsequent stages, check if this placeholder corresponds to an output from the previous stage
             else:
                 orig_node = placeholder_to_original.get(placeholder)
                 is_from_prev_stage = orig_node is not None and orig_node in prev_stage_outputs
-                # Check if this is from previous stage output
                 if is_from_prev_stage:
                     input_idxs.append(i)
-                    params.append(None)
-                else:
-                    params.append(placeholder.meta["grapharg"]._example())
-        logger.debug(f"Stage {stage_annotation_id} inputs: {input_idxs}, params: {[param.shape if param is not None else None for param in params]}")
+
         stage_modules[stage_annotation_id] = (
             stage_gm,
             input_placeholders,
@@ -445,7 +493,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
             ordered_stage_nodes,
             stage_annotation_id,
             input_idxs,
-            params,
+            graphargs,
         )
 
     # Create a new top-level graph and replace stage nodes with call_module
@@ -592,7 +640,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
 
 
 
-def _insert_comm_ops(gm: fx.GraphModule) -> fx.GraphModule:
+def _insert_a2a_ops(gm: fx.GraphModule) -> fx.GraphModule:
     """
     Transform a graph module by inserting communication operations on annotated nodes.
     
@@ -646,47 +694,23 @@ def _insert_comm_ops(gm: fx.GraphModule) -> fx.GraphModule:
     # 1. The annotation_key changes (different annotation pattern)
     # 2. The same annotation_key appears again after being interrupted (new instance of same pattern)
     #    This handles the case where the same annotation appears in different layers
-    annotation_blocks = []
-    current_block = None
-    MAX_GAP_FOR_CONTIGUOUS = 50  # Maximum number of non-annotated nodes allowed in a block
-    
+    # Group *all* nodes with the same annotation_key into a single block,
+    # regardless of how far apart they are in the FX graph.
+    # This ensures that every logically-related annotated region (e.g., the
+    # "input" or "output" side of a given MoE layer) is treated as one block.
+    blocks_by_key = {}
     for idx, node, annotation_key, reshape in annotated_nodes:
-        if current_block is None:
-            # Start a new block
-            current_block = {
+        if annotation_key not in blocks_by_key:
+            blocks_by_key[annotation_key] = {
                 'annotation_key': annotation_key,
-                'nodes': [(node, reshape)],
-                'last_idx': idx
+                'nodes': [],
+                'last_idx': idx,
             }
-        elif current_block['annotation_key'] == annotation_key:
-            # Same annotation - check if it's still part of the same contiguous block
-            gap = idx - current_block['last_idx'] - 1
-            if gap <= MAX_GAP_FOR_CONTIGUOUS:
-                # Contiguous (or close enough), add to current block
-                current_block['nodes'].append((node, reshape))
-                current_block['last_idx'] = idx
-            else:
-                # Too large a gap - this is a new instance of the same annotation pattern
-                # (e.g., a different layer). Finish current block and start new one.
-                annotation_blocks.append(current_block)
-                logger.debug(f"Split block due to gap of {gap} nodes for annotation {annotation_key}")
-                current_block = {
-                    'annotation_key': annotation_key,
-                    'nodes': [(node, reshape)],
-                    'last_idx': idx
-                }
-        else:
-            # Different annotation, finish current block and start new one
-            annotation_blocks.append(current_block)
-            current_block = {
-                'annotation_key': annotation_key,
-                'nodes': [(node, reshape)],
-                'last_idx': idx
-            }
-    
-    # Don't forget the last block
-    if current_block is not None:
-        annotation_blocks.append(current_block)
+        block = blocks_by_key[annotation_key]
+        block['nodes'].append((node, reshape))
+        block['last_idx'] = idx
+
+    annotation_blocks = list(blocks_by_key.values())
     
     logger.info(f"Found {len(annotation_blocks)} contiguous annotation blocks")
     
@@ -863,4 +887,114 @@ def _insert_comm_ops(gm: fx.GraphModule) -> fx.GraphModule:
     
     new_gm.recompile()
     
+    return new_gm
+
+def _insert_p2p_ops(
+    gm: fx.GraphModule,
+    input_idxs: list[int],
+    prev_stage_id: int,
+    next_stage_id: int,
+) -> fx.GraphModule:
+    """
+    Insert point-to-point recv/send ops into a stage graph.
+
+    For each placeholder index in input_idxs, this will:
+      1. Create an empty_like buffer from the corresponding placeholder.
+      2. Replace all uses of that placeholder with a tensor received from
+         prev_stage_id via torch.distributed.recv.
+
+    For each output tensor, this will:
+      1. Wrap the tensor in a call to torch.distributed.send with dst set
+         to next_stage_id.
+
+    Args:
+        gm: GraphModule to transform.
+        input_idxs: Indices of placeholders that should receive tensors
+            from the previous stage.
+        prev_stage_id: Rank used as src for recv operations.
+        next_stage_id: Rank used as dst for send operations.
+
+    Returns:
+        A new GraphModule with inserted P2P recv/send operations.
+    """
+    new_graph = fx.Graph()
+    node_mapping: dict[fx.Node, fx.Node] = {}
+
+    placeholders = [n for n in gm.graph.nodes if n.op == "placeholder"]
+
+    # Copy placeholders first so we preserve the original signature.
+    for idx, node in enumerate(placeholders):
+        new_ph = new_graph.node_copy(node, lambda n: node_mapping.get(n, n))
+        node_mapping[node] = new_ph
+
+        if idx in input_idxs:
+            # Directly recv into the placeholder tensor and use that value
+            # in place of the original placeholder.
+            recv_node = new_graph.call_function(
+                _dispatch_p2p_recv,
+                (new_ph, prev_stage_id),
+            )
+            node_mapping[node] = recv_node
+
+    # Copy get_attr nodes (parameters/buffers).
+    for node in gm.graph.nodes:
+        if node.op == "get_attr" and node not in node_mapping:
+            new_attr = new_graph.node_copy(node, lambda n: node_mapping.get(n, n))
+            node_mapping[node] = new_attr
+
+    # Copy all other nodes except output, rewiring to use P2P-recv inputs.
+    output_node: fx.Node | None = None
+    for node in gm.graph.nodes:
+        if node.op in ("placeholder", "get_attr"):
+            continue
+        if node.op == "output":
+            output_node = node
+            continue
+
+        new_node = new_graph.node_copy(
+            node,
+            lambda n: node_mapping.get(n, n),
+        )
+        node_mapping[node] = new_node
+
+    if output_node is None:
+        raise RuntimeError("GraphModule has no output node")
+
+    # Map original outputs into the new graph.
+    raw_outputs = fx.graph.map_arg(
+        output_node.args,
+        lambda n: node_mapping.get(n, n),
+    )
+
+    # For each tensor-valued node in the outputs, add a send op and
+    # return the result of the send so it is kept in the dataflow.
+    def _wrap_with_send(arg):
+        if isinstance(arg, fx.Node):
+            return new_graph.call_function(
+                _dispatch_p2p_send,
+                (arg, next_stage_id),
+            )
+        return arg
+
+    wrapped_outputs = fx.graph.map_arg(raw_outputs, _wrap_with_send)
+
+    if isinstance(wrapped_outputs, tuple) and len(wrapped_outputs) == 1:
+        new_graph.output(wrapped_outputs[0])
+    else:
+        new_graph.output(wrapped_outputs)
+
+    root_module = torch.nn.Module()
+
+    # Copy parameters, buffers, and submodules from the original module.
+    for name, param in gm.named_parameters(recurse=False):
+        root_module.register_parameter(name, param)
+
+    for name, buffer in gm.named_buffers(recurse=False):
+        root_module.register_buffer(name, buffer)
+
+    for name, module in gm.named_children():
+        root_module.add_module(name, module)
+
+    new_gm = fx.GraphModule(root_module, new_graph)
+    new_gm.recompile()
     return new_gm

@@ -11,7 +11,7 @@ from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 logger = create_logger("piper_exec", LOG_LEVEL)
 
 class Task(NamedTuple):
-    device_id: int
+    pp_rank: int
     stage_id: int
     mb_idx: int
     is_fwd: bool
@@ -40,7 +40,7 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
     """
     num_devices, num_steps = len(schedule), len(schedule[0]) if schedule else 0
     
-    # Check well-formedness: no duplicates, device_id matches row, and all stages present
+    # Check well-formedness: no duplicates, pp_rank matches row, and all stages present
     all_tasks = set()
     microbatch_tasks = {}  # mb_idx -> set of (stage_id, is_fwd, upd)
     
@@ -48,10 +48,10 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
         for time_step in range(num_steps):
             task = schedule[stage_id][time_step]
             if task is not None:
-                # Check device_id matches row
-                if task.device_id != stage_id:
+                # Check pp_rank matches row
+                if task.pp_rank != stage_id:
                     raise ValueError(
-                        f"Task device_id {task.device_id} does not match row {stage_id} "
+                        f"Task pp_rank {task.pp_rank} does not match row {stage_id} "
                         f"at time step {time_step}"
                     )
                 
@@ -101,9 +101,9 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
         fwd_times = {}  # stage_id -> time_step
         bwd_times = {}  # stage_id -> time_step
         
-        for device_id in range(num_devices):
+        for pp_rank in range(num_devices):
             for time_step in range(num_steps):
-                task = schedule[device_id][time_step]
+                task = schedule[pp_rank][time_step]
                 if task is not None and task.mb_idx == mb_idx:
                     if task.is_fwd and not task.upd:
                         fwd_times[task.stage_id] = time_step
@@ -164,99 +164,24 @@ def piper_exec(model, schedule, inputs, truth, loss_fn):
     dag_edges = piper_metadata.dag
     dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata.dag)))
     
-    # Validate the schedule before execution
     _validate_schedule(schedule, dag_edges, num_mbs)
 
-    # maps mb_idx to the ref resulting from a forward call on the microbatch
-    fwd_refs = dict()
+    [actor._comm_loop.remote() for actor in actors.values()]
 
-    # maps mb_idx to a dict that maps stage_id to the refs output from the stage's backward on that microbatch
-    bwd_ref_dicts = dict()
+    time.sleep(3)
 
-    # iterate over evrery task in the schedule
     ret = []
     for i in range(num_steps):
         for j in range(num_devices-1, -1, -1):
             task = schedule[j][i]
             if task:
-                device_id, stage_id, mb_idx, is_fwd, upd = task
+                _, stage_id, mb_idx, is_fwd, upd = task
                 actor_id = j
                 actor = actors[actor_id]
-                num_bwd_targets = len(_get_backward_targets(stage_id, dag_edges))
-                if num_bwd_targets == 0:
-                    num_bwd_targets = 1
                 if upd:
-                    logger.debug(f"Launching update stage {stage_id} mb {mb_idx} on actor {actor}")
-                    done_refs = set()
-                    for _, bwd_ref_dict in bwd_ref_dicts.items():
-                        bwd_refs = bwd_ref_dict[stage_id]
-                        bwd_refs = bwd_refs[num_bwd_targets:]
-                        if isinstance(bwd_refs, list):
-                            done_refs = done_refs | set(bwd_refs)
-                        else:
-                            done_refs.add(bwd_refs)
-                    done_refs = list(done_refs)
-                    ret.append(actor._update.remote(*done_refs))
+                    ret.append(actor._update.remote())
                 elif is_fwd:
-                    logger.debug(f"Launching forward stage {stage_id} mb {mb_idx} on actor {actor}")
-                    if stage_id == 0:
-                        fwd_refs[mb_idx] = actor._forward.remote(stage_id, mb_idx, inputs)
-                    else:
-                        fwd_refs[mb_idx] = actor._forward.remote(stage_id, mb_idx, fwd_refs[mb_idx])
+                    actor._forward.remote(stage_id, mb_idx)
                 else:
-                    if mb_idx not in bwd_ref_dicts:
-                        # if this is the first backward task for a microbatch, dispatch the
-                        # backward task and cache the resulting ref(s)
-                        fwd_ref = fwd_refs[mb_idx]
-                        bwd_ref_dicts[mb_idx] = dict()
-                        logger.debug(f"Launching backward stage {stage_id} mb {mb_idx} on actor {actor}")
-                        bwd_ref_dicts[mb_idx][stage_id] = (
-                            actor
-                            ._backward.options(num_returns=num_bwd_targets*2)
-                            .remote(
-                                stage_id, mb_idx, fwd_ref, truth=truth, loss_fn=loss_fn
-                            )
-                        )
-                    else:
-                        # if this is not the first backward task for a microbatch, look up
-                        # the input ref which represents a gradient from the backward call
-                        # of a subsequent stage
-
-                        # get the result of the subsequent stage's backward call
-                        # LIMITATION: there cannot be more than one subsequent stage (e.g. the
-                        # forward of stage A cannot be inputs to both stage B and C)
-                        # this limitation should eventually be resolved by making the logic below more general
-                        to_stage = [
-                            edge.to_stage
-                            for edge in dag_edges
-                            if edge.from_stage == stage_id
-                        ]
-                        assert len(to_stage) == 1
-                        to_stage = to_stage[0]
-
-                        # get the refs resulting from the subsequent stage's backward
-                        targets = _get_backward_targets(to_stage, dag_edges)
-
-                        # get the idx of the current stage in the subsequent stage's output list
-                        # LIMITATION: this logic assumes that the user's dag_edges list is ordered according
-                        # to how the stages are ordered in the model file. e.g. in clip.py stage 0 comes
-                        # before stage 1, so dag_edges must look like
-                        # dag_edges = [DAGEdge(0, 2), DAGEdge(1, 2)] and NOT
-                        # dag_edges = [DAGEdge(1, 2), DAGEdge(0, 2)]
-                        idx = targets.index(DAGEdge(stage_id, to_stage))
-
-                        # make sure the subsequent stage's backward was already dispatched
-                        assert to_stage in bwd_ref_dicts[mb_idx]
-
-                        # if the subsequent stage's backward had more than one output, index the
-                        # list to get the ref for the current stage
-                        bwd_refs = bwd_ref_dicts[mb_idx][to_stage]
-                        bwd_ref = bwd_refs[idx]
-                        # dispatch the current stage's backward and cache the resulting ref(s)
-                        logger.debug(f"Launching backward stage {stage_id} mb {mb_idx} on actor {actor}")
-                        bwd_ref_dicts[mb_idx][stage_id] = (
-                            actor
-                            ._backward.options(num_returns=num_bwd_targets*2)
-                            .remote(stage_id, mb_idx, bwd_ref)
-                        )
+                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn)
     return ray.get(ret)

@@ -444,7 +444,6 @@ class Transformer(nn.Module):
     def forward(self, tokens: torch.Tensor):
 
         with torch.fx.traceback.annotate({"stage": 0}):
-            tokens += 0
             h = self.tok_embeddings(tokens)
             start_pos = 0
             for layer in self.layers[:self.n_layers//2]:

@@ -228,27 +228,14 @@ class ConditionalFeedForward(nn.Module):
             "reshape": ("output", (2, self.config.num_experts, -1, self.config.dim))
         }):
             expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x[0]), x) # [E, C, D]
-            # Annotation should insert this code into the graph:
-            # buf = torch.empty_like(expert_inputs)
-            # torch.distributed.all_to_all_single(buf, expert_inputs, group=device_mesh.get_group())
-            # buf = buf.reshape(get_world_size(), self.config.num_experts, -1, self.config.dim) # [..., E, C, D]
-            # expert_inputs = buf
-
         x1 = F.silu(torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w1))
         x3 = torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w3)
-
         with torch.fx.traceback.annotate({
             "collective": "all_to_all_single",
             "group": "ep",
             "reshape": ("input", (self.config.num_experts, -1, self.config.dim))
         }):
             expert_output =  torch.einsum('...ecm, edm -> ...ecd', (x1 * x3), self.w2) # [..., E, C, D]
-            # Annotation should insert this code into the graph:
-            # expert_output = expert_output.reshape(self.config.num_experts, -1, self.config.dim) # [E, C, D]
-            # buf = torch.empty_like(expert_output)
-            # torch.distributed.all_to_all_single(buf, expert_output, group=device_mesh.get_group())
-            # expert_output = buf
-        
         combined_output = torch.einsum("tec,ecd->td", combine_weights, expert_output)
         return combined_output
 
