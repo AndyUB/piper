@@ -69,7 +69,32 @@ no_pp_schedule = [
     ]
 ]
 
-pp2_interleaved_1f1b_grid_schedule = [
+pp2_interleaved_1f1b_grid_schedule_mb1 = [
+    [
+        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
+        None,
+        Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=True, upd=False),
+        None,
+        None,
+        Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=False, upd=False),
+        None,
+        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=True),
+    ],
+    [
+        None,
+        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=True, upd=False),
+        None,
+        Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=True, upd=False),
+        Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=False, upd=False),
+        None,
+        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=False),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=True),
+        None,
+    ],
+]
+
+pp2_interleaved_1f1b_grid_schedule_mb4 = [
     [
         Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
         Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False),
@@ -114,7 +139,7 @@ pp2_interleaved_1f1b_grid_schedule = [
     ],
 ]
 
-pp4_interleaved_1f1b_grid_schedule = [
+pp4_interleaved_1f1b_grid_schedule_mb4 = [
     [
         Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
         Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False),

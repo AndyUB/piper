@@ -19,8 +19,9 @@ from .schedule_helpers import (
     build_1f1b_schedule, 
     build_gpipe_schedule, 
     print_schedule,
-    pp2_interleaved_1f1b_grid_schedule, 
-    pp4_interleaved_1f1b_grid_schedule,
+    pp2_interleaved_1f1b_grid_schedule_mb1, 
+    pp2_interleaved_1f1b_grid_schedule_mb4, 
+    pp4_interleaved_1f1b_grid_schedule_mb4,
     no_pp_schedule
 )
 
@@ -56,7 +57,16 @@ def main(args):
         case "no-pp":
             schedule = no_pp_schedule
         case "interleaved-1f1b":
-            schedule = pp2_interleaved_1f1b_grid_schedule if args.pp == 2 else pp4_interleaved_1f1b_grid_schedule
+            assert args.mbs == 1 or args.mbs == 4, "--mbs must be 1 or 4 for interleaved-1f1b schedule"
+            if args.mbs == 1:
+                assert args.pp == 2, "--pp must be 2 or 4 for interleaved-1f1b schedule with --mbs 1"
+                schedule = pp2_interleaved_1f1b_grid_schedule_mb1
+            else:
+                assert args.pp == 2 or args.pp == 4, "--pp must be 2 or 4 for interleaved-1f1b schedule with --mbs 4"
+                if args.pp == 2:
+                    schedule = pp2_interleaved_1f1b_grid_schedule_mb4
+                else:
+                    schedule = pp4_interleaved_1f1b_grid_schedule_mb4
         case "1f1b":
             schedule = build_1f1b_schedule(args.mbs, args.pp)
         case "gpipe":
