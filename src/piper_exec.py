@@ -159,7 +159,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn):
     """
     num_steps, num_devices = len(schedule[0]), len(schedule)
     actors = piper_metadata.actors
-    
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
 
     dag_edges = piper_metadata.dag
