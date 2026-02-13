@@ -5,6 +5,8 @@ import os
 import gc
 import copy
 
+from torch._dynamo.backends.debugging import eager
+
 from .piper_actor import _create_actors
 from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 from .piper import piper
@@ -27,6 +29,11 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, nai
     ray.get([actor._join_process_groups.remote() for actor in piper_metadata.actors.values()])
 
     model = model_class(*model_args)
+
+    logger.debug("Compiling model with full graph")
+    dummy = torch.compile(model, backend=eager, fullgraph=True)
+    dummy(*example_inputs)
+    logger.debug("Model compiled with full graph")
 
     compiled = torch.compile(model, backend=piper)
 

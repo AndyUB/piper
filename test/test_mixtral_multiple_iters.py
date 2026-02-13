@@ -47,7 +47,6 @@ def main(dp_degree, pp_degree, num_warmup=2, num_iters=5):
     print(f"running {warmup} warmup iters...")
     for i in range(num_warmup):
         piper_exec(model, schedule, [x, input_pos], y, loss_fn)
-        print(f"warmup iter {i + 1}/{num_warmup} completed")
 
     print(f"running {num_iters} iters...")
     iter_times = []
@@ -57,7 +56,6 @@ def main(dp_degree, pp_degree, num_warmup=2, num_iters=5):
         end = time.perf_counter()
         iter_time = end - start
         iter_times.append(iter_time)
-        print(f"iter {i + 1}/{num_iters} took {iter_time:.2f} s")
     
     if iter_times:
         avg_time = sum(iter_times) / len(iter_times)
@@ -71,7 +69,7 @@ if __name__ == "__main__":
     ray.init(include_dashboard=False, log_to_driver=True, namespace="llama", _temp_dir="/m-coriander/coriander/mfris/tmp/ray")
     dp_degree, pp_degree = 2, 2
     warmup = 2  
-    num_iterations = 10 
+    num_iterations = 2 
     piper_coordinator = PiperProgramCoordinator.remote(pp_degree=pp_degree, dp_degree=dp_degree)
     handles = piper_coordinator.run_program.remote(main, dp_degree, pp_degree, warmup, num_iterations)
     ray.get(handles)

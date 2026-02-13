@@ -25,17 +25,17 @@ def piper(gm, example_inputs, **kwargs):
     refs = []
     actor_stages = []
     for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
-        stage_gm = _insert_a2a_ops(stage_gm)
-        # if dp_rank == 0:
-        #     stage_gm.print_readable()
-        comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
-
+        if dp_degree > 1:
+            stage_gm = _insert_a2a_ops(stage_gm)
+            comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
+        else:
+            comm_ops, tids = [], []
+            
         actor_id = piper_metadata.stage_to_device[stage_id]
         actor = _get_actor(actor_id)
         actor_stages.append((actor, stage_id))
 
         stage_gm_data = _serialize_graphmodule(stage_gm)
-        logger.debug(f"Loading stage {stage_id} on actor {actor_id}")
         refs.append(actor._load_stage.remote(
             stage_id, 
             stage_gm_data, 

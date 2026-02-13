@@ -142,7 +142,7 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def piper_exec(model, schedule, inputs, truth, loss_fn):
+def piper_exec(model, schedule, inputs, truth, loss_fn, dp_degree=1):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
@@ -158,22 +158,16 @@ def piper_exec(model, schedule, inputs, truth, loss_fn):
         List of losses per microbatch.)
     """
     num_steps, num_devices = len(schedule[0]), len(schedule)
-    actors = piper_metadata.actors
 
-    # ensure loading of inputs and labels onto actors 
-    ray.get(actors[0].load_input.remote(inputs))
-    ray.get(actors[len(actors)-1].load_labels.remote(truth))
+    actors = piper_metadata.actors
+    if dp_degree > 1:
+        [actor._comm_loop.remote() for actor in actors.values()]
     
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
-
     dag_edges = piper_metadata.dag
     dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata.dag)))
     
     _validate_schedule(schedule, dag_edges, num_mbs)
-
-    [actor._comm_loop.remote() for actor in actors.values()]
-
-    time.sleep(3)
 
     ret = []
     for i in range(num_steps):

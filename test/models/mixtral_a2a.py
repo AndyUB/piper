@@ -12,7 +12,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
-from torch.distributed import get_world_size
+from torch.distributed import get_rank
+from torch.distributed.tensor import DeviceMesh
+
 
 def find_multiple(n: int, k: int) -> int:
     if n % k == 0:
@@ -80,22 +82,19 @@ class KVCache(nn.Module):
         return k_out, v_out
 
 class Transformer(nn.Module):
-    def __init__(self, config: ModelArgs) -> None:
+    def __init__(self, config: ModelArgs, group: Optional[DeviceMesh] = None) -> None:
         super().__init__()
         self.config = config
+        self.group = group
 
         # Initialize layers normally
         self.tok_embeddings = nn.Embedding(config.vocab_size, config.dim)
-        self.layers = nn.ModuleList(TransformerBlock(config) for _ in range(config.n_layer))
-        self.norm = RMSNorm(config.dim, eps=config.norm_eps)
+        self.layers = nn.ModuleList(TransformerBlock(config, group) for _ in range(config.n_layer))
+        self.norm = RMSNorm(config.dim, group, eps=config.norm_eps)
         self.output = nn.Linear(config.dim, config.vocab_size, bias=False)
 
-        self.freqs_cis: Optional[Tensor] = precompute_freqs_cis(
-            self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base
-        )
-        self.causal_mask: Optional[Tensor] = torch.tril(
-            torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)
-        )
+        self.freqs_cis: Optional[Tensor] = precompute_freqs_cis(self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base).to(f"cuda:{get_rank()}")
+        self.causal_mask: Optional[Tensor] = torch.tril(torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)).to(f"cuda:{get_rank()}")
         
         self.mask_cache: Optional[Tensor] = None
         self.max_batch_size = -1
@@ -116,33 +115,29 @@ class Transformer(nn.Module):
         self.causal_mask = torch.tril(torch.ones(self.max_seq_length, self.max_seq_length, dtype=torch.bool))
 
     def forward(self, idx: Tensor, input_pos: Optional[Tensor] = None) -> Tensor:
-        self.first_arg = idx.shape
-        with torch.fx.traceback.annotate({"stage": 0}):
-            mask = self.causal_mask[None, None, input_pos]
-            freqs_cis = self.freqs_cis[input_pos]
-            x = self.tok_embeddings(idx)
+        assert self.freqs_cis is not None, "Caches must be initialized first"
+        mask = self.causal_mask[None, None, input_pos]
+        freqs_cis = self.freqs_cis[input_pos]
+        x = self.tok_embeddings(idx) if self.tok_embeddings else idx
 
-            for layer in self.layers[:len(self.layers)//2]:
-                x = layer(x, input_pos, freqs_cis, mask)
-        
-        with torch.fx.traceback.annotate({"stage": 1}):
-            for layer in self.layers[len(self.layers)//2:]:
-                x = layer(x, input_pos, freqs_cis, mask)
-            x = self.norm(x)
-            logits = self.output(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x, input_pos, freqs_cis, mask)
+        x = self.norm(x) if self.norm else x
+        logits = self.output(x) if self.output else x
         return logits
 
     @classmethod
-    def from_name(cls, name: str):
-        return cls(ModelArgs.from_name(name))
+    def from_name(cls, name: str, group: DeviceMesh):
+        return cls(ModelArgs.from_name(name), group)
+
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelArgs) -> None:
+    def __init__(self, config: ModelArgs, group: Optional[DeviceMesh] = None) -> None:
         super().__init__()
-        self.attention = Attention(config)
-        self.block_sparse_moe = MOEFeedForward(config)
-        self.ffn_norm = RMSNorm(config.dim, config.norm_eps)
-        self.attention_norm = RMSNorm(config.dim, config.norm_eps)
+        self.attention = Attention(config, group)
+        self.block_sparse_moe = MOEFeedForward(config, group)
+        self.ffn_norm = RMSNorm(config.dim, group, config.norm_eps)
+        self.attention_norm = RMSNorm(config.dim, group, config.norm_eps)
 
     def forward(self, x: Tensor, input_pos: Tensor, freqs_cis: Tensor, mask: Tensor) -> Tensor:
         h = x + self.attention(self.attention_norm(x), freqs_cis, mask, input_pos)
@@ -151,7 +146,7 @@ class TransformerBlock(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, config: ModelArgs):
+    def __init__(self, config: ModelArgs, group: Optional[DeviceMesh] = None):
         super().__init__()
         assert config.dim % config.n_head == 0
 
@@ -162,7 +157,6 @@ class Attention(nn.Module):
         self.wo = nn.Linear(config.dim, config.dim, bias=False)
         
         self.kv_cache = None
-
         self.n_head = config.n_head
         self.head_dim = config.head_dim
         self.n_local_heads = config.n_local_heads
@@ -205,13 +199,19 @@ class Attention(nn.Module):
 
 
 class ConditionalFeedForward(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, group: Optional[DeviceMesh] = None):
         super().__init__()
+        self.num_experts = config.num_experts
+        self.group = group
+        self.ep_size = 2
+        self.num_local_experts = config.num_experts // self.ep_size
         self.config = config
 
-        self.w1 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
-        self.w2 = nn.Parameter(torch.randn(config.num_experts, config.dim, config.intermediate_size))
-        self.w3 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
+        self.w1 = nn.Parameter(torch.empty(self.num_local_experts, config.intermediate_size, config.dim))
+        self.w2 = nn.Parameter(torch.empty(self.num_local_experts, config.dim, config.intermediate_size))
+        self.w3 = nn.Parameter(torch.empty(self.num_local_experts, config.intermediate_size, config.dim))
+        
+        self.rank = get_rank()
 
     def forward(self, x: Tensor, dispatch_mask: Tensor, combine_weights: Tensor, capacity: int) -> Tensor:
         """
@@ -220,36 +220,39 @@ class ConditionalFeedForward(nn.Module):
         combine_weights: [T, E, C]
         capacity: int
         """
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("output", (2, self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x[0]), x) # [E, C, D]
-        x1 = F.silu(torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w1))
-        x3 = torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w3)
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("input", (self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_output =  torch.einsum('...ecm, edm -> ...ecd', (x1 * x3), self.w2) # [..., E, C, D]
+        expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x[0]), x) # [E, C, D]
+        buf = torch.empty_like(expert_inputs)
+        torch.distributed.all_to_all_single(buf, expert_inputs, group=self.group)
+        expert_inputs = buf
+
+        expert_inputs = expert_inputs.reshape(self.ep_size, self.num_local_experts, -1, self.config.dim) # [G, L, C, D]
+        x1 = F.silu(torch.einsum('glcd, lmd -> glcm', expert_inputs, self.w1))
+        x3 = torch.einsum('glcd, lmd -> glcm', expert_inputs, self.w3)
+        expert_output =  torch.einsum('glcm, ldm -> glcd', (x1 * x3), self.w2) # [G, L, C, D]
+
+        expert_output = expert_output.reshape(self.num_experts, -1, self.config.dim) # [E, C, D]
+        buf = torch.empty_like(expert_output)
+        torch.distributed.all_to_all_single(buf, expert_output, group=self.group)
+        expert_output = buf
+        
         combined_output = torch.einsum("tec,ecd->td", combine_weights, expert_output)
         return combined_output
 
 class MOEFeedForward(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, config, group: Optional[DeviceMesh] = None) -> None:
         super().__init__()
         # Initialize layers normally
         self.gate = nn.Linear(config.dim, config.num_experts, bias=False)
-        self.cond_ffn = ConditionalFeedForward(config)
+        self.cond_ffn = ConditionalFeedForward(config, group)
         
         self.dim = config.dim
         self.num_activated_experts = config.num_activated_experts
+        self.rank = get_rank()
+        self.group = group
         
     def forward(self, x: Tensor) -> Tensor:
         # Save original shape to reshape output back
-        original_shape = x.shape  # [batch_size, seq_len, dim] or [seq_len, dim]
+        shape = x.shape
         x = x.view(-1, self.dim)
         # T = num_tokens, E = num_experts, D = hidden dim, A = activated experts
         # x: [T, D]
@@ -267,16 +270,16 @@ class MOEFeedForward(nn.Module):
         dispatch_mask = combine_weights.bool()
 
         output = self.cond_ffn(x, dispatch_mask, combine_weights, capacity)
-        return output.view(original_shape)
+        return output.view(shape)
 
 
 class RMSNorm(nn.Module):
-    def __init__(self, dim: int, eps: float = 1e-5):
+    def __init__(self, dim: int, group: Optional[DeviceMesh] = None, eps: float = 1e-5):
         super().__init__()
         self.eps = eps
         # Initialize weight normally (ones for RMSNorm)
         self.weight = nn.Parameter(torch.ones(dim))
-
+        
     def _norm(self, x):
         return x * torch.rsqrt(torch.mean(x * x, dim=-1, keepdim=True) + self.eps)
 

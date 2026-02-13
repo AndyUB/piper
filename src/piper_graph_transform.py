@@ -54,17 +54,15 @@ class AllToAllSingleFunction(torch.autograd.Function):
         """
         # Store group for backward pass
         from .piper_utils import piper_metadata
-        actor_self = piper_metadata.actor_self
-        ctx.group = actor_self.dp_group
-        ctx.global_rank = actor_self.global_rank
-        ctx.stream = actor_self.a2a_stream
+        ctx.actor_self = piper_metadata.actor_self
+        ctx.group = ctx.actor_self.dp_group
+        ctx.global_rank = ctx.actor_self.global_rank
+        ctx.stream = ctx.actor_self.a2a_stream
 
-        logger.info(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
+        logger.debug(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
         
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-        start_event.record(ctx.stream)
-        
+        ctx.actor_self._start_timing(ctx.stream, "fwd_a2a_single")
+
         # Ensure input_tensor is contiguous (all_to_all_single requires contiguous tensors)
         # TODO: performance cost?
         input_tensor = input_tensor.contiguous()
@@ -72,11 +70,8 @@ class AllToAllSingleFunction(torch.autograd.Function):
         # Perform the communication (modifies output in-place)
         with torch.cuda.stream(ctx.stream):
             dist.all_to_all_single(output, input_tensor, group=ctx.group)
-        
-        end_event.record(ctx.stream)
-        torch.cuda.synchronize()
-        time = start_event.elapsed_time(end_event)
-        logger.info(f"Completed AllToAllSingleFunction forward rank={ctx.global_rank} time={time:.2f} ms")
+
+        ctx.actor_self._stop_timing(ctx.stream, "fwd_a2a_single")
 
         return output
     
@@ -88,11 +83,9 @@ class AllToAllSingleFunction(torch.autograd.Function):
         The backward of all_to_all_single is another all_to_all_single operation
         that reverses the communication pattern.
         """
-        logger.info(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
+        logger.debug(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
 
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-        start_event.record(ctx.stream)
+        ctx.actor_self._start_timing(ctx.stream, "bwd_a2a_single")
 
         if grad_output is None:
             return None, None, None
@@ -109,10 +102,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         with torch.cuda.stream(ctx.stream):
             dist.all_to_all_single(grad_input, grad_output, group=ctx.group)
 
-        end_event.record(ctx.stream)
-        torch.cuda.synchronize()
-        time = start_event.elapsed_time(end_event)
-        logger.info(f"Completed AllToAllSingleFunction backward rank={ctx.global_rank} time={time:.2f} ms")
+        ctx.actor_self._stop_timing(ctx.stream, "bwd_a2a_single")
         
         # Return gradients: grad_output flows to grad_input, None for group
         return grad_input, grad_input, None
@@ -151,10 +141,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                     nodes_with_metadata.append((node, stage_annotation_id))
     
     if not nodes_with_metadata:
-        logger.info("No stage nodes found in graph")
         return gm, []
-    else:
-        logger.info(f"Found stage nodes in graph")
     
     # Group nodes by stage ID for creating stage modules
     stage_code = defaultdict(list)  # stage_id -> list of all nodes for this stage
@@ -712,7 +699,7 @@ def _insert_a2a_ops(gm: fx.GraphModule) -> fx.GraphModule:
 
     annotation_blocks = list(blocks_by_key.values())
     
-    logger.info(f"Found {len(annotation_blocks)} contiguous annotation blocks")
+    logger.debug(f"Found {len(annotation_blocks)} comm annotation blocks")
     
     # For each contiguous block, find the output node (the one used outside the annotation)
     # This is the node that should have communication applied to it
@@ -746,8 +733,6 @@ def _insert_a2a_ops(gm: fx.GraphModule) -> fx.GraphModule:
                 last_node = max(nodes_in_block, key=lambda x: node_list.index(x[0]))
                 annotated_output_nodes.append(last_node)
                 logger.debug(f"Block {block_idx}: No external users found, using last node: {last_node[0].name}")
-    
-    logger.info(f"Found {len(annotated_output_nodes)} annotation blocks requiring communication operations")
     
     # Create a new graph to build the transformed version
     new_graph = fx.Graph()

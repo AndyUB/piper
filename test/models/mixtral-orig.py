@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
-from torch.distributed import get_world_size
+from torch.distributed import get_rank, get_world_size
 
 def find_multiple(n: int, k: int) -> int:
     if n % k == 0:
@@ -55,9 +55,8 @@ class ModelArgs:
 
 
 transformer_configs = {
-    "tiny": dict(block_size=128, n_layer=2, n_head=2, n_local_heads=1, dim=256, intermediate_size=512, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
     "small": dict(block_size=512, n_layer=8, n_head=8, n_local_heads=2, dim=1024, intermediate_size=2048, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
-    "medium": dict(block_size=512, n_layer=24, n_head=32, n_local_heads=8, dim=1024, intermediate_size=2048, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
+    "medium": dict(block_size=1024, n_layer=32, n_head=32, n_local_heads=8, dim=2048, intermediate_size=3584, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
     "Mixtral-8x7B-v0.1": dict(block_size=32768, n_layer=32, n_head=32, n_local_heads=8, dim=4096, intermediate_size=14336, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
 }
 
@@ -92,10 +91,10 @@ class Transformer(nn.Module):
 
         self.freqs_cis: Optional[Tensor] = precompute_freqs_cis(
             self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base
-        )
+        ).to(f"cuda:{get_rank()}")
         self.causal_mask: Optional[Tensor] = torch.tril(
             torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)
-        )
+        ).to(f"cuda:{get_rank()}")
         
         self.mask_cache: Optional[Tensor] = None
         self.max_batch_size = -1
@@ -116,25 +115,21 @@ class Transformer(nn.Module):
         self.causal_mask = torch.tril(torch.ones(self.max_seq_length, self.max_seq_length, dtype=torch.bool))
 
     def forward(self, idx: Tensor, input_pos: Optional[Tensor] = None) -> Tensor:
-        self.first_arg = idx.shape
-        with torch.fx.traceback.annotate({"stage": 0}):
-            mask = self.causal_mask[None, None, input_pos]
-            freqs_cis = self.freqs_cis[input_pos]
-            x = self.tok_embeddings(idx)
+        assert self.freqs_cis is not None, "Caches must be initialized first"
+        mask = self.causal_mask[None, None, input_pos]
+        freqs_cis = self.freqs_cis[input_pos]
+        x = self.tok_embeddings(idx)
 
-            for layer in self.layers[:len(self.layers)//2]:
-                x = layer(x, input_pos, freqs_cis, mask)
-        
-        with torch.fx.traceback.annotate({"stage": 1}):
-            for layer in self.layers[len(self.layers)//2:]:
-                x = layer(x, input_pos, freqs_cis, mask)
-            x = self.norm(x)
-            logits = self.output(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x, input_pos, freqs_cis, mask)
+        x = self.norm(x)
+        logits = self.output(x)
         return logits
 
     @classmethod
     def from_name(cls, name: str):
         return cls(ModelArgs.from_name(name))
+
 
 class TransformerBlock(nn.Module):
     def __init__(self, config: ModelArgs) -> None:
@@ -207,34 +202,23 @@ class Attention(nn.Module):
 class ConditionalFeedForward(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.w1 = nn.Parameter(torch.empty(config.num_experts, config.intermediate_size, config.dim))
+        self.w2 = nn.Parameter(torch.empty(config.num_experts, config.dim, config.intermediate_size))
+        self.w3 = nn.Parameter(torch.empty(config.num_experts, config.intermediate_size, config.dim))
+        
+        self.num_experts = config.num_experts
         self.config = config
+        
+        self.rank = get_rank()
 
-        self.w1 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
-        self.w2 = nn.Parameter(torch.randn(config.num_experts, config.dim, config.intermediate_size))
-        self.w3 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
-
-    def forward(self, x: Tensor, dispatch_mask: Tensor, combine_weights: Tensor, capacity: int) -> Tensor:
-        """
-        x: [T, D]
-        dispatch_mask: [T, E, C]
-        combine_weights: [T, E, C]
-        capacity: int
-        """
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("output", (2, self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x[0]), x) # [E, C, D]
-        x1 = F.silu(torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w1))
-        x3 = torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w3)
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("input", (self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_output =  torch.einsum('...ecm, edm -> ...ecd', (x1 * x3), self.w2) # [..., E, C, D]
-        combined_output = torch.einsum("tec,ecd->td", combine_weights, expert_output)
+    def forward(self, x: Tensor, expert_indices: Tensor, expert_weights: Tensor) -> Tensor:
+        w1_weights = self.w1[expert_indices] # [T, A, D, D]
+        w3_weights = self.w3[expert_indices] # [T, A, D, D]
+        w2_weights = self.w2[expert_indices]  # [T, A, D, D]
+        x1 = F.silu(torch.einsum('ti,taoi -> tao', x, w1_weights))
+        x3 = torch.einsum('ti, taoi -> tao', x, w3_weights)
+        expert_outs =  torch.einsum('tao, taio -> tai', (x1 * x3), w2_weights)
+        combined_output = torch.einsum('tai,ta -> ti', expert_outs, expert_weights)
         return combined_output
 
 class MOEFeedForward(nn.Module):
@@ -246,6 +230,7 @@ class MOEFeedForward(nn.Module):
         
         self.dim = config.dim
         self.num_activated_experts = config.num_activated_experts
+        self.rank = get_rank()
         
     def forward(self, x: Tensor) -> Tensor:
         # Save original shape to reshape output back
@@ -258,15 +243,7 @@ class MOEFeedForward(nn.Module):
         expert_weights, expert_indices = torch.topk(gates, self.num_activated_experts, dim=-1) # [T, A], [T, A]
         expert_weights /= expert_weights.sum(dim=-1, keepdim=True) # [T, A]
 
-        num_experts = scores.shape[-1]
-        mask = F.one_hot(expert_indices, num_classes=num_experts).sum(dim=1).bool()  # [T, E]
-        capacity = x.shape[0] # // num_experts * 2
-        locations = torch.cumsum(mask, dim=0) - 1 # [T, E]
-        locations_sc = F.one_hot(locations * mask, capacity).float() # [T, E, C]
-        combine_weights = torch.einsum("se,sec->sec", gates * mask, locations_sc)
-        dispatch_mask = combine_weights.bool()
-
-        output = self.cond_ffn(x, dispatch_mask, combine_weights, capacity)
+        output = self.cond_ffn(x, expert_indices, expert_weights)
         return output.view(original_shape)
 
 

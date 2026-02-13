@@ -12,7 +12,19 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
-from torch.distributed import get_world_size
+from torch.distributed.tensor import DTensor, Shard, Replicate, DeviceMesh, distribute_tensor
+from torch.distributed import get_rank, get_world_size
+from torch.distributed.tensor import Placement
+
+def distribute_module_parameters(mod: nn.Module, device_mesh: DeviceMesh, placement: list[Placement]) -> None:
+    """Distribute all parameters of a module with the given placement."""
+    for name, param in mod.named_parameters(recurse=False):
+        # Distribute the parameter
+        dist_param = nn.Parameter(
+            distribute_tensor(param, device_mesh, placement)
+        )
+        # Register the distributed parameter back to the module
+        mod.register_parameter(name, dist_param)
 
 def find_multiple(n: int, k: int) -> int:
     if n % k == 0:
@@ -55,9 +67,8 @@ class ModelArgs:
 
 
 transformer_configs = {
-    "tiny": dict(block_size=128, n_layer=2, n_head=2, n_local_heads=1, dim=256, intermediate_size=512, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
     "small": dict(block_size=512, n_layer=8, n_head=8, n_local_heads=2, dim=1024, intermediate_size=2048, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
-    "medium": dict(block_size=512, n_layer=24, n_head=32, n_local_heads=8, dim=1024, intermediate_size=2048, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
+    "medium": dict(block_size=1024, n_layer=32, n_head=32, n_local_heads=8, dim=2048, intermediate_size=3584, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
     "Mixtral-8x7B-v0.1": dict(block_size=32768, n_layer=32, n_head=32, n_local_heads=8, dim=4096, intermediate_size=14336, rope_base=1000000.0, num_experts=8, num_activated_experts=2),
 }
 
@@ -80,22 +91,32 @@ class KVCache(nn.Module):
         return k_out, v_out
 
 class Transformer(nn.Module):
-    def __init__(self, config: ModelArgs) -> None:
+    def __init__(self, config: ModelArgs, device_mesh: DeviceMesh) -> None:
         super().__init__()
         self.config = config
+        self.device_mesh = device_mesh
 
         # Initialize layers normally
         self.tok_embeddings = nn.Embedding(config.vocab_size, config.dim)
-        self.layers = nn.ModuleList(TransformerBlock(config) for _ in range(config.n_layer))
-        self.norm = RMSNorm(config.dim, eps=config.norm_eps)
+        self.layers = nn.ModuleList(TransformerBlock(config, device_mesh) for _ in range(config.n_layer))
+        self.norm = RMSNorm(config.dim, device_mesh, eps=config.norm_eps)
         self.output = nn.Linear(config.dim, config.vocab_size, bias=False)
+        
+        # Distribute parameters with Replicate placement
+        distribute_module_parameters(self.tok_embeddings, device_mesh, [Replicate()])
+        distribute_module_parameters(self.output, device_mesh, [Replicate()])
+        distribute_module_parameters(self.norm, device_mesh, [Replicate()])
+        for layer in self.layers:
+            distribute_module_parameters(layer, device_mesh, [Replicate()])
 
-        self.freqs_cis: Optional[Tensor] = precompute_freqs_cis(
-            self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base
-        )
-        self.causal_mask: Optional[Tensor] = torch.tril(
-            torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)
-        )
+        self.freqs_cis: Optional[DTensor] = distribute_tensor(
+            precompute_freqs_cis(self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base),
+            device_mesh,
+            [Replicate()])
+        self.causal_mask: Optional[DTensor] = distribute_tensor(
+            torch.tril(torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)),
+            device_mesh,
+            [Replicate()])
         
         self.mask_cache: Optional[Tensor] = None
         self.max_batch_size = -1
@@ -112,37 +133,39 @@ class Transformer(nn.Module):
         for b in self.layers:
             b.attention.kv_cache = KVCache(max_batch_size, max_seq_length, self.config.n_local_heads, head_dim)
 
-        self.freqs_cis = precompute_freqs_cis(self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base)
-        self.causal_mask = torch.tril(torch.ones(self.max_seq_length, self.max_seq_length, dtype=torch.bool))
+        self.freqs_cis: Optional[Tensor] = distribute_tensor(
+            precompute_freqs_cis(self.config.block_size, self.config.dim // self.config.n_head, self.config.rope_base),
+            device_mesh,
+            [Replicate()])        
+        self.causal_mask = distribute_tensor(
+            torch.tril(torch.ones(self.config.block_size, self.config.block_size, dtype=torch.bool)),
+            device_mesh,
+            [Replicate()])
 
     def forward(self, idx: Tensor, input_pos: Optional[Tensor] = None) -> Tensor:
-        self.first_arg = idx.shape
-        with torch.fx.traceback.annotate({"stage": 0}):
-            mask = self.causal_mask[None, None, input_pos]
-            freqs_cis = self.freqs_cis[input_pos]
-            x = self.tok_embeddings(idx)
+        assert self.freqs_cis is not None, "Caches must be initialized first"
+        mask = self.causal_mask[None, None, input_pos]
+        freqs_cis = self.freqs_cis[input_pos]
+        x = self.tok_embeddings(idx)
 
-            for layer in self.layers[:len(self.layers)//2]:
-                x = layer(x, input_pos, freqs_cis, mask)
-        
-        with torch.fx.traceback.annotate({"stage": 1}):
-            for layer in self.layers[len(self.layers)//2:]:
-                x = layer(x, input_pos, freqs_cis, mask)
-            x = self.norm(x)
-            logits = self.output(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x, input_pos, freqs_cis, mask)
+        x = self.norm(x)
+        logits = self.output(x)
         return logits
 
     @classmethod
-    def from_name(cls, name: str):
-        return cls(ModelArgs.from_name(name))
+    def from_name(cls, name: str, device_mesh: DeviceMesh):
+        return cls(ModelArgs.from_name(name), device_mesh)
+
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelArgs) -> None:
+    def __init__(self, config: ModelArgs, device_mesh: DeviceMesh) -> None:
         super().__init__()
-        self.attention = Attention(config)
-        self.block_sparse_moe = MOEFeedForward(config)
-        self.ffn_norm = RMSNorm(config.dim, config.norm_eps)
-        self.attention_norm = RMSNorm(config.dim, config.norm_eps)
+        self.attention = Attention(config, device_mesh)
+        self.block_sparse_moe = MOEFeedForward(config, device_mesh)
+        self.ffn_norm = RMSNorm(config.dim, device_mesh, config.norm_eps)
+        self.attention_norm = RMSNorm(config.dim, device_mesh, config.norm_eps)
 
     def forward(self, x: Tensor, input_pos: Tensor, freqs_cis: Tensor, mask: Tensor) -> Tensor:
         h = x + self.attention(self.attention_norm(x), freqs_cis, mask, input_pos)
@@ -151,7 +174,7 @@ class TransformerBlock(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, config: ModelArgs):
+    def __init__(self, config: ModelArgs, device_mesh: DeviceMesh):
         super().__init__()
         assert config.dim % config.n_head == 0
 
@@ -161,6 +184,9 @@ class Attention(nn.Module):
         self.wqkv = nn.Linear(config.dim, total_head_dim, bias=False)
         self.wo = nn.Linear(config.dim, config.dim, bias=False)
         
+        # Distribute parameters with Replicate placement
+        distribute_module_parameters(self.wqkv, device_mesh, [Replicate()])
+        distribute_module_parameters(self.wo, device_mesh, [Replicate()])
         self.kv_cache = None
 
         self.n_head = config.n_head
@@ -205,51 +231,63 @@ class Attention(nn.Module):
 
 
 class ConditionalFeedForward(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device_mesh: DeviceMesh):
         super().__init__()
+        self.w1 = nn.Parameter(torch.empty(config.num_experts, config.intermediate_size, config.dim))
+        self.w2 = nn.Parameter(torch.empty(config.num_experts, config.dim, config.intermediate_size))
+        self.w3 = nn.Parameter(torch.empty(config.num_experts, config.intermediate_size, config.dim))
+        
+        self.num_experts = config.num_experts
+        self.device_mesh = device_mesh
+        self.ep_size = device_mesh.size(0)
+        self.num_local_experts = config.num_experts // self.ep_size
         self.config = config
-
-        self.w1 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
-        self.w2 = nn.Parameter(torch.randn(config.num_experts, config.dim, config.intermediate_size))
-        self.w3 = nn.Parameter(torch.randn(config.num_experts, config.intermediate_size, config.dim))
+        
+        # Distribute parameters with Shard(0) placement
+        distribute_module_parameters(self, device_mesh, [Shard(0)])
+        
+        self.rank = get_rank()
 
     def forward(self, x: Tensor, dispatch_mask: Tensor, combine_weights: Tensor, capacity: int) -> Tensor:
-        """
-        x: [T, D]
-        dispatch_mask: [T, E, C]
-        combine_weights: [T, E, C]
-        capacity: int
-        """
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("output", (2, self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x[0]), x) # [E, C, D]
-        x1 = F.silu(torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w1))
-        x3 = torch.einsum('...ecd, emd -> ...ecm', expert_inputs, self.w3)
-        with torch.fx.traceback.annotate({
-            "collective": "all_to_all_single",
-            "group": "ep",
-            "reshape": ("input", (self.config.num_experts, -1, self.config.dim))
-        }):
-            expert_output =  torch.einsum('...ecm, edm -> ...ecd', (x1 * x3), self.w2) # [..., E, C, D]
-        combined_output = torch.einsum("tec,ecd->td", combine_weights, expert_output)
+        # all to all
+        print(f"x: {x.shape}")
+        x_local = x.to_local()
+        print(f"x_local: {x_local.shape}")
+        expert_inputs = torch.einsum("tec,tm->ecm", dispatch_mask.type_as(x_local[0]).to_local(), x_local) # [E, C, D]
+        buf = torch.empty_like(expert_inputs)
+        torch.distributed.all_to_all_single(buf, expert_inputs, group=self.device_mesh.get_group())
+        expert_inputs = buf.reshape(self.ep_size, self.num_local_experts, -1, self.config.dim)
+
+        x1 = F.silu(torch.einsum('glcd, lmd -> glcm', expert_inputs, self.w1.to_local()))
+        x3 = torch.einsum('glcd, lmd -> glcm', expert_inputs, self.w3.to_local())
+        expert_output =  torch.einsum('glcm, ldm -> glcd', (x1 * x3), self.w2.to_local())
+
+        # all to all
+        expert_output = expert_output.reshape(self.num_experts, -1, self.config.dim)
+        buf = torch.empty_like(expert_output)
+        torch.distributed.all_to_all_single(buf, expert_output, group=self.device_mesh.get_group())
+        
+        combined_output = torch.einsum("tec,ecd->td", combine_weights.to_local(), buf)
+        combined_output = DTensor.from_local(combined_output, self.device_mesh, [Shard(0)])
         return combined_output
 
 class MOEFeedForward(nn.Module):
-    def __init__(self, config) -> None:
+    def __init__(self, config, device_mesh: DeviceMesh) -> None:
         super().__init__()
         # Initialize layers normally
         self.gate = nn.Linear(config.dim, config.num_experts, bias=False)
-        self.cond_ffn = ConditionalFeedForward(config)
+        self.cond_ffn = ConditionalFeedForward(config, device_mesh)
         
+        # Distribute gate parameters with Replicate placement
+        distribute_module_parameters(self.gate, device_mesh, [Replicate()])
         self.dim = config.dim
         self.num_activated_experts = config.num_activated_experts
+        self.rank = get_rank()
+        self.device_mesh = device_mesh
         
     def forward(self, x: Tensor) -> Tensor:
         # Save original shape to reshape output back
-        original_shape = x.shape  # [batch_size, seq_len, dim] or [seq_len, dim]
+        shape = x.shape
         x = x.view(-1, self.dim)
         # T = num_tokens, E = num_experts, D = hidden dim, A = activated experts
         # x: [T, D]
@@ -261,21 +299,26 @@ class MOEFeedForward(nn.Module):
         num_experts = scores.shape[-1]
         mask = F.one_hot(expert_indices, num_classes=num_experts).sum(dim=1).bool()  # [T, E]
         capacity = x.shape[0] # // num_experts * 2
-        locations = torch.cumsum(mask, dim=0) - 1 # [T, E]
+        # print(f"capacity: {capacity}, expert_counts: {mask.sum(dim=0)}")
+        locations = torch.cumsum(mask.to_local(), dim=0) - 1 # [T, E]
+        locations = DTensor.from_local(locations, self.device_mesh, [Shard(0)])
         locations_sc = F.one_hot(locations * mask, capacity).float() # [T, E, C]
         combine_weights = torch.einsum("se,sec->sec", gates * mask, locations_sc)
         dispatch_mask = combine_weights.bool()
 
         output = self.cond_ffn(x, dispatch_mask, combine_weights, capacity)
-        return output.view(original_shape)
+        return output.view(shape)
 
 
 class RMSNorm(nn.Module):
-    def __init__(self, dim: int, eps: float = 1e-5):
+    def __init__(self, dim: int, device_mesh: DeviceMesh, eps: float = 1e-5):
         super().__init__()
         self.eps = eps
         # Initialize weight normally (ones for RMSNorm)
         self.weight = nn.Parameter(torch.ones(dim))
+        
+        # Distribute parameters with Replicate placement
+        distribute_module_parameters(self, device_mesh, [Replicate()])
 
     def _norm(self, x):
         return x * torch.rsqrt(torch.mean(x * x, dim=-1, keepdim=True) + self.eps)
