@@ -159,6 +159,10 @@ def piper_exec(model, schedule, inputs, truth, loss_fn):
     """
     num_steps, num_devices = len(schedule[0]), len(schedule)
     actors = piper_metadata.actors
+
+    # ensure loading of inputs and labels onto actors 
+    ray.get(actors[0].load_input.remote(inputs))
+    ray.get(actors[len(actors)-1].load_labels.remote(truth))
     
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
 
@@ -168,6 +172,8 @@ def piper_exec(model, schedule, inputs, truth, loss_fn):
     _validate_schedule(schedule, dag_edges, num_mbs)
 
     [actor._comm_loop.remote() for actor in actors.values()]
+
+    time.sleep(3)
 
     ret = []
     for i in range(num_steps):

@@ -328,7 +328,6 @@ class PiperActor:
             # For non-first stages, receive input tensors from the previous stage
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            torch.cuda.synchronize()
             start_event.record(self.p2p_stream)
             for i in self.input_idxs[stage_id]:
                 pp_rank = piper_metadata.stage_to_device[stage_id - 1]
@@ -337,7 +336,7 @@ class PiperActor:
             end_event.record(self.p2p_stream)
             torch.cuda.synchronize()
             time = start_event.elapsed_time(end_event)
-            logger.debug(f"Completed fwd p2p recv rank={self.global_rank} time={time:.2f} ms")
+            logger.info(f"Completed fwd p2p recv rank={self.global_rank} time={time:.2f} ms")
 
             # save first input that requires grad as input activation
             self.forward_args[stage_id][self.input_idxs[stage_id][-1]].requires_grad_()
@@ -357,14 +356,14 @@ class PiperActor:
         self.out_activation[stage_id][mb_idx] = out_with_grad[0]
 
         # clear the input tensors
-        # for i in self.input_idxs[stage_id]:
-        #     self.forward_args[stage_id][i] = torch.empty_like(self.forward_args[stage_id][i])
+        for i in self.input_idxs[stage_id]:
+            self.forward_args[stage_id][i] = torch.empty_like(self.forward_args[stage_id][i])
 
         if stage_id < self.num_stages - 1:
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            torch.cuda.synchronize()
             start_event.record(self.p2p_stream)
+            torch.cuda.synchronize()
             # For non-final stages, send output tensors to the next stage
             for i in range(len(output)):
                 pp_rank = piper_metadata.stage_to_device[stage_id + 1]
@@ -373,7 +372,7 @@ class PiperActor:
             end_event.record(self.p2p_stream)
             torch.cuda.synchronize()
             time = start_event.elapsed_time(end_event)
-            logger.debug(f"Completed fwd p2p send rank={self.global_rank} time={time:.2f} ms")
+            logger.info(f"Completed fwd p2p send rank={self.global_rank} time={time:.2f} ms")
 
         if CLEANUP_MEMORY:
             gc.collect()
@@ -393,7 +392,6 @@ class PiperActor:
             # For non-final stages, recieve input gradients from the subsequent backward pass
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            torch.cuda.synchronize()
             start_event.record(self.p2p_stream)
             input_grad = torch.empty_like(out_activation)
             pp_rank = piper_metadata.stage_to_device[stage_id + 1]
@@ -403,7 +401,7 @@ class PiperActor:
             end_event.record(self.p2p_stream)
             torch.cuda.synchronize()
             time = start_event.elapsed_time(end_event)
-            logger.debug(f"Completed bwd p2p recv rank={self.global_rank} time={time:.2f} ms")
+            logger.info(f"Completed bwd p2p recv rank={self.global_rank} time={time:.2f} ms")
             out_activation.backward(gradient=input_grad)
         else:
             # For the final stage, wait for the forward pass to complete
@@ -415,13 +413,11 @@ class PiperActor:
             self.loss.append(loss.item())
 
         del out_activation
-        self.out_activation[stage_id][mb_idx] = None
 
         if stage_id > 0:
             # For non-first stages, send output gradients to the previous backward stage
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
-            torch.cuda.synchronize()
             start_event.record(self.p2p_stream)
             output_grad = self.inp_activation[stage_id][mb_idx].grad
             assert output_grad is not None
@@ -432,7 +428,7 @@ class PiperActor:
             end_event.record(self.p2p_stream)
             torch.cuda.synchronize()
             time = start_event.elapsed_time(end_event)
-            logger.debug(f"Completed bwd p2p send rank={self.global_rank} time={time:.2f} ms")
+            logger.info(f"Completed bwd p2p send rank={self.global_rank} time={time:.2f} ms")
             self.inp_activation[stage_id][mb_idx] = None
 
         if CLEANUP_MEMORY:
