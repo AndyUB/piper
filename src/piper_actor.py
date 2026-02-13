@@ -301,7 +301,6 @@ class PiperActor:
             self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
 
             # save first input that requires grad as input activation
-            self.forward_args[stage_id][self.input_idxs[stage_id][-1]].requires_grad_()
             inp_with_grad = [self.forward_args[stage_id][i] for i in self.input_idxs[stage_id] if self.forward_args[stage_id][i].requires_grad]
             assert len(inp_with_grad) == 1, "Exactly one input per stage should require a gradient"
             self.logger.debug(f"Saving input activation {inp_with_grad[0].shape} for stage {stage_id} mb {mb_idx}")

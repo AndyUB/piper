@@ -30,11 +30,6 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, nai
 
     model = model_class(*model_args)
 
-    logger.debug("Compiling model with full graph")
-    dummy = torch.compile(model, backend=eager, fullgraph=True)
-    dummy(*example_inputs)
-    logger.debug("Model compiled with full graph")
-
     compiled = torch.compile(model, backend=piper)
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
