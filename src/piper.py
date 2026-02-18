@@ -3,6 +3,7 @@ from . import piper_patches
 import ray
 import torch
 import os
+import gc
 from torch._dynamo.backends.registry import register_backend
 
 from .piper_utils import _serialize_graphmodule, piper_metadata, create_logger, LOG_LEVEL
@@ -22,11 +23,13 @@ def piper(gm, example_inputs, **kwargs):
     pp_degree = int(os.environ['PIPER_PP_DEGREE'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
 
+    del top_level_gm
+
     refs = []
     actor_stages = []
     for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
         if dp_degree > 1:
-            stage_gm = _insert_a2a_ops(stage_gm)
+            # stage_gm = _insert_a2a_ops(stage_gm)
             comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
         else:
             comm_ops, tids = [], []
@@ -44,6 +47,14 @@ def piper(gm, example_inputs, **kwargs):
             tids,
             input_idxs,
         ))
+
+        del stage_gm
+        del graphargs
+        del placeholders
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
     ray.get(refs)
 
     # TODO: build dag by analyzing stage dependencies
@@ -51,9 +62,18 @@ def piper(gm, example_inputs, **kwargs):
     for stage_id in piper_metadata.stage_to_device.keys():
         if stage_id < len(piper_metadata.stage_to_device.keys()) - 1:
             piper_metadata.dag.add((stage_id, stage_id+1))
+    
+    example_outputs = original_gm(*example_inputs)
 
     def callback(*args):
         logger.warning("Should not directly call compiled module, running non-distributed execution")
-        return original_gm(*args)
+        return example_outputs
+
+    del original_gm
+    del example_inputs
+
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     return callback

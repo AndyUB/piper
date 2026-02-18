@@ -459,7 +459,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                 graphargs.append(placeholder.meta["grapharg"]._example())
             else:
                 assert (stage_annotation_id == 0 and 'self' not in placeholder.name) or (stage_annotation_id > 0 and placeholder_to_original.get(placeholder) in prev_stage_outputs)
-                graphargs.append(torch.zeros(placeholder.meta["example_value"].shape, dtype=placeholder.meta["example_value"].dtype, requires_grad=placeholder.meta["example_value"].requires_grad))
+                graphargs.append(torch.zeros(placeholder.meta["example_value"].shape, dtype=placeholder.meta["example_value"].dtype, requires_grad=placeholder.meta["example_value"].requires_grad, device=placeholder.meta["example_value"].device))
             # For the first stage, the input indices are everything that's not an attribute
             if stage_annotation_id == 0:
                 if 'self' not in placeholder.name:
@@ -671,7 +671,7 @@ def _insert_a2a_ops(gm: fx.GraphModule) -> fx.GraphModule:
                     annotated_nodes.append((idx, node, annotation_key, reshape))
     
     if not annotated_nodes:
-        logger.info("No communication annotations found in graph")
+        logger.debug("No communication annotations found in graph")
         return gm
     
     # Group annotated nodes into contiguous blocks

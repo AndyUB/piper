@@ -7,6 +7,7 @@ from torch import nn, optim
 from torch.profiler import profile, record_function, ProfilerActivity
 import numpy as np
 import itertools
+import gc
 
 from src.piper_exec import Task, piper_exec
 from src.piper_compile import piper_setup
@@ -41,15 +42,11 @@ def main(args):
 
     loss_fn = torch.nn.CrossEntropyLoss()
     
-    x = torch.randint(0, llama_config.vocab_size, (args.batch_size, args.seq_len))
-    y = torch.randn((args.batch_size, args.seq_len, llama_config.vocab_size))
+    model = Transformer(llama_config, args.seq_len)
+    model.to('cuda')
 
-    # Generate different input data for each data parallel rank so that model weights get updated differently
-    if args.dp > 1:
-        dp_rank = int(os.environ['PIPER_DP_RANK'])
-        torch.manual_seed(dp_rank)
-        x = torch.randint(0, llama_config.vocab_size, (args.batch_size, args.seq_len))
-        torch.manual_seed(0)
+    x = torch.randint(0, llama_config.vocab_size, (args.batch_size, args.seq_len)).to('cuda')
+    y = torch.randn((args.batch_size, args.seq_len, llama_config.vocab_size)).to('cuda')
 
     schedule = None
     match args.schedule:
@@ -64,9 +61,8 @@ def main(args):
     print("Schedule:")
     print_schedule(schedule)
 
-    compiled = piper_setup(
-        Transformer, 
-        (llama_config, args.seq_len), 
+    piper_setup(
+        model,
         torch.optim.Adam, 
         [x], 
         schedule,
@@ -78,35 +74,46 @@ def main(args):
     ray.get(actors[0].load_input.remote([x]))
     ray.get(actors[len(actors)-1].load_labels.remote(y))
 
+    del model
+    del x
+    del y 
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     # Warmup
     print(f"Running {args.warmup} warmup iterations...")
-    for _ in range(args.warmup):
-        piper_exec(compiled, schedule, [x], y, loss_fn, args.dp)
-
-    # Clear tracing data
-    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
+    for i in range(args.warmup):
+        piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
+        print(f"Warmup {i} completed")
 
     # Time training steps
     print(f"Running {args.iters} timed iterations...")
     iter_times = []
     for _ in range(args.iters):
         start = time.perf_counter()
-        piper_exec(compiled, schedule, [x], y, loss_fn, args.dp)
+        piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
         end = time.perf_counter()
         iter_times.append(end - start)
     
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     print(
-        f"rank {dp_rank} iter time= {np.mean(iter_times):.2f} ± {np.std(iter_times):.2f} s ({len(iter_times)} samples)\n"
-        f"rank {dp_rank} throughput= {(args.batch_size * args.mbs * args.seq_len)/np.mean(iter_times):.2f} tokens/sec ({len(iter_times)} samples)"
+        f"rank {dp_rank} iter time= {np.mean(iter_times):.3f} ± {np.std(iter_times):.3f} s ({len(iter_times)} samples)\n"
+        f"rank {dp_rank} throughput= {(args.batch_size * args.mbs * args.seq_len)/np.mean(iter_times):.3f} tokens/sec ({len(iter_times)} samples)"
     )
 
     if args.tracing:
+        ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
+
+        print(f"Running {args.warmup} tracing iterations...")
+        for _ in range(args.warmup):
+            piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
+
         trace_data_ret = ray.get([actor.get_trace_data.remote() for actor in actors.values()])
         for rank, trace_data in trace_data_ret:
             for key in trace_data:
                 all_times = trace_data[key]
-                print(f"rank {rank} {key} time= {np.mean(all_times):.2f} ± {np.std(all_times):.2f} ms ({len(all_times)} samples)")
+                print(f"rank {rank} {key} time= {np.mean(all_times):.3f} ± {np.std(all_times):.3f} ms ({len(all_times)} samples)")
 
     if args.naive_gradient_sync:
         suffix = "-naive-sync"
@@ -115,6 +122,8 @@ def main(args):
     timeline_filename = f"out/{args.model}-pp{args.pp}-dp{args.dp}-{args.schedule}{suffix}.json"
     ray.timeline(timeline_filename)
     print(f"Ray timeline saved to: {timeline_filename}")
+
+    ray.get([actor.shutdown.remote() for actor in actors.values()])
 
 
 def parse_args():

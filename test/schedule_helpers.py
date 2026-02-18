@@ -5,9 +5,9 @@ def print_schedule(schedule):
     for stage in schedule:
         for step in stage:
             if step:
-                string = f"{step.stage_id}:{step.mb_idx}:{'u' if step.upd else 'f' if step.is_fwd else 'b'}"
+                string = f"{step.stage_id}:{step.mb_idx}:{'u' if step.upd else 'f' if step.is_fwd else 'b'}:{'r' if step.recv_bwd_b4_snd_fwd else '_'}"
             else:
-                string = " -- "
+                string = " ----- "
             print(string, end="\t")
         print()
 
@@ -39,8 +39,12 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                 mb_idx = stage_mb[stage_id][0]
                 if mb_idx >= 0 and mb_idx < n_mbs:
                     schedule[stage_id][step] = Task(
-                        pp_rank=stage_id, stage_id=stage_id, 
-                        mb_idx=mb_idx, is_fwd=True, upd=False
+                        pp_rank=stage_id, 
+                        stage_id=stage_id,
+                        mb_idx=mb_idx, 
+                        is_fwd=True, 
+                        upd=False,
+                        recv_bwd_b4_snd_fwd=False
                     )
                     stage_mb[stage_id][0] += 1
     for step in range(n_stages, 2 * steps):
@@ -53,12 +57,38 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                 mb_idx = stage_mb[stage_id][fwd_or_bwd]
                 if mb_idx >= 0 and mb_idx < n_mbs:
                     schedule[stage_id][step] = Task(
-                        pp_rank=stage_id, stage_id=stage_id,
-                        mb_idx=mb_idx, is_fwd=task_type, upd=False
+                        pp_rank=stage_id, 
+                        stage_id=stage_id,
+                        mb_idx=mb_idx, 
+                        is_fwd=task_type, 
+                        upd=False,
+                        recv_bwd_b4_snd_fwd=False
                     )
                     stage_mb[stage_id][fwd_or_bwd] += 1
     for i, stage in enumerate(range(n_stages)):
-        schedule[stage][-i-1] = Task(stage_id=stage, pp_rank=stage, mb_idx=n_mbs-1, is_fwd=False, upd=True)
+        schedule[stage][-i-1] = Task(
+            stage_id=stage, 
+            pp_rank=stage, 
+            mb_idx=n_mbs - 1,
+            is_fwd=False, 
+            upd=True, 
+            recv_bwd_b4_snd_fwd=False
+        )
+
+    for row in schedule:
+        non_none = [(col_idx, task) for col_idx, task in enumerate(row) if task is not None]
+        for k in range(len(non_none) - 1):
+            prev_idx, prev_task = non_none[k]
+            curr_idx, curr_task = non_none[k + 1]
+            if (
+                prev_task.is_fwd
+                and not curr_task.is_fwd
+                and not curr_task.upd
+                and curr_task.mb_idx < prev_task.mb_idx
+            ):
+                row[curr_idx] = curr_task._replace(recv_bwd_b4_snd_fwd=True)
+                row[prev_idx] = prev_task._replace(recv_bwd_b4_snd_fwd=True)
+
     return schedule
 
 no_pp_schedule = [

@@ -16,6 +16,7 @@ class Task(NamedTuple):
     mb_idx: int
     is_fwd: bool
     upd: bool
+    recv_bwd_b4_snd_fwd: bool = False
 
 class DAGEdge(NamedTuple):
     from_stage: int
@@ -142,12 +143,11 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
                         f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
                     )
 
-def piper_exec(model, schedule, inputs, truth, loss_fn, dp_degree=1):
+def piper_exec(schedule, inputs, truth, loss_fn, dp_degree=1, naive_gradient_sync=False):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
     Args:
-        model: A model that has been compiled with the piper backend.
         schedule: A 2D list (device x time_step) of Tasks specifying execution order.
         inputs: Inputs to the model.
         truth: Ground-truth labels or targets.
@@ -160,7 +160,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, dp_degree=1):
     num_steps, num_devices = len(schedule[0]), len(schedule)
 
     actors = piper_metadata.actors
-    if dp_degree > 1:
+    if dp_degree > 1 and not naive_gradient_sync:
         [actor._comm_loop.remote() for actor in actors.values()]
     
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
@@ -174,13 +174,13 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, dp_degree=1):
         for j in range(num_devices-1, -1, -1):
             task = schedule[j][i]
             if task:
-                _, stage_id, mb_idx, is_fwd, upd = task
+                _, stage_id, mb_idx, is_fwd, upd, recv_bwd_b4_snd_fwd = task
                 actor_id = j
                 actor = actors[actor_id]
                 if upd:
                     ret.append(actor._update.remote())
                 elif is_fwd:
-                    actor._forward.remote(stage_id, mb_idx)
+                    actor._forward.remote(stage_id, mb_idx, recv_bwd_b4_snd_fwd=recv_bwd_b4_snd_fwd)
                 else:
-                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn)
+                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn, recv_bwd_b4_snd_fwd=recv_bwd_b4_snd_fwd)
     return ray.get(ret)

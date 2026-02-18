@@ -32,15 +32,17 @@ def main(args):
         case 'large':
             config = ModelArgs.from_name("Mixtral-8x7B-v0.1")
 
-    x = torch.randint(0, config.vocab_size, (batch_size, config.block_size))
-    input_pos = torch.arange(config.block_size)
-    y = torch.randn(batch_size, config.block_size, config.vocab_size)
+    model = Transformer(config)
+    model.to('cuda')
+
+    x = torch.randint(0, config.vocab_size, (batch_size, config.block_size)).to('cuda')
+    input_pos = torch.arange(config.block_size).to('cuda')
+    y = torch.randn(batch_size, config.block_size, config.vocab_size).to('cuda')
 
     schedule = build_1f1b_schedule(mbs, args.pp)
     print_schedule(schedule)
     model = piper_setup(
-        Transformer, 
-        [config], 
+        model, 
         torch.optim.Adam, 
         [x, input_pos], 
         schedule,

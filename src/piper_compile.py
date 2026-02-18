@@ -14,11 +14,10 @@ from .piper import piper
 logger = create_logger("piper_compile", LOG_LEVEL)
 
 
-def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, naive_gradient_sync=False):
+def piper_setup(model, optim_fn, example_inputs, schedule, naive_gradient_sync=False):
     """
     Compile a model with the piper backend.
     """
-    piper_metadata.naive_gradient_sync = naive_gradient_sync
 
     num_devices = len(schedule)
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
@@ -28,8 +27,6 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, nai
     _create_actors(num_devices, optim_fn, num_mbs, num_stages, naive_gradient_sync)
     ray.get([actor._join_process_groups.remote() for actor in piper_metadata.actors.values()])
 
-    model = model_class(*model_args)
-
     compiled = torch.compile(model, backend=piper)
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
@@ -38,5 +35,9 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, schedule, nai
     output = compiled(*example_inputs)
 
     logger.info(f"DP rank {dp_rank+1} done.")
- 
-    return compiled
+
+    del compiled
+    del model
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()

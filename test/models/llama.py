@@ -391,11 +391,42 @@ class Transformer(nn.Module):
             params.dim // params.n_heads,
             self.seq_len,
             params.rope_theta,
-        )
+        ).to('cuda')
 
         mask = torch.full((self.seq_len, self.seq_len), float("-inf"))
         mask = torch.triu(mask, diagonal=1)
-        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask])
+        self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask]).to('cuda')
+
+    # """
+    # forward method for 1f1b schedule
+    # requires:
+    # - 4 devices
+    # - 4 stages
+    # - n_layers is divisible by 4
+    # """
+    # def forward(self, tokens: torch.Tensor):
+
+    #     with torch.fx.traceback.annotate({"stage": 0}):
+    #         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
+    #         start_pos = 0
+    #         for layer in self.layers[:self.n_layers//4]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 1}):
+    #         for layer in self.layers[self.n_layers//4:self.n_layers//2]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 2}):
+    #         for layer in self.layers[self.n_layers//2:3*self.n_layers//4]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 3}):
+    #         for layer in self.layers[3*self.n_layers//4:]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #         h = self.norm(h) if self.norm else h
+    #         output = self.output(h).float() if self.output else h
+
+    #     return output
 
     # """
     # forward method for interleaved-1f1b schedule
