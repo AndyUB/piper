@@ -215,7 +215,7 @@ class PiperActor:
 
     def _join_process_groups(self):
         master_addr = os.environ.get("PIPER_MASTER_ADDR", "127.0.0.1")
-        master_port = os.environ.get("PIPER_MASTER_PORT", "12388")
+        master_port = os.environ.get("PIPER_MASTER_PORT", "10000")
         init_method = f"tcp://{master_addr}:{master_port}"
 
         dist.init_process_group(
@@ -387,7 +387,6 @@ class PiperActor:
             self.optims[stage_id].add_param_group({"params": params})
 
         del gm_data
-        self.logger.info(f"Loaded stage {stage_id} graph on actor {self.global_rank}")
 
     def _exec_p2p_op(
         self, src_stage: int, dst_stage: int, mb_idx: int, is_sender: bool, **kwargs
@@ -418,16 +417,24 @@ class PiperActor:
             op_name = "P2P(unknown)"
             if is_fwd and is_sender:
                 self._exec_fwd_send(src_stage, mb_idx, **kwargs)
-                op_name = f"P2P(fwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                op_name = (
+                    f"P2P(fwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
             elif is_fwd and is_recver:
                 self._exec_fwd_recv(dst_stage, mb_idx)
-                op_name = f"P2P(fwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                op_name = (
+                    f"P2P(fwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
             elif is_bwd and is_sender:
                 self._exec_bwd_send(src_stage, mb_idx)
-                op_name = f"P2P(bwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                op_name = (
+                    f"P2P(bwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
             elif is_bwd and is_recver:
                 self._exec_bwd_recv(dst_stage, mb_idx)
-                op_name = f"P2P(bwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                op_name = (
+                    f"P2P(bwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
             else:
                 raise ValueError(f"Invalid p2p op: {op}")
 
@@ -472,8 +479,9 @@ class PiperActor:
             f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}"
         )
         self._start_timing(self.p2p_stream, "fwd_p2p_send")
-        for i in range(len(output)):
-            dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
+        with torch.cuda.stream(self.p2p_stream):
+            for i in range(len(output)):
+                dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "fwd_p2p_send")
         self.logger.debug(
             f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}"
