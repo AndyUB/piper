@@ -1,0 +1,124 @@
+2026-02-18 02:23:39,877	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[33m(raylet)[0m [2026-02-18 02:23:49,790 E 1329983 1330013] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-23-34_234995_1329372 is over 95% full, available space: 43.2998 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,048 - piper_coordinator - DEBUG - Running DP rank 1 of 1
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,070 - piper_compile - DEBUG - mbs: 4, stages: 4, devices: 2
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,070 - piper_compile - DEBUG - Fwd/bwd schedule: [[Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=False, upd=False)], [Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=False, upd=False)]]
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,071 - piper_compile - DEBUG - P2P comms: [(0, 1, 0), (0, 1, 1), (1, 2, 0), (2, 3, 0), (1, 2, 1), (2, 3, 1), (0, 1, 2), (3, 2, 0), (0, 1, 3), (2, 1, 0), (3, 2, 1), (2, 1, 1), (1, 2, 2), (2, 3, 2), (1, 0, 0), (1, 2, 3), (2, 3, 3), (1, 0, 1), (3, 2, 2), (2, 1, 2), (3, 2, 3), (2, 1, 3), (1, 0, 2), (1, 0, 3)]
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,071 - piper_compile - DEBUG - P2P schedules: {0: [(0, 1, 0, True), (0, 1, 1, True), (1, 2, 0, False), (2, 3, 0, True), (1, 2, 1, False), (2, 3, 1, True), (0, 1, 2, True), (3, 2, 0, False), (0, 1, 3, True), (2, 1, 0, True), (3, 2, 1, False), (2, 1, 1, True), (1, 2, 2, False), (2, 3, 2, True), (1, 0, 0, False), (1, 2, 3, False), (2, 3, 3, True), (1, 0, 1, False), (3, 2, 2, False), (2, 1, 2, True), (3, 2, 3, False), (2, 1, 3, True), (1, 0, 2, False), (1, 0, 3, False)], 1: [(0, 1, 0, False), (0, 1, 1, False), (1, 2, 0, True), (2, 3, 0, False), (1, 2, 1, True), (2, 3, 1, False), (0, 1, 2, False), (3, 2, 0, True), (0, 1, 3, False), (2, 1, 0, False), (3, 2, 1, True), (2, 1, 1, False), (1, 2, 2, True), (2, 3, 2, False), (1, 0, 0, True), (1, 2, 3, True), (2, 3, 3, False), (1, 0, 1, True), (3, 2, 2, True), (2, 1, 2, False), (3, 2, 3, True), (2, 1, 3, False), (1, 0, 2, True), (1, 0, 3, True)]}
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,134 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, a72ea7b04477d18bebe5c34401000000) global rank 0
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:23:54,135 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 29f0d7ba9793b9e9fa9979e801000000) global rank 1
+[36m(run_dp_rank pid=1330131)[0m Namespace(model='debug', schedule='interleaved-1f1b', dp=1, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=1, iters=1, tracing=False, naive_gradient_sync=False)
+[36m(run_dp_rank pid=1330131)[0m Schedule:
+[36m(run_dp_rank pid=1330131)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=1330131)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:23:57,111 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 GPU 7
+[33m(raylet)[0m [2026-02-18 02:23:59,814 E 1329983 1330013] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-23-34_234995_1329372 is over 95% full, available space: 43.2997 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:00,536 - piper_actor - DEBUG - Actor 0 has GPU 6, joined the global process group
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:00,537 - piper_actor - INFO - Global rank 0 joined its pp group 0 along with ranks [0, 1]
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:24:00,750 - piper_compile - INFO - DP rank 1 compiling...
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:04,211 - piper_actor - INFO - Loading stage 0 graph on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:23:57,240 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 GPU 6
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:05,537 - piper_actor - INFO - Loaded stage 0 graph on actor 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:00,527 - piper_actor - DEBUG - Actor 1 has GPU 7, joined the global process group
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:00,529 - piper_actor - INFO - Global rank 1 joined its pp group 0 along with ranks [0, 1]
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:05,955 - piper_actor - INFO - Loaded stage 2 graph on actor 0
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:24:06,158 - piper_backend - DEBUG - Finished loading stages on actors
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:24:06,262 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[33m(raylet)[0m [2026-02-18 02:24:09,837 E 1329983 1330013] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-23-34_234995_1329372 is over 95% full, available space: 43.2997 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:06,139 - piper_actor - INFO - Loading stage 3 graph on actor 1[32m [repeated 3x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(run_dp_rank pid=1330131)[0m 2026-02-18 02:24:12,554 - piper_compile - INFO - DP rank 1 done.
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:06,156 - piper_actor - INFO - Loaded stage 3 graph on actor 1[32m [repeated 2x across cluster][0m
+[36m(run_dp_rank pid=1330131)[0m Running 1 warmup iterations...
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:12,576 - piper_actor - DEBUG - Actor 0 loaded inputs 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:12,593 - piper_actor - DEBUG - Calling forward 0 mb 0 on actor 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:12,590 - piper_actor - DEBUG - Actor 1 loaded labels torch.Size([16, 256, 512])
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:12,593 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1330220)[0m [rank1]:[W218 02:24:12.075448516 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:13,003 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:13,003 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1
+[33m(raylet)[0m [2026-02-18 02:24:19,861 E 1329983 1330013] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-23-34_234995_1329372 is over 95% full, available space: 43.2997 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:12,593 - piper_actor - DEBUG - Calling forward 1 mb 0 on actor 1
+[36m(PiperActor pid=1330132)[0m [rank0]:[W218 02:24:13.485479456 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,224 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,224 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 0) on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,225 - piper_actor - DEBUG - Forward 0 mb 0 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,227 - piper_actor - DEBUG - Calling forward 0 mb 1 on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,237 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,237 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,237 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,237 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 1) on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,237 - piper_actor - DEBUG - Forward 0 mb 1 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,238 - piper_actor - DEBUG - Calling forward 2 mb 0 on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:21,238 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m [rank0]:[W218 02:24:21.720552395 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:21,231 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:21,231 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 1 mb 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:21,989 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,121 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,121 - piper_actor - DEBUG - Forward 2 mb 0 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,122 - piper_actor - DEBUG - Calling forward 2 mb 1 on actor 0
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 1 -> 2, mb 1) on actor 0[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,121 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 0[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,121 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,122 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1330220)[0m [rank1]:[W218 02:24:21.471244410 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,111 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,111 - piper_actor - DEBUG - Forward 1 mb 0 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,113 - piper_actor - DEBUG - Calling forward 1 mb 1 on actor 1
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Forward 1 mb 1 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,123 - piper_actor - DEBUG - Calling forward 3 mb 0 on actor 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,146 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,146 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,132 - piper_actor - DEBUG - Calling backward 3 mb 0 on actor 1
+[36m(PiperActor pid=1330132)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/autograd/graph.py:865: UserWarning: Attempting to run cuBLAS, but there was no current CUDA context! Attempting to set the primary context... (Triggered internally at /pytorch/aten/src/ATen/cuda/CublasHandlePool.cpp:330.)
+[36m(PiperActor pid=1330132)[0m   return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,260 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,261 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,261 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,261 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,266 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,266 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,272 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,272 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,331 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,331 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,337 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,337 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,341 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,342 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,345 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,346 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,350 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,350 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,374 - piper_actor - DEBUG - Actor 0 waiting for backward sync events
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,374 - piper_actor - DEBUG - Actor 0 waiting for p2p ops
+[36m(run_dp_rank pid=1330131)[0m Running 1 timed iterations...
+[36m(run_dp_rank pid=1330131)[0m rank 0 iter time= 0.07 ± 0.00 s (1 samples)
+[36m(run_dp_rank pid=1330131)[0m rank 0 throughput= 234230.39 tokens/sec (1 samples)
+[36m(PiperActor pid=1330132)[0m 2026-02-18 02:24:28,991 - piper_actor - INFO - Actor 0: Tracing disabled
+[33m(raylet)[0m [2026-02-18 02:24:29,884 E 1329983 1330013] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-23-34_234995_1329372 is over 95% full, available space: 43.2996 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(run_dp_rank pid=1330131)[0m Ray timeline saved to: out/debug-pp2-dp1-interleaved-1f1b.json
+[36m(PiperActor pid=1330220)[0m [rank1]:[W218 02:24:30.045842976 ProcessGroupNCCL.cpp:1553] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,367 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 1 -> 0, mb 3) on actor 1[32m [repeated 41x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,051 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 3 mb 3[32m [repeated 28x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,274 - piper_actor - DEBUG - Dispatch fwd p2p send on 1 to 0[32m [repeated 8x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,276 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0[32m [repeated 8x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,276 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0[32m [repeated 8x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,049 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 3 mb 3[32m [repeated 21x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,274 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0[32m [repeated 7x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,052 - piper_actor - DEBUG - Forward 3 mb 3 on actor 1 returning [torch.Size([16, 256, 512])][32m [repeated 27x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,049 - piper_actor - DEBUG - Calling forward 3 mb 3 on actor 1[32m [repeated 25x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,361 - piper_actor - DEBUG - Dispatch bwd p2p recv on 1 from 0[32m [repeated 6x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,361 - piper_actor - DEBUG - Completed bwd p2p recv on 1 from 0[32m [repeated 6x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,060 - piper_actor - DEBUG - Calling backward 1 mb 3 on actor 1[32m [repeated 31x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,367 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0[32m [repeated 8x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,367 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0[32m [repeated 8x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,060 - piper_actor - DEBUG - Actor 1 waiting for backward sync events[32m [repeated 3x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:29,060 - piper_actor - DEBUG - Actor 1 waiting for p2p ops[32m [repeated 3x across cluster][0m
+[36m(PiperActor pid=1330220)[0m 2026-02-18 02:24:28,991 - piper_actor - INFO - Actor 1: Tracing disabled
+[36m(PiperActor pid=1330132)[0m [rank0]:[W218 02:24:30.362174146 ProcessGroupNCCL.cpp:1553] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())

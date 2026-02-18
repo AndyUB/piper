@@ -5,8 +5,18 @@ import torch
 import os
 from torch._dynamo.backends.registry import register_backend
 
-from .piper_utils import _serialize_graphmodule, piper_metadata, create_logger, LOG_LEVEL
-from .piper_graph_transform import _get_dp_comm_ops, _split_gm_by_stages, _insert_a2a_ops, _insert_p2p_ops
+from .piper_utils import (
+    _serialize_graphmodule,
+    piper_metadata,
+    create_logger,
+    LOG_LEVEL,
+)
+from .piper_graph_transform import (
+    _get_dp_comm_ops,
+    _split_gm_by_stages,
+    _insert_a2a_ops,
+    _insert_p2p_ops,
+)
 from .piper_actor import _get_actor
 
 logger = create_logger("piper_backend", LOG_LEVEL)
@@ -18,42 +28,47 @@ def piper(gm, example_inputs, **kwargs):
     original_gm = gm
     top_level_gm, submodules = _split_gm_by_stages(gm)
     num_stages = len(piper_metadata.stage_to_device.keys())
-    dp_rank = int(os.environ['PIPER_DP_RANK'])
-    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
-    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
+    dp_rank = int(os.environ["PIPER_DP_RANK"])
+    pp_degree = int(os.environ["PIPER_PP_DEGREE"])
+    dp_degree = int(os.environ["PIPER_DP_DEGREE"])
 
     refs = []
     actor_stages = []
-    for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
+    for stage_id, stage_gm, input_idxs, graphargs, placeholders in submodules:
         if dp_degree > 1:
             stage_gm = _insert_a2a_ops(stage_gm)
             comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
         else:
             comm_ops, tids = [], []
-            
+
         actor_id = piper_metadata.stage_to_device[stage_id]
         actor = _get_actor(actor_id)
         actor_stages.append((actor, stage_id))
 
         stage_gm_data = _serialize_graphmodule(stage_gm)
-        refs.append(actor._load_stage.remote(
-            stage_id, 
-            stage_gm_data, 
-            comm_ops,
-            graphargs,
-            tids,
-            input_idxs,
-        ))
+        refs.append(
+            actor._load_stage.remote(
+                stage_id,
+                stage_gm_data,
+                comm_ops,
+                graphargs,
+                tids,
+                input_idxs,
+            )
+        )
     ray.get(refs)
+    logger.debug(f"Finished loading stages on actors")
 
     # TODO: build dag by analyzing stage dependencies
     # this only supports sequential pipelines
     for stage_id in piper_metadata.stage_to_device.keys():
         if stage_id < len(piper_metadata.stage_to_device.keys()) - 1:
-            piper_metadata.dag.add((stage_id, stage_id+1))
+            piper_metadata.dag.add((stage_id, stage_id + 1))
 
     def callback(*args):
-        logger.warning("Should not directly call compiled module, running non-distributed execution")
+        logger.warning(
+            "Should not directly call compiled module, running non-distributed execution"
+        )
         return original_gm(*args)
 
     return callback
