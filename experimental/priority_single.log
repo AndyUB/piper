@@ -1,0 +1,7 @@
+[info] priority range: least=0, greatest=-5 (lower number = higher priority)
+[info] priority range: least=0, greatest=-5 (lower number = higher priority)
+
+=== Priority sanity (single GPU) ===
+[no priority] 25600.195 ms
+[priority]    50.120 ms
+[speedup]     x510.78

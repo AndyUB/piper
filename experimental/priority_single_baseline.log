@@ -1,0 +1,10 @@
+[info] priority range: least=0, greatest=-5 (lower number = higher priority)
+
+=== High-priority tiny work timing ===
+[alone]        42.969 ms
+[hog no-pri]   25600.295 ms
+[hog + pri]    50.117 ms
+
+[benefit vs no-pri]  x510.81
+[slowdown no-pri vs alone] x595.79
+[slowdown pri vs alone]    x1.17

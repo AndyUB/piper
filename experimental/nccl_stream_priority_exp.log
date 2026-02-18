@@ -1,0 +1,85 @@
+W0218 07:07:36.527000 2393363 site-packages/torch/distributed/run.py:852] 
+W0218 07:07:36.527000 2393363 site-packages/torch/distributed/run.py:852] *****************************************
+W0218 07:07:36.527000 2393363 site-packages/torch/distributed/run.py:852] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0218 07:07:36.527000 2393363 site-packages/torch/distributed/run.py:852] *****************************************
+[Gloo] Rank [Gloo] Rank 10 is connected to  is connected to 11 peer ranks.  peer ranks. Expected number of connected peer ranks is : Expected number of connected peer ranks is : 11
+
+[info] world_size=2
+[info] Recommended: export NCCL_LAUNCH_ORDER_IMPLICIT=1 (NCCL>=2.26) for multi-communicator safety.
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_stream_priority_exp.py", line 253, in <module>
+[rank1]:     main()
+[rank1]:   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_stream_priority_exp.py", line 217, in main
+[rank1]:     stats_pri = run_phase(
+[rank1]:   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_stream_priority_exp.py", line 134, in run_phase
+[rank1]:     nccl_allreduce_inplace(comm_sync, sync_buf, hi_stream)
+[rank1]:   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_stream_priority_exp.py", line 46, in nccl_allreduce_inplace
+[rank1]:     comm.allReduce(
+[rank1]:   File "cupy_backends/cuda/libs/nccl.pyx", line 413, in cupy_backends.cuda.libs.nccl.NcclCommunicator.allReduce
+[rank1]:   File "cupy_backends/cuda/libs/nccl.pyx", line 129, in cupy_backends.cuda.libs.nccl.check_status
+[rank1]: cupy_backends.cuda.libs.nccl.NcclError: NCCL_ERROR_INVALID_USAGE: invalid usage (run with NCCL_DEBUG=WARN for details)
+W0218 07:08:44.942000 2393363 site-packages/torch/distributed/elastic/agent/server/api.py:739] Received Signals.SIGINT death signal, shutting down workers
+W0218 07:08:44.943000 2393363 site-packages/torch/distributed/elastic/multiprocessing/api.py:1010] Sending process 2393884 closing signal SIGINT
+W0218 07:08:44.944000 2393363 site-packages/torch/distributed/elastic/multiprocessing/api.py:1010] Sending process 2393885 closing signal SIGINT
+W0218 07:08:45.727000 2393363 site-packages/torch/distributed/elastic/multiprocessing/api.py:1010] Sending process 2393884 closing signal SIGTERM
+W0218 07:08:45.728000 2393363 site-packages/torch/distributed/elastic/multiprocessing/api.py:1010] Sending process 2393885 closing signal SIGTERM
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 731, in run
+    result = self._invoke_run(role)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 908, in _invoke_run
+    time.sleep(monitor_interval)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 86, in _terminate_process_handler
+    raise SignalException(f"Process {os.getpid()} got signal: {sigval}", sigval=sigval)
+torch.distributed.elastic.multiprocessing.api.SignalException: Process 2393363 got signal: 2
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 740, in run
+    self._shutdown(e.sigval)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/local_elastic_agent.py", line 413, in _shutdown
+    self._pcontext.close(death_sig)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 659, in close
+    self._close(death_sig=death_sig, timeout=timeout)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 1022, in _close
+    handler.proc.wait(time_to_wait)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/subprocess.py", line 1209, in wait
+    return self._wait(timeout=timeout)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/subprocess.py", line 1953, in _wait
+    time.sleep(delay)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 86, in _terminate_process_handler
+    raise SignalException(f"Process {os.getpid()} got signal: {sigval}", sigval=sigval)
+torch.distributed.elastic.multiprocessing.api.SignalException: Process 2393363 got signal: 2
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/torchrun", line 7, in <module>
+    sys.exit(main())
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 362, in wrapper
+    return f(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/run.py", line 991, in main
+    run(args)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/run.py", line 982, in run
+    elastic_launch(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 170, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 308, in launch_agent
+    result = agent.run()
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/metrics/api.py", line 134, in wrapper
+    result = f(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 745, in run
+    self._shutdown()
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/local_elastic_agent.py", line 413, in _shutdown
+    self._pcontext.close(death_sig)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 659, in close
+    self._close(death_sig=death_sig, timeout=timeout)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 1022, in _close
+    handler.proc.wait(time_to_wait)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/subprocess.py", line 1209, in wait
+    return self._wait(timeout=timeout)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/subprocess.py", line 1953, in _wait
+    time.sleep(delay)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/api.py", line 86, in _terminate_process_handler
+    raise SignalException(f"Process {os.getpid()} got signal: {sigval}", sigval=sigval)
+torch.distributed.elastic.multiprocessing.api.SignalException: Process 2393363 got signal: 2

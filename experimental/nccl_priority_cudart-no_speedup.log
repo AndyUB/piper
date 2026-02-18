@@ -1,0 +1,10 @@
+[Gloo] Rank [Gloo] Rank 10 is connected to  is connected to 11 peer ranks.  peer ranks. Expected number of connected peer ranks is : Expected number of connected peer ranks is : 11
+
+[info] world_size=2
+[info] cudart priority range: least=0, greatest=-5 (lower=more priority)
+NCCL version 2.27.5+cuda12.9
+
+=== Sync-op latency under queued background NCCL traffic ===
+[no priority] mean=0.229 ms  p50=0.229  p95=0.233  p99=0.235
+[priority]    mean=0.231 ms  p50=0.232  p95=0.235  p99=0.237
+[speedup]     mean x0.99, p95 x0.99

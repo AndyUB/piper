@@ -1,0 +1,25 @@
+[Gloo] Rank [Gloo] Rank 10 is connected to  is connected to 11 peer ranks.  peer ranks. Expected number of connected peer ranks is : Expected number of connected peer ranks is : 11
+
+[info] world_size=2
+W0218 07:19:59.025000 2517307 site-packages/torch/multiprocessing/spawn.py:165] Terminating process 2518136 via signal SIGTERM
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_priority_mp.py", line 250, in <module>
+    main()
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_priority_mp.py", line 241, in main
+    mp.spawn(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/multiprocessing/spawn.py", line 340, in spawn
+    return start_processes(fn, args, nprocs, join, daemon, start_method="spawn")
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/multiprocessing/spawn.py", line 296, in start_processes
+    while not context.join():
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/multiprocessing/spawn.py", line 211, in join
+    raise ProcessRaisedException(msg, error_index, failed_process.pid)
+torch.multiprocessing.spawn.ProcessRaisedException: 
+
+-- Process 0 terminated with the following error:
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/multiprocessing/spawn.py", line 87, in _wrap
+    fn(i, *args)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/experimental/nccl_priority_mp.py", line 144, in worker
+    f"[info] torch stream priority range = {torch.cuda.get_stream_priority_range()}"
+AttributeError: module 'torch.cuda' has no attribute 'get_stream_priority_range'
+
