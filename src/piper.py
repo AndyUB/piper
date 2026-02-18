@@ -16,6 +16,16 @@ logger = create_logger("piper_backend", LOG_LEVEL)
 @register_backend
 def piper(gm, example_inputs, **kwargs):
 
+    # gm(*example_inputs)
+    # start = torch.cuda.Event(enable_timing=True)
+    # start.record()
+    # for i in range(10):
+    #     gm(*example_inputs)
+    # end = torch.cuda.Event(enable_timing=True)
+    # end.record()
+    # torch.cuda.synchronize()
+    # print(f"Entire model time measured on controller: {start.elapsed_time(end) / 10:.2f} ms")
+
     original_gm = gm
     top_level_gm, submodules = _split_gm_by_stages(gm)
     num_stages = len(piper_metadata.stage_to_device.keys())
@@ -33,7 +43,17 @@ def piper(gm, example_inputs, **kwargs):
             comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
         else:
             comm_ops, tids = [], []
-            
+
+        # stage_gm(*graphargs)
+        # start = torch.cuda.Event(enable_timing=True)
+        # start.record()
+        # for i in range(10):
+        #     stage_gm(*graphargs)
+        # end = torch.cuda.Event(enable_timing=True)
+        # end.record()
+        # torch.cuda.synchronize()
+        # print(f"Stage {stage_id} time measured on controller: {start.elapsed_time(end) / 10:.2f} ms")
+
         actor_id = piper_metadata.stage_to_device[stage_id]
         actor = _get_actor(actor_id)
         actor_stages.append((actor, stage_id))

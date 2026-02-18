@@ -10,6 +10,7 @@ from collections import defaultdict
 import torch.distributed as dist
 import threading
 from typing import Callable
+import asyncio
 
 from .piper_utils import _deserialize_graphmodule, create_logger, LOG_LEVEL, piper_metadata
 
@@ -29,7 +30,7 @@ def _create_actors(num_actors, optim_class, num_mbs, num_stages, naive_gradient_
     from .piper_utils import piper_metadata
     for pp_rank in range(num_actors):
         global_rank = _get_rank(pp_rank, dp_rank, pp_degree)
-        if dp_degree > 1:
+        if dp_degree > 1 and not naive_gradient_sync:
             max_concurrency = 2
         else:
             max_concurrency = 1
@@ -152,7 +153,7 @@ class PiperActor:
             if label in self.trace_events:
                 start, stop = self.trace_events[label]
                 stop.record(stream)
-                stream.synchronize()
+                torch.cuda.synchronize()
                 self.trace_data[label].append(start.elapsed_time(stop))
 
     def _join_process_groups(self):
@@ -214,10 +215,10 @@ class PiperActor:
                    case _:
                        raise ValueError(f"Unknown communication operation: {comm_op.op}")
 
-    def _comm_loop(self):
+    async def _comm_loop(self):
         stage_id = self.stage_id
         # look into: nccl priority for sync vs async ops, stream priority
-        self.logger.info(f"Running comm loop for stage {stage_id} on actor {self.global_rank}")
+        self.logger.debug(f"Running comm loop for stage {stage_id} on actor {self.global_rank}")
         for comm_op in self.comm_ops[stage_id]:
             done = False
             while not done:
@@ -247,20 +248,6 @@ class PiperActor:
                         handle.wait()
                         del handle
                         done = True
-
-    # def _p2p_send(self, dst, group, *tensors):
-    #     with torch.cuda.stream(self.p2p_stream):
-    #         for tensor in tensors:
-    #             dist.send(tensor, dst=dst, group=group)
-
-    # def _p2p_recv(self, src, group, *tensors_meta):
-    #     with torch.cuda.stream(self.p2p_stream):
-    #         tensors = []
-    #         for shape, dtype, requires_grad in tensors_meta:
-    #             buf = torch.empty(shape, dtype=dtype, requires_grad=requires_grad, device=self.device)
-    #             dist.recv(buf, src=src, group=group)
-    #             tensors.append(buf)
-    #         return tensors
 
     def _load_stage(self, stage_id: int, gm_data, comm_ops, forward_args, ids, input_idxs):
         self.logger.info(f"Loading stage {stage_id} graph on actor {self.global_rank}")
@@ -343,7 +330,8 @@ class PiperActor:
 
         # Run the forward pass
         self._start_timing(self.comp_stream, "forward_comp")
-        output = self.forward_fns[stage_id](*self.forward_args[stage_id])
+        with torch.cuda.stream(self.comp_stream):
+            output = self.forward_fns[stage_id](*self.forward_args[stage_id])
         self._stop_timing(self.comp_stream, "forward_comp")
 
         # Save first output that requires grad as output activation
@@ -417,7 +405,8 @@ class PiperActor:
                 self.logger.debug(f"Completed bwd recv mb {mb_idx} from {global_src_rank} on {self.global_rank}")
                 
             self._start_timing(self.comp_stream, "backward_comp")
-            out_activation.backward(gradient=input_grad)
+            with torch.cuda.stream(self.comp_stream):
+                out_activation.backward(gradient=input_grad)
             self._stop_timing(self.comp_stream, "backward_comp")
             
             del input_grad
@@ -429,8 +418,9 @@ class PiperActor:
             assert out_activation.shape == labels.shape
 
             self._start_timing(self.comp_stream, "backward_comp")
-            loss = loss_fn(out_activation, labels)
-            loss.backward()
+            with torch.cuda.stream(self.comp_stream):
+                loss = loss_fn(out_activation, labels)
+                loss.backward()
             self._stop_timing(self.comp_stream, "backward_comp")
 
             self.loss.append(loss.item())
@@ -465,20 +455,21 @@ class PiperActor:
         torch.cuda.synchronize()
         
     def _synchronize_gradients(self):
-        self.logger.debug(f"Actor {self.global_rank} synchronizing gradients")
+        self.logger.info(f"Actor {self.global_rank} synchronizing gradients")
         # Iterate over all stages on this actor and synchronize their parameters
         for stage_id, parameters in self.forward_args.items():
             for param in parameters:
                 if param is not None and param.grad is not None:
-                    dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
+                    with torch.cuda.stream(self.comm_stream):
+                        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
 
     def _update(self):
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
             
         # if dp degree > 1, make sure all gradients are synchronized before optimizer step
         # TODO: this does not allow overlapping with the optimizer step
-        self._start_timing(self.comm_stream, "backward_sync")
         if self.dp_degree > 1:
+            self._start_timing(self.comm_stream, "backward_sync")
             if self.naive_gradient_sync:
                 self._synchronize_gradients()
             else:
@@ -486,7 +477,7 @@ class PiperActor:
                 # Clear comm op handles after waiting
                 for stage_id in list(self.comm_op_handles.keys()):
                     self.comm_op_handles[stage_id].clear()
-        self._stop_timing(self.comm_stream, "backward_sync")
+            self._stop_timing(self.comm_stream, "backward_sync")
         
         # step the optimizer for each stage
         self._start_timing(self.comp_stream, "optim_step")
