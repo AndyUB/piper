@@ -1,0 +1,301 @@
+2026-02-18 02:28:10,607	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[33m(raylet)[0m [2026-02-18 02:28:20,521 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2977 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(run_dp_rank pid=1351974)[0m Namespace(model='debug', schedule='interleaved-1f1b', dp=1, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=1, iters=1, tracing=False, naive_gradient_sync=False)
+[36m(run_dp_rank pid=1351974)[0m Schedule:
+[36m(run_dp_rank pid=1351974)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=1351974)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:24,495 - piper_coordinator - DEBUG - Running DP rank 1 of 1
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:24,518 - piper_compile - DEBUG - mbs: 4, stages: 4, devices: 2
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:24,570 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 6227efa4793d97b911da329201000000) global rank 0
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:24,571 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 6152e4f3a8c754d2a90a4eb901000000) global rank 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:27,646 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 GPU 6
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:29,544 - piper_actor - DEBUG - Actor 0 has GPU 6, joined the global process group
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:29,544 - piper_actor - INFO - Global rank 0 joined its pp group 0 along with ranks [0, 1]
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:29,760 - piper_compile - INFO - DP rank 1 compiling...
+[33m(raylet)[0m [2026-02-18 02:28:30,545 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2976 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:33,395 - piper_actor - INFO - Loading stage 0 graph on actor 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:27,685 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 GPU 7
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:29,535 - piper_actor - DEBUG - Actor 1 has GPU 7, joined the global process group
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:29,536 - piper_actor - INFO - Global rank 1 joined its pp group 0 along with ranks [0, 1]
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:35,417 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[33m(raylet)[0m [2026-02-18 02:28:40,567 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2976 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:34,839 - piper_actor - INFO - Loading stage 3 graph on actor 1[32m [repeated 3x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(run_dp_rank pid=1351974)[0m Running 1 warmup iterations...
+[36m(run_dp_rank pid=1351974)[0m 2026-02-18 02:28:41,661 - piper_compile - INFO - DP rank 1 done.
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:41,685 - piper_actor - DEBUG - Actor 0 loaded inputs 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:41,701 - piper_actor - DEBUG - Calling forward 0 mb 0 on actor 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:41,697 - piper_actor - DEBUG - Actor 1 loaded labels torch.Size([16, 256, 512])
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:41,701 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1351936)[0m [rank1]:[W218 02:28:41.183047471 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:42,395 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:42,395 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1
+[33m(raylet)[0m [2026-02-18 02:28:50,591 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2976 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:41,701 - piper_actor - DEBUG - Calling forward 1 mb 0 on actor 1
+[36m(PiperActor pid=1351929)[0m [rank0]:[W218 02:28:42.877670022 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,632 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,633 - piper_actor - DEBUG - Forward 0 mb 0 on actor 0 returning [torch.Size([16, 256, 512]), torch.Size([256, 256]), torch.Size([256, 8])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,636 - piper_actor - DEBUG - Calling forward 0 mb 1 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,646 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,646 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,647 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,647 - piper_actor - DEBUG - Forward 0 mb 1 on actor 0 returning [torch.Size([16, 256, 512]), torch.Size([256, 256]), torch.Size([256, 8])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,647 - piper_actor - DEBUG - Calling forward 2 mb 0 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:50,647 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351929)[0m [rank0]:[W218 02:28:50.129442023 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:50,639 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:50,640 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 1 mb 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,509 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,509 - piper_actor - DEBUG - Forward 2 mb 0 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Calling forward 2 mb 1 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,519 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,519 - piper_actor - DEBUG - Forward 2 mb 1 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,519 - piper_actor - DEBUG - Calling forward 0 mb 2 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,526 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,527 - piper_actor - DEBUG - Forward 0 mb 2 on actor 0 returning [torch.Size([16, 256, 512]), torch.Size([256, 256]), torch.Size([256, 8])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,527 - piper_actor - DEBUG - Calling forward 0 mb 3 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,541 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,541 - piper_actor - DEBUG - Forward 0 mb 3 on actor 0 returning [torch.Size([16, 256, 512]), torch.Size([256, 256]), torch.Size([256, 8])]
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,542 - piper_actor - DEBUG - Calling backward 2 mb 0 on actor 0
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,543 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,543 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,541 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 3[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,541 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1351936)[0m [rank1]:[W218 02:28:51.895685124 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,499 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,499 - piper_actor - DEBUG - Forward 1 mb 0 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,501 - piper_actor - DEBUG - Calling forward 1 mb 1 on actor 1
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,501 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Forward 1 mb 1 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,511 - piper_actor - DEBUG - Calling forward 3 mb 0 on actor 1
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,512 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,520 - piper_actor - DEBUG - Forward 3 mb 0 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,599 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,600 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,601 - piper_actor - DEBUG - Calling forward 3 mb 1 on actor 1
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,601 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,604 - piper_actor - DEBUG - Forward 3 mb 1 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/autograd/graph.py:865: UserWarning: Attempting to run cuBLAS, but there was no current CUDA context! Attempting to set the primary context... (Triggered internally at /pytorch/aten/src/ATen/cuda/CublasHandlePool.cpp:330.)
+[36m(PiperActor pid=1351929)[0m   return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,638 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,638 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,616 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,616 - piper_actor - DEBUG - Forward 1 mb 2 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,627 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,627 - piper_actor - DEBUG - Forward 1 mb 3 on actor 1 returning [torch.Size([16, 256, 512])]
+[33m(raylet)[0m [2026-02-18 02:29:00,615 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2976 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,648 - piper_actor - DEBUG - Calling backward 0 mb 0 on actor 0[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,648 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,648 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,697 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 3[32m [repeated 7x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,697 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,694 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1[32m [repeated 7x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,694 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 3[32m [repeated 7x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,697 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,697 - piper_actor - DEBUG - Forward 2 mb 3 on actor 0 returning [torch.Size([16, 256, 512])][32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,694 - piper_actor - DEBUG - Calling forward 2 mb 3 on actor 0[32m [repeated 4x across cluster][0m
+[36m(PiperActor pid=1351929)[0m 2026-02-18 02:28:57,694 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1[32m [repeated 4x across cluster][0m
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,623 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0[32m [repeated 4x across cluster][0m
+[36m(PiperActor pid=1351936)[0m 2026-02-18 02:28:57,623 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0[32m [repeated 4x across cluster][0m
+[33m(raylet)[0m [2026-02-18 02:29:10,640 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2975 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:29:20,665 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2972 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:29:30,688 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2972 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:29:40,714 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2971 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:29:50,740 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2971 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:00,765 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2971 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:10,790 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2971 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:20,815 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.297 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:30,840 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2969 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:40,865 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2969 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:30:50,891 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2969 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:00,916 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2968 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:10,942 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2968 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:20,968 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2965 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:30,992 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2965 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:41,017 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2964 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:31:51,041 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2964 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              [33m(raylet)[0m [2026-02-18 02:32:21,113 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2957 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:32:31,142 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2949 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:32:41,184 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2948 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:32:51,211 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2948 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:01,237 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2948 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:11,260 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2947 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:21,282 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2947 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:31,305 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2947 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:41,327 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2946 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:33:51,349 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2946 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:01,371 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2944 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:11,393 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2944 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:21,413 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2937 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:31,445 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2928 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:41,470 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2927 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:34:51,494 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2927 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:01,518 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2927 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:11,543 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2927 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:21,566 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2926 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:31,590 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2924 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:41,613 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:35:51,638 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:01,662 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:11,687 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:21,712 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2919 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:31,736 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2917 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:41,760 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2916 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:36:51,785 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2916 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:01,809 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2916 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:11,834 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2916 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:21,859 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2915 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:31,884 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2913 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:41,909 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2911 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:37:51,933 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2911 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:01,957 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.292 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:11,982 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.292 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:22,009 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.292 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:32,035 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:42,058 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:38:52,083 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:57.183445420 ProcessGroupNCCL.cpp:688] [Rank 1] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=20, OpType=RECV, NumelIn=65536, NumelOut=65536, Timeout(ms)=600000) ran for 600077 milliseconds before timing out.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:57.183971842 ProcessGroupNCCL.cpp:2277] [PG ID 1 PG GUID 1 Rank 1]  failure detected by watchdog at work sequence id: 20 PG status: last enqueued work: 22, last completed work: 19
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:57.184033874 ProcessGroupNCCL.cpp:735] Stack trace of the failed collective not found, potentially because FlightRecorder is disabled. You can enable it by setting TORCH_NCCL_TRACE_BUFFER_SIZE to a non-zero value.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:57.184185960 ProcessGroupNCCL.cpp:2610] [PG ID 1 PG GUID 1 Rank 1] First PG on this rank to signal dumping.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:58.156730684 ProcessGroupNCCL.cpp:1890] [PG ID 0 PG GUID 0 Rank 0] Received a dump signal due to a collective timeout from this local rank and we will try our best to dump the debug info. Last enqueued NCCL work: -1, last completed NCCL work: -1.This is most likely caused by incorrect usages of collectives, e.g., wrong sizes used across ranks, the order of collectives is not same for all ranks or the scheduled collective, for some reason, didn't run. Additionally, this can be caused by GIL deadlock or other reasons such as network errors or bugs in the communications library (e.g. NCCL), etc. 
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:58.157158681 ProcessGroupNCCL.cpp:1606] [PG ID 0 PG GUID 0 Rank 0] ProcessGroupNCCL preparing to dump debug info. Include stack trace: 1, only active collectives: 0
+[33m(raylet)[0m [2026-02-18 02:39:02,106 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:57.264638186 ProcessGroupNCCL.cpp:688] [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600088 milliseconds before timing out.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:57.265530863 ProcessGroupNCCL.cpp:2277] [PG ID 1 PG GUID 1 Rank 0]  failure detected by watchdog at work sequence id: 24 PG status: last enqueued work: 25, last completed work: 23
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:57.265560978 ProcessGroupNCCL.cpp:735] Stack trace of the failed collective not found, potentially because FlightRecorder is disabled. You can enable it by setting TORCH_NCCL_TRACE_BUFFER_SIZE to a non-zero value.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:38:57.265642189 ProcessGroupNCCL.cpp:2610] [PG ID 1 PG GUID 1 Rank 0] First PG on this rank to signal dumping.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:58.156765015 ProcessGroupNCCL.cpp:1890] [PG ID 0 PG GUID 0 Rank 1] Received a dump signal due to a collective timeout from this local rank and we will try our best to dump the debug info. Last enqueued NCCL work: -1, last completed NCCL work: -1.This is most likely caused by incorrect usages of collectives, e.g., wrong sizes used across ranks, the order of collectives is not same for all ranks or the scheduled collective, for some reason, didn't run. Additionally, this can be caused by GIL deadlock or other reasons such as network errors or bugs in the communications library (e.g. NCCL), etc. 
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:38:58.157228635 ProcessGroupNCCL.cpp:1606] [PG ID 0 PG GUID 0 Rank 1] ProcessGroupNCCL preparing to dump debug info. Include stack trace: 1, only active collectives: 0
+[33m(raylet)[0m [2026-02-18 02:39:12,130 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:39:22,155 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2922 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:39:32,178 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:39:42,202 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m [2026-02-18 02:39:52,228 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:39:57.265785911 ProcessGroupNCCL.cpp:749] [Rank 0] Some NCCL operations have failed or timed out. Due to the asynchronous nature of CUDA kernels, subsequent GPU operations might run on corrupted/incomplete data.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:39:57.265921412 ProcessGroupNCCL.cpp:763] [Rank 0] To avoid data inconsistency, we are taking the entire process down.
+[36m(PiperActor pid=1351929)[0m [rank0]:[E218 02:39:57.267346250 ProcessGroupNCCL.cpp:2093] [PG ID 1 PG GUID 1 Rank 0] Process group watchdog thread terminated with exception: [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600088 milliseconds before timing out.
+[36m(PiperActor pid=1351929)[0m Exception raised from checkTimeout at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:691 (most recent call first):
+[36m(PiperActor pid=1351929)[0m frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f8b70265fdd in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libc10.so)
+[36m(PiperActor pid=1351929)[0m frame #1: c10d::ProcessGroupNCCL::WorkNCCL::checkTimeout(std::optional<std::chrono::duration<long, std::ratio<1l, 1000l> > >) + 0x26a (0x7f5abf9ddd7a in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=1351929)[0m frame #2: c10d::ProcessGroupNCCL::Watchdog::runLoop() + 0x16a1 (0x7f5abf9e2261 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=1351929)[0m frame #3: c10d::ProcessGroupNCCL::Watchdog::run() + 0x105 (0x7f5abf9e35a5 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=1351929)[0m frame #4: <unknown function> + 0xdf0e6 (0x7f8b937cf0e6 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6)
+[36m(PiperActor pid=1351929)[0m frame #5: <unknown function> + 0x8b2ea (0x7f8ba308b2ea in /lib64/libc.so.6)
+[36m(PiperActor pid=1351929)[0m frame #6: <unknown function> + 0x1103c0 (0x7f8ba31103c0 in /lib64/libc.so.6)
+[36m(PiperActor pid=1351929)[0m 
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m [2026-02-18 02:39:57,807 E 1351936 1367426] logging.cc:118: Unhandled exception: N3c1016DistBackendErrorE. what(): [PG ID 1 PG GUID 1 Rank 1] Process group watchdog thread terminated with exception: [Rank 1] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=20, OpType=RECV, NumelIn=65536, NumelOut=65536, Timeout(ms)=600000) ran for 600077 milliseconds before timing out.
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m Exception raised from run at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:2099 (most recent call first):
+[36m(PiperActor pid=1351936)[0m  /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ad67a) [0x7fddd1ea767a] ray::operator<<()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ae12c) [0x7fddd1ea812c] ray::RayLog::operator<< <>()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x85eda1) [0x7fddd1058da1] ray::TerminateHandler()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7fddd06c7519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(_ZSt10unexpectedv+0) [0x7fddd06c1063] std::unexpected()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7fddd06c7512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7facfb249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xdf0e6) [0x7fddd06e40e6] execute_native_thread_routine
+[36m(PiperActor pid=1351936)[0m /lib64/libc.so.6(+0x8b2ea) [0x7fdddfe8b2ea] start_thread
+[36m(PiperActor pid=1351936)[0m /lib64/libc.so.6(+0x1103c0) [0x7fdddff103c0] __GI___clone3
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m [2026-02-18 02:39:57,833 E 1351936 1367426] logging.cc:125: Stack trace: 
+[36m(PiperActor pid=1351936)[0m  /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ad67a) [0x7fddd1ea767a] ray::operator<<()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ae12c) [0x7fddd1ea812c] ray::RayLog::operator<< <>()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16b06e8) [0x7fddd1eaa6e8] ray::TerminateHandler()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7fddd06c7519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(_ZSt10unexpectedv+0) [0x7fddd06c1063] std::unexpected()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7fddd06c7512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7facfb249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=1351936)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xdf0e6) [0x7fddd06e40e6] execute_native_thread_routine
+[36m(PiperActor pid=1351936)[0m /lib64/libc.so.6(+0x8b2ea) [0x7fdddfe8b2ea] start_thread
+[36m(PiperActor pid=1351936)[0m /lib64/libc.so.6(+0x1103c0) [0x7fdddff103c0] __GI___clone3
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m *** SIGABRT received at time=1771382397 on cpu 116 ***
+[36m(PiperActor pid=1351936)[0m PC: @     0x7fdddfe8d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=1351936)[0m     @     0x7fdddfe3fc30  (unknown)  (unknown)
+[36m(PiperActor pid=1351936)[0m [2026-02-18 02:39:57,834 E 1351936 1367426] logging.cc:474: *** SIGABRT received at time=1771382397 on cpu 116 ***
+[36m(PiperActor pid=1351936)[0m [2026-02-18 02:39:57,834 E 1351936 1367426] logging.cc:474: PC: @     0x7fdddfe8d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=1351936)[0m [2026-02-18 02:39:57,835 E 1351936 1367426] logging.cc:474:     @     0x7fdddfe3fc30  (unknown)  (unknown)
+[36m(PiperActor pid=1351936)[0m Fatal Python error: Aborted
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m 
+[36m(PiperActor pid=1351936)[0m Extension modules: msgpack._cmsgpack, psutil._psutil_linux, google._upb._message, charset_normalizer.md, requests.packages.charset_normalizer.md, requests.packages.chardet.md, yaml._yaml, ray._raylet, numpy._core._multiarray_umath, numpy.linalg._umath_linalg, torch._C, torch._C._dynamo.autograd_compiler, torch._C._dynamo.eval_frame, torch._C._dynamo.guards, torch._C._dynamo.utils, torch._C._fft, torch._C._linalg, torch._C._nested, torch._C._nn, torch._C._sparse, torch._C._special, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator (total: 30)
+[36m(PiperActor pid=1351929)[0m 
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7f8b937b2519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7f8b937b2512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7f5abf249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=1351929)[0m /lib64/libc.so.6(+0x1103c0) [0x7f8ba31103c0] __GI___clone3
+[36m(PiperActor pid=1351929)[0m 
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7f8b937b2519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7f8b937b2512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7f5abf249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=1351929)[0m /lib64/libc.so.6(+0x1103c0) [0x7f8ba31103c0] __GI___clone3
+[36m(PiperActor pid=1351929)[0m 
+[36m(PiperActor pid=1351929)[0m 
+[36m(PiperActor pid=1351929)[0m 
+[33m(raylet)[0m [2026-02-18 02:40:02,253 E 1351764 1351797] (raylet) file_system_monitor.cc:116: /m-coriander/coriander/tmp/ray/ray/session_2026-02-18_02-28-05_070289_1351140 is over 95% full, available space: 43.2921 GB; capacity: 29075 GB. Object creation will fail if spilling is required.
+[33m(raylet)[0m A worker died or was killed while executing a task by an unexpected system error. To troubleshoot the problem, check the logs for the dead worker. Lease ID: 02000000f2393de3187365466c1091e12bf47acd60aafc46afcb1548eeefca7b Worker ID: 2ce4ba0e9899ef8b9cab62f3bd65f854ca7c73dc43de5b6563856e4d Node ID: f3a65cf0dad6ce017fcdb608603aa72715910c7dc16b73f572659557 Worker IP address: 10.158.48.71 Worker port: 34023 Worker PID: 1351936 Worker exit type: SYSTEM_ERROR Worker exit detail: Worker unexpectedly exits with a connection error code 2. End of file. Some common causes include: (1) the process was killed by the OOM killer due to high memory usage, (2) ray stop --force was called, or (3) the worker crashed unexpectedly due to SIGSEGV or another unexpected error.
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 161, in <module>
+    ray.get(piper_coordinator.run_program.remote(main, args))
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 2967, in get
+    values, debugger_breakpoint = worker.get_objects(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 1015, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::PiperProgramCoordinator.run_program()[39m (pid=1351925, ip=10.158.48.71, actor_id=5e88e74e8e9343632b6d7b8201000000, repr=<src.piper_coordinator.PiperProgramCoordinator object at 0x7fec4cfdc8e0>)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 41, in run_program
+    return ray.get([run_dp_rank.remote(
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::run_dp_rank()[39m (pid=1351974, ip=10.158.48.71)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 22, in run_dp_rank
+    return training_func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 94, in main
+    piper_exec(compiled, schedule, [x], y, loss_fn, args.dp)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_exec.py", line 186, in piper_exec
+    return ray.get(ret)
+ray.exceptions.ActorDiedError: The actor died unexpectedly before finishing this task.
+	class_name: PiperActor
+	actor_id: 6152e4f3a8c754d2a90a4eb901000000
+	pid: 1351936
+	namespace: llama
+	ip: 10.158.48.71
+The actor is dead because its worker process has died. Worker exit type: SYSTEM_ERROR Worker exit detail: Worker unexpectedly exits with a connection error code 2. End of file. Some common causes include: (1) the process was killed by the OOM killer due to high memory usage, (2) ray stop --force was called, or (3) the worker crashed unexpectedly due to SIGSEGV or another unexpected error.
+[33m(raylet)[0m A worker died or was killed while executing a task by an unexpected system error. To troubleshoot the problem, check the logs for the dead worker. Lease ID: 0100000000ed163cf49e1a28460779ca5ae388ddcbecbe8ca316bc5f83a45ba6 Worker ID: 9c1d6b8074ed9eb3098b5a880e4465aefe36f958847005ed2641618a Node ID: f3a65cf0dad6ce017fcdb608603aa72715910c7dc16b73f572659557 Worker IP address: 10.158.48.71 Worker port: 44933 Worker PID: 1351929 Worker exit type: SYSTEM_ERROR Worker exit detail: Worker unexpectedly exits with a connection error code 2. End of file. Some common causes include: (1) the process was killed by the OOM killer due to high memory usage, (2) ray stop --force was called, or (3) the worker crashed unexpectedly due to SIGSEGV or another unexpected error.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:39:57.184309729 ProcessGroupNCCL.cpp:749] [Rank 1] Some NCCL operations have failed or timed out. Due to the asynchronous nature of CUDA kernels, subsequent GPU operations might run on corrupted/incomplete data.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:39:57.184450528 ProcessGroupNCCL.cpp:763] [Rank 1] To avoid data inconsistency, we are taking the entire process down.
+[36m(PiperActor pid=1351936)[0m [rank1]:[E218 02:39:57.185770851 ProcessGroupNCCL.cpp:2093] [PG ID 1 PG GUID 1 Rank 1] Process group watchdog thread terminated with exception: [Rank 1] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=20, OpType=RECV, NumelIn=65536, NumelOut=65536, Timeout(ms)=600000) ran for 600077 milliseconds before timing out.
+[36m(PiperActor pid=1351929)[0m Exception raised from checkTimeout at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:691 (most recent call first):[32m [repeated 3x across cluster][0m
+[36m(PiperActor pid=1351929)[0m frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f8b70265fdd in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libc10.so)[32m [repeated 5x across cluster][0m
+[36m(PiperActor pid=1351929)[0m frame #1: c10d::ProcessGroupNCCL::WorkNCCL::checkTimeout(std::optional<std::chrono::duration<long, std::ratio<1l, 1000l> > >) + 0x26a (0x7f5abf9ddd7a in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)[32m [repeated 3x across cluster][0m
+[36m(PiperActor pid=1351929)[0m frame #3: c10d::ProcessGroupNCCL::Watchdog::run() + 0x105 (0x7f5abf9e35a5 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)[32m [repeated 6x across cluster][0m
+[36m(PiperActor pid=1351929)[0m frame #4: <unknown function> + 0x1103c0 (0x7f8ba31103c0 in /lib64/libc.so.6)[32m [repeated 17x across cluster][0m
+[36m(PiperActor pid=1351929)[0m [2026-02-18 02:39:57,873 E 1351929 1367430] logging.cc:118: Unhandled exception: N3c1016DistBackendErrorE. what(): [PG ID 1 PG GUID 1 Rank 0] Process group watchdog thread terminated with exception: [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600088 milliseconds before timing out.
+[36m(PiperActor pid=1351929)[0m Exception raised from run at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:2099 (most recent call first):
+[36m(PiperActor pid=1351929)[0m  /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ad67a) [0x7f8b94fa767a] ray::operator<<()[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ae12c) [0x7f8b94fa812c] ray::RayLog::operator<< <>()[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16b06e8) [0x7f8b94faa6e8] ray::TerminateHandler()[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(_ZSt10unexpectedv+0) [0x7f8b937ac063] std::unexpected()[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xdf0e6) [0x7f8b937cf0e6] execute_native_thread_routine[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m /lib64/libc.so.6(+0x8b2ea) [0x7f8ba308b2ea] start_thread[32m [repeated 2x across cluster][0m
+[36m(PiperActor pid=1351929)[0m [2026-02-18 02:39:57,891 E 1351929 1367430] logging.cc:125: Stack trace: 
+[36m(PiperActor pid=1351929)[0m *** SIGABRT received at time=1771382397 on cpu 183 ***
+[36m(PiperActor pid=1351929)[0m PC: @     0x7f8ba308d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=1351929)[0m     @     0x7f8ba303fc30  (unknown)  (unknown)
+[36m(PiperActor pid=1351929)[0m [2026-02-18 02:39:57,892 E 1351929 1367430] logging.cc:474: *** SIGABRT received at time=1771382397 on cpu 183 ***
+[36m(PiperActor pid=1351929)[0m [2026-02-18 02:39:57,892 E 1351929 1367430] logging.cc:474: PC: @     0x7f8ba308d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=1351929)[0m [2026-02-18 02:39:57,893 E 1351929 1367430] logging.cc:474:     @     0x7f8ba303fc30  (unknown)  (unknown)
+[36m(PiperActor pid=1351929)[0m Fatal Python error: Aborted
+[36m(PiperActor pid=1351929)[0m Extension modules: msgpack._cmsgpack, psutil._psutil_linux, google._upb._message, charset_normalizer.md, requests.packages.charset_normalizer.md, requests.packages.chardet.md, yaml._yaml, ray._raylet, numpy._core._multiarray_umath, numpy.linalg._umath_linalg, torch._C, torch._C._dynamo.autograd_compiler, torch._C._dynamo.eval_frame, torch._C._dynamo.guards, torch._C._dynamo.utils, torch._C._fft, torch._C._linalg, torch._C._nested, torch._C._nn, torch._C._sparse, torch._C._special, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator (total: 30)
