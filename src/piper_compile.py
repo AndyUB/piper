@@ -24,8 +24,6 @@ def piper_setup(model, optim_fn, example_inputs, schedule, naive_gradient_sync=F
     num_stages = len(set([task.stage_id for row in schedule for task in row if task is not None]))
     piper_metadata.stage_to_device = {task.stage_id: task.pp_rank for row in schedule for task in row if task is not None}
 
-    logger.debug(f"mbs: {num_mbs}, stages: {num_stages}, devices: {num_devices}")
-
     _create_actors(num_devices, optim_fn, num_mbs, num_stages, naive_gradient_sync)
     ray.get([actor._join_process_groups.remote() for actor in piper_metadata.actors.values()])
 
