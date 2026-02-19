@@ -137,6 +137,13 @@ class PiperActor:
                 'peak_memory_delta': [],
                 'peak_memory': []
             },
+            'backward_input': {
+                'time': [],
+                'graph_pruning': [],
+            },
+            'backward_weight': {
+                'time': [],
+            },
         }
 
         # compile the graph with the given graphargs
@@ -169,7 +176,7 @@ class PiperActor:
         self.logger.debug(f"compile_graph took {(end-start)*1000:.2f}ms")
         return "Finished compiling"
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def forward(self, stage_id: int, mb_idx: int, *args):
         self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -230,10 +237,7 @@ class PiperActor:
         if self.tracing:
             forward_end_event.record()
             torch.cuda.synchronize()
-            
-            # Calculate total forward time
             forward_time = forward_start_event.elapsed_time(forward_end_event)
-            
             forward_peak_memory_delta_gb = (torch.cuda.max_memory_allocated() - forward_start_memory) / (1024**3)
             forward_peak_memory_gb = torch.cuda.max_memory_allocated() / (1024**3)
 
@@ -319,7 +323,7 @@ class PiperActor:
         
         return out
 
-    # @ray.method(tensor_transport="nccl")
+    @ray.method(tensor_transport="nccl")
     def backward(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
         self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.actor_id} global rank {self.global_rank}")
 
@@ -475,6 +479,13 @@ class PiperActor:
                     'peak_memory_delta': [],
                     'peak_memory': []
                 },
+                'backward_input': {
+                    'time': [],
+                    'graph_pruning': [],
+                },
+                'backward_weight': {
+                    'time': [],
+                },
             }
         self.trace_data['update'] = {
             'total': [],
@@ -523,6 +534,11 @@ class PiperActor:
     
     @ray.method(tensor_transport="nccl")
     def backward_input(self, stage_id: int, mb_idx: int, inp, loss_fn=None):
+        if self.tracing:
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+            start_event.record()
+
         is_last_stage = loss_fn is not None
         activation = self.activation[stage_id][mb_idx]
 
@@ -542,12 +558,23 @@ class PiperActor:
         # In first stage, we treat the backward_input call like a NOOP
         if stage_id == 0:
             gx = torch.zeros_like(activation) # May get slight performance boost if we don't send the full ones tensor
+            if self.tracing:
+                end_event.record()
+                torch.cuda.synchronize()
+                total_time = start_event.elapsed_time(end_event)
+                self.trace_data[stage_id]['backward_input']['time'].append(total_time)
             return [gx, upstream_grads]
 
         stage_input = self.prev_activation[stage_id][mb_idx]
         stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
 
         # Lists of autograd nodes for the layer outputs, inputs, and parameters
+        # Tracing for graph pruning computation time
+        if self.tracing:
+            graph_pruning_start = torch.cuda.Event(enable_timing=True)
+            graph_pruning_end = torch.cuda.Event(enable_timing=True)
+            graph_pruning_start.record()
+        
         output_nodes = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [activation_or_loss]) if n is not None]
         input_nodes  = [n for n in (_get_grad_fn_or_grad_acc(t) for t in [stage_input]) if n is not None]
         param_nodes   = [n for n in (_get_grad_fn_or_grad_acc(p) for p in stage_params) if n is not None]
@@ -576,6 +603,13 @@ class PiperActor:
                     return hook
                 handles.append(intermediate_node.register_prehook(make_hook(pg, i)))
 
+        if self.tracing:
+            graph_pruning_end.record()
+            torch.cuda.synchronize()
+            graph_pruning_time = graph_pruning_start.elapsed_time(graph_pruning_end)
+            if 'graph_pruning' not in self.trace_data[stage_id]['backward_input']:
+                self.trace_data[stage_id]['backward_input']['graph_pruning'] = []
+            self.trace_data[stage_id]['backward_input']['graph_pruning'].append(graph_pruning_time)
         gx = torch.autograd.grad(
             outputs=activation_or_loss,
             inputs=stage_input,
@@ -604,10 +638,21 @@ class PiperActor:
         # Save parameter groups for use in backward_weight
         self._bw_param_groups[stage_id][mb_idx] = param_groups
 
+        if self.tracing:
+            end_event.record()
+            torch.cuda.synchronize()
+            total_time = start_event.elapsed_time(end_event)
+            self.trace_data[stage_id]['backward_input']['time'].append(total_time)
+
         return [gx, upstream_grads]
 
     @ray.method(tensor_transport="nccl")
     def backward_weight(self, stage_id: int, mb_idx: int, gx, upstream, loss_fn=None):
+        if self.tracing:
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+            start_event.record()
+
         stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
 
         # We only pass to enforce temporal dependency.
@@ -650,6 +695,12 @@ class PiperActor:
                     p.grad.add_(pg)
 
             del self.activation[stage_id][mb_idx]
+
+            if self.tracing:
+                end_event.record()
+                torch.cuda.synchronize()
+                total_time = start_event.elapsed_time(end_event)
+                self.trace_data[stage_id]['backward_weight']['time'].append(total_time)
 
             return [None] + ["done"]
 
@@ -730,6 +781,10 @@ class PiperActor:
                 else:
                     weight.grad.add_(dw)
 
+        if self.tracing:
+            end_event.record()
+            torch.cuda.synchronize()
+            total_time = start_event.elapsed_time(end_event)
+            self.trace_data[stage_id]['backward_weight']['time'].append(total_time)
+
         return [None] + ["done"]
-
-
