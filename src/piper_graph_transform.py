@@ -61,7 +61,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
 
         logger.debug(f"Dispatch AllToAllSingleFunction forward rank={ctx.global_rank}, shape={input_tensor.shape}")
         
-        ctx.actor_self._start_timing(ctx.stream, "fwd_a2a_single")
+        ctx.actor_self._start_timing(ctx.stream, "fwd_a2a")
 
         # Ensure input_tensor is contiguous (all_to_all_single requires contiguous tensors)
         # TODO: performance cost?
@@ -71,7 +71,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         with torch.cuda.stream(ctx.stream):
             dist.all_to_all_single(output, input_tensor, group=ctx.group)
 
-        ctx.actor_self._stop_timing(ctx.stream, "fwd_a2a_single")
+        ctx.actor_self._stop_timing(ctx.stream, "fwd_a2a")
 
         return output
     
@@ -85,7 +85,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         """
         logger.debug(f"Dispatch AllToAllSingleFunction backward rank={ctx.global_rank}, shape={grad_output.shape}")
 
-        ctx.actor_self._start_timing(ctx.stream, "bwd_a2a_single")
+        ctx.actor_self._start_timing(ctx.stream, "bwd_a2a")
 
         if grad_output is None:
             return None, None, None
@@ -102,7 +102,7 @@ class AllToAllSingleFunction(torch.autograd.Function):
         with torch.cuda.stream(ctx.stream):
             dist.all_to_all_single(grad_input, grad_output, group=ctx.group)
 
-        ctx.actor_self._stop_timing(ctx.stream, "bwd_a2a_single")
+        ctx.actor_self._stop_timing(ctx.stream, "bwd_a2a")
         
         # Return gradients: grad_output flows to grad_input, None for group
         return grad_input, grad_input, None
@@ -458,7 +458,6 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
             if "grapharg" in placeholder.meta:
                 graphargs.append(placeholder.meta["grapharg"]._example())
             else:
-                assert (stage_annotation_id == 0 and 'self' not in placeholder.name) or (stage_annotation_id > 0 and placeholder_to_original.get(placeholder) in prev_stage_outputs)
                 graphargs.append(torch.zeros(placeholder.meta["example_value"].shape, dtype=placeholder.meta["example_value"].dtype, requires_grad=placeholder.meta["example_value"].requires_grad, device=placeholder.meta["example_value"].device))
             # For the first stage, the input indices are everything that's not an attribute
             if stage_annotation_id == 0:

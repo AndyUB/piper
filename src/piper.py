@@ -33,16 +33,14 @@ def piper(gm, example_inputs, **kwargs):
     pp_degree = int(os.environ['PIPER_PP_DEGREE'])
     dp_degree = int(os.environ['PIPER_DP_DEGREE'])
 
+    # top_level_gm.print_readable()
     del top_level_gm
 
     refs = []
     actor_stages = []
     for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
         if dp_degree > 1:
-            # stage_gm = _insert_a2a_ops(stage_gm)
-            comm_ops, tids = _get_dp_comm_ops(graphargs, placeholders)
-        else:
-            comm_ops, tids = [], []
+            stage_gm = _insert_a2a_ops(stage_gm)
 
         # stage_gm(*graphargs)
         # start = torch.cuda.Event(enable_timing=True)
@@ -61,10 +59,8 @@ def piper(gm, example_inputs, **kwargs):
         stage_gm_data = _serialize_graphmodule(stage_gm)
         refs.append(actor._load_stage.remote(
             stage_id, 
-            stage_gm_data, 
-            comm_ops,
+            stage_gm_data,
             graphargs,
-            tids,
             input_idxs,
         ))
 

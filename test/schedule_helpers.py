@@ -1,13 +1,14 @@
-from src.piper_exec import Task
+from src.piper_exec import Task, CompType
 
 
 def print_schedule(schedule):
     for stage in schedule:
         for step in stage:
             if step:
-                string = f"{step.stage_id}:{step.mb_idx}:{'u' if step.upd else 'f' if step.is_fwd else 'b'}:{'r' if step.recv_bwd_b4_snd_fwd else '_'}"
+                type_char = 'u' if step.type == CompType.UPD else 'f' if step.type == CompType.FWD else 'b'
+                string = f"{step.stage_id}:{step.mb_idx}:{type_char}"
             else:
-                string = " ----- "
+                string = " --- "
             print(string, end="\t")
         print()
 
@@ -18,15 +19,15 @@ def build_gpipe_schedule(n_mbs: int, n_stages: int):
         for stage_id in range(n_stages):
             mb_idx = step - stage_id
             if mb_idx >= 0 and mb_idx < n_mbs:
-                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, True, False)
+                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, CompType.FWD)
 
     for step in range(steps, steps * 2):
         for stage_id in reversed(range(n_stages)):
             mb_idx = (step - steps) - (n_stages - stage_id - 1)
             if mb_idx >= 0 and mb_idx < n_mbs:
-                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, False, False)
+                schedule[stage_id][step] = Task(stage_id, stage_id, mb_idx, CompType.BWD)
     for i, stage in enumerate(range(n_stages)):
-        schedule[stage][-i-1] = Task(stage_id=stage, pp_rank=stage, mb_idx=0, is_fwd=False, upd=True)
+        schedule[stage][-i-1] = Task(stage_id=stage, pp_rank=stage, mb_idx=0, type=CompType.UPD)
     return schedule
 
 def build_1f1b_schedule(n_mbs: int, n_stages: int):
@@ -42,9 +43,7 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
                         pp_rank=stage_id, 
                         stage_id=stage_id,
                         mb_idx=mb_idx, 
-                        is_fwd=True, 
-                        upd=False,
-                        recv_bwd_b4_snd_fwd=False
+                        type=CompType.FWD
                     )
                     stage_mb[stage_id][0] += 1
     for step in range(n_stages, 2 * steps):
@@ -53,16 +52,14 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
             inv_stage = n_stages - stage_id - 1
             if relative_step >= inv_stage:
                 fwd_or_bwd = 1 - (relative_step + inv_stage) % 2
-                task_type = True if fwd_or_bwd == 0 else False
+                task_type = CompType.FWD if fwd_or_bwd == 0 else CompType.BWD
                 mb_idx = stage_mb[stage_id][fwd_or_bwd]
                 if mb_idx >= 0 and mb_idx < n_mbs:
                     schedule[stage_id][step] = Task(
                         pp_rank=stage_id, 
                         stage_id=stage_id,
                         mb_idx=mb_idx, 
-                        is_fwd=task_type, 
-                        upd=False,
-                        recv_bwd_b4_snd_fwd=False
+                        type=task_type
                     )
                     stage_mb[stage_id][fwd_or_bwd] += 1
     for i, stage in enumerate(range(n_stages)):
@@ -70,177 +67,161 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int):
             stage_id=stage, 
             pp_rank=stage, 
             mb_idx=n_mbs - 1,
-            is_fwd=False, 
-            upd=True, 
-            recv_bwd_b4_snd_fwd=False
+            type=CompType.UPD
         )
-
-    for row in schedule:
-        non_none = [(col_idx, task) for col_idx, task in enumerate(row) if task is not None]
-        for k in range(len(non_none) - 1):
-            prev_idx, prev_task = non_none[k]
-            curr_idx, curr_task = non_none[k + 1]
-            if (
-                prev_task.is_fwd
-                and not curr_task.is_fwd
-                and not curr_task.upd
-                and curr_task.mb_idx < prev_task.mb_idx
-            ):
-                row[curr_idx] = curr_task._replace(recv_bwd_b4_snd_fwd=True)
-                row[prev_idx] = prev_task._replace(recv_bwd_b4_snd_fwd=True)
 
     return schedule
 
 no_pp_schedule = [
     [
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=True),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.UPD),
     ]
 ]
 
 pp2_interleaved_1f1b_grid_schedule = [
     [
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=0, type=CompType.BWD),
         None,
-        Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=2, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=1, type=CompType.BWD),
         None,
-        Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=True),
+        Task(pp_rank=0, stage_id=2, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=2, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.UPD),
     ],
     [
         None,
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=True),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=3, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.UPD),
         None,
     ],
 ]
 
 pp4_interleaved_1f1b_grid_schedule = [
     [
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=4, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=4, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=4, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=0, stage_id=4, mb_idx=3, is_fwd=True, upd=False),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=4, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=4, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=4, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=0, stage_id=4, mb_idx=3, type=CompType.FWD),
         None,
         None,
         None,
-        Task(pp_rank=0, stage_id=4, mb_idx=0, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=4, mb_idx=0, type=CompType.BWD),
         None,
-        Task(pp_rank=0, stage_id=4, mb_idx=1, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=4, mb_idx=1, type=CompType.BWD),
         None,
-        Task(pp_rank=0, stage_id=4, mb_idx=2, is_fwd=False, upd=False),
+        Task(pp_rank=0, stage_id=4, mb_idx=2, type=CompType.BWD),
         None,
-        Task(pp_rank=0, stage_id=4, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=True),
+        Task(pp_rank=0, stage_id=4, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=0, stage_id=0, mb_idx=0, type=CompType.UPD),
     ],
     [
         None,
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=5, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=5, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=5, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=1, stage_id=5, mb_idx=3, is_fwd=True, upd=False),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=5, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=5, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=5, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=1, stage_id=5, mb_idx=3, type=CompType.FWD),
         None,
-        Task(pp_rank=1, stage_id=5, mb_idx=0, is_fwd=False, upd=False),
+        Task(pp_rank=1, stage_id=5, mb_idx=0, type=CompType.BWD),
         None,
-        Task(pp_rank=1, stage_id=5, mb_idx=1, is_fwd=False, upd=False),
+        Task(pp_rank=1, stage_id=5, mb_idx=1, type=CompType.BWD),
         None,
-        Task(pp_rank=1, stage_id=5, mb_idx=2, is_fwd=False, upd=False),
+        Task(pp_rank=1, stage_id=5, mb_idx=2, type=CompType.BWD),
         None,
-        Task(pp_rank=1, stage_id=5, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=True),
-        None,
-    ],
-    [
-        None,
-        None,
-        Task(pp_rank=2, stage_id=2, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=2, stage_id=6, mb_idx=1, is_fwd=False, upd=False),
-        None,
-        Task(pp_rank=2, stage_id=6, mb_idx=2, is_fwd=False, upd=False),
-        None,
-        Task(pp_rank=2, stage_id=6, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=2, stage_id=2, mb_idx=0, is_fwd=False, upd=True),
-        None,
+        Task(pp_rank=1, stage_id=5, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=1, stage_id=1, mb_idx=0, type=CompType.UPD),
         None,
     ],
     [
         None,
         None,
+        Task(pp_rank=2, stage_id=2, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=2, stage_id=6, mb_idx=1, type=CompType.BWD),
         None,
-        Task(pp_rank=3, stage_id=3, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=0, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=1, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=2, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=3, is_fwd=True, upd=False),
-        Task(pp_rank=3, stage_id=7, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=0, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=1, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=2, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=3, is_fwd=False, upd=False),
-        Task(pp_rank=3, stage_id=3, mb_idx=0, is_fwd=False, upd=True),
+        Task(pp_rank=2, stage_id=6, mb_idx=2, type=CompType.BWD),
+        None,
+        Task(pp_rank=2, stage_id=6, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=2, stage_id=2, mb_idx=0, type=CompType.UPD),
+        None,
+        None,
+    ],
+    [
+        None,
+        None,
+        None,
+        Task(pp_rank=3, stage_id=3, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=0, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=1, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=2, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=3, type=CompType.FWD),
+        Task(pp_rank=3, stage_id=7, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=0, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=1, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=2, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=3, type=CompType.BWD),
+        Task(pp_rank=3, stage_id=3, mb_idx=0, type=CompType.UPD),
         None,
         None,
         None,

@@ -12,45 +12,85 @@ import threading
 from typing import Callable
 import asyncio
 
-from .piper_utils import _deserialize_graphmodule, create_logger, LOG_LEVEL, piper_metadata
+from .piper_utils import (
+    _deserialize_graphmodule,
+    create_logger,
+    LOG_LEVEL,
+    piper_metadata,
+)
 
 CLEANUP_MEMORY = True
 
 logger = create_logger("piper_actor", LOG_LEVEL)
 
+
 def _get_rank(pp_rank, dp_rank, pp_degree):
     return pp_rank + dp_rank * pp_degree
 
-def _create_actors(num_actors, optim_class, num_mbs, num_stages, naive_gradient_sync=False):
-    dp_rank = int(os.environ['PIPER_DP_RANK'])
-    world_size = int(os.environ['PIPER_WORLD_SIZE'])
-    dp_degree = int(os.environ['PIPER_DP_DEGREE'])
-    pp_degree = int(os.environ['PIPER_PP_DEGREE'])
+
+def _create_actors(
+    num_actors,
+    optim_class,
+    num_mbs,
+    num_stages,
+    p2p_schedules,
+    naive_gradient_sync=False,
+):
+    dp_rank = int(os.environ["PIPER_DP_RANK"])
+    world_size = int(os.environ["PIPER_WORLD_SIZE"])
+    dp_degree = int(os.environ["PIPER_DP_DEGREE"])
+    pp_degree = int(os.environ["PIPER_PP_DEGREE"])
 
     from .piper_utils import piper_metadata
+
     for pp_rank in range(num_actors):
         global_rank = _get_rank(pp_rank, dp_rank, pp_degree)
-        if dp_degree > 1 and not naive_gradient_sync:
-            max_concurrency = 2
-        else:
-            max_concurrency = 1
-        actor = PiperActor.options(num_gpus=1, max_concurrency=max_concurrency).remote(pp_rank, optim_class, world_size, num_mbs, num_stages, naive_gradient_sync, dp_rank=dp_rank, dp_degree=dp_degree, pp_degree=pp_degree)
+        p2p_schedule = p2p_schedules[pp_rank]
+        actor = PiperActor.options(num_gpus=0.8).remote(
+            pp_rank,
+            optim_class,
+            world_size,
+            num_mbs,
+            num_stages,
+            p2p_schedule,
+            naive_gradient_sync,
+            dp_rank=dp_rank,
+            dp_degree=dp_degree,
+            pp_degree=pp_degree,
+        )
         piper_metadata.actors[pp_rank] = actor
-        logger.debug(f"DP rank {dp_rank} created actor {actor} global rank {global_rank}")
+        logger.debug(
+            f"DP rank {dp_rank} created actor {actor} global rank {global_rank}"
+        )
+
 
 def _get_actor(pp_rank):
     from .piper_utils import piper_metadata
+
     return piper_metadata.actors[pp_rank]
+
 
 @ray.remote
 class PiperActor:
-    def __init__(self, pp_rank, optim_class, world_size, num_mbs, num_stages, naive_gradient_sync=False, dp_rank=0, dp_degree=1, pp_degree=1):
+    def __init__(
+        self,
+        pp_rank,
+        optim_class,
+        world_size,
+        num_mbs,
+        num_stages,
+        p2p_schedule,
+        naive_gradient_sync=False,
+        dp_rank=0,
+        dp_degree=1,
+        pp_degree=1,
+    ):
         self.logger = create_logger("piper_actor", LOG_LEVEL)
 
         self.pp_rank = pp_rank
         self.optim_class = optim_class
         self.naive_gradient_sync = naive_gradient_sync
-        
+
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
         self.pp_degree = pp_degree
@@ -58,13 +98,20 @@ class PiperActor:
 
         self.num_mbs = num_mbs
         self.num_stages = num_stages
+        # list of (src_stage, dst_stage, mb_idx, is_sender)
+        self.p2p_schedule = p2p_schedule
+        self.next_p2p_idx = 0
+        # set of (src_stage, dst_stage, mb_idx, is_sender) for completed p2p ops
+        self.executed_p2ps = set()
         self.dp_group = None
         self.pp_group = None
-        self.device = 'cuda'
+        self.device = "cuda"
 
         self.global_rank = _get_rank(pp_rank, dp_rank, pp_degree)
 
-        self.logger.info(f"Initializing Ray actor {pp_rank} global rank {self.global_rank} GPU {os.environ['CUDA_VISIBLE_DEVICES']}")
+        self.logger.info(
+            f"Initializing Ray actor {self.global_rank} GPU {os.environ['CUDA_VISIBLE_DEVICES']}"
+        )
 
         self.input = None
         self.labels = None
@@ -99,32 +146,43 @@ class PiperActor:
         self.comm_op_status = defaultdict(lambda: defaultdict(int))
         # map stage id -> tensor id -> comm op handle
         self.comm_op_handles = defaultdict(dict)
-        # map stage id -> p2p op handle
-        self.p2p_op_handles = defaultdict(list)
-        
+        # map stage id -> list of tensor ids that require communciation
+        self.comm_op_tensor_ids = dict()
+
         self.tracing = False
         self.trace_events = dict()
         self.trace_data = defaultdict(list)
 
         from .piper_utils import piper_metadata
+
         piper_metadata.actor_self = self
+
+    def reset_p2p_states(self):
+        self.next_p2p_idx = 0
+        self.executed_p2ps = set()
 
     def get_trace_data(self) -> dict:
         return self.global_rank, self.trace_data
-    
+
     def clear_trace_data(self) -> None:
         self.trace_data.clear()
 
     def set_tracing(self, enabled: bool) -> None:
         self.tracing = enabled
-        self.logger.info(f"Actor {self.global_rank}: Tracing {'enabled' if enabled else 'disabled'}")
+        self.logger.info(
+            f"Actor {self.global_rank}: Tracing {'enabled' if enabled else 'disabled'}"
+        )
 
     def start_mem_tracing(self) -> None:
         torch.cuda.memory._record_memory_history()
-    
+
     def stop_mem_tracing(self) -> None:
-        torch.cuda.memory._dump_snapshot(f"actor{self.global_rank}_memory_snapshot_mb4_gpipe.pickle")
-        self.logger.info(f"Saved memory snapshot to actor{self.global_rank}_memory_snapshot_mb4_gpipe.pickle")
+        torch.cuda.memory._dump_snapshot(
+            f"actor{self.global_rank}_memory_snapshot_mb4_gpipe.pickle"
+        )
+        self.logger.info(
+            f"Saved memory snapshot to actor{self.global_rank}_memory_snapshot_mb4_gpipe.pickle"
+        )
         torch.cuda.memory._record_memory_history(enabled=None)
 
     def reset_peak_memory(self):
@@ -135,8 +193,8 @@ class PiperActor:
 
     def load_input(self, inputs):
         self.inputs = [inp.to(self.device) for inp in inputs]
-        self.logger.debug(f"Actor {self.global_rank} loaded {len(self.inputs)} inputs")
-    
+        self.logger.debug(f"Actor {self.global_rank} loaded inputs {len(self.inputs)}")
+
     def load_labels(self, labels):
         self.labels = labels.to(self.device)
         self.logger.debug(f"Actor {self.global_rank} loaded labels {self.labels.shape}")
@@ -144,7 +202,10 @@ class PiperActor:
     def _start_timing(self, stream, label):
         if self.tracing:
             if label not in self.trace_events:
-                self.trace_events[label] = (torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True))
+                self.trace_events[label] = (
+                    torch.cuda.Event(enable_timing=True),
+                    torch.cuda.Event(enable_timing=True),
+                )
             start, _ = self.trace_events[label]
             start.record(stream)
 
@@ -157,100 +218,103 @@ class PiperActor:
                 self.trace_data[label].append(start.elapsed_time(stop))
 
     def _join_process_groups(self):
-        master_addr = os.environ.get('PIPER_MASTER_ADDR', "127.0.0.1")
-        master_port = os.environ.get('PIPER_MASTER_PORT', "10000")
+        master_addr = os.environ.get("PIPER_MASTER_ADDR", "127.0.0.1")
+        master_port = os.environ.get("PIPER_MASTER_PORT", "10000")
         init_method = f"tcp://{master_addr}:{master_port}"
 
-        dist.init_process_group("nccl", init_method=init_method, rank=self.global_rank, world_size=self.world_size)
-        self.logger.debug(f"Actor {self.global_rank} has GPU {os.environ['CUDA_VISIBLE_DEVICES']}, joined the global process group")
+        dist.init_process_group(
+            "nccl",
+            init_method=init_method,
+            rank=self.global_rank,
+            world_size=self.world_size,
+        )
+        self.logger.debug(
+            f"Actor {self.global_rank} has GPU {os.environ['CUDA_VISIBLE_DEVICES']}, joined the global process group"
+        )
 
         if self.dp_degree > 1:
             self._join_dp_process_group()
         if self.pp_degree > 1:
             self._join_pp_process_group()
-    
+
     def _join_dp_process_group(self):
         num_dp_groups = self.world_size // self.dp_degree
         for dp_group_id in range(num_dp_groups):
-            group_ranks = [(dp_group_id + num_dp_groups * i) for i in range(self.dp_degree)]
-            process_group = dist.new_group(ranks=group_ranks, backend='nccl')
+            group_ranks = [
+                (dp_group_id + num_dp_groups * i) for i in range(self.dp_degree)
+            ]
+            process_group = dist.new_group(ranks=group_ranks, backend="nccl")
             if self.global_rank % num_dp_groups == dp_group_id:
                 self.dp_group = process_group
-                self.logger.info(f"Global rank {self.global_rank} joined its dp group {dp_group_id} along with ranks {group_ranks}")
-    
+                self.logger.debug(
+                    f"Global rank {self.global_rank} joined its dp group {dp_group_id} along with ranks {group_ranks}"
+                )
+
     def _join_pp_process_group(self):
         num_pp_groups = self.world_size // self.pp_degree
         for pp_group_id in range(num_pp_groups):
-            group_ranks = [(pp_group_id * self.pp_degree + i) for i in range(self.pp_degree)]
-            process_group = dist.new_group(ranks=group_ranks, backend='nccl')
+            group_ranks = [
+                (pp_group_id * self.pp_degree + i) for i in range(self.pp_degree)
+            ]
+            process_group = dist.new_group(ranks=group_ranks, backend="nccl")
             if self.global_rank // self.pp_degree == pp_group_id:
                 self.pp_group = process_group
-                self.logger.info(f"Global rank {self.global_rank} joined its pp group {pp_group_id} along with ranks {group_ranks}")
+                self.logger.debug(f"Global rank {self.global_rank} joined its pp group {pp_group_id} along with ranks {group_ranks}")
 
     def shutdown(self):
         dist.destroy_process_group()
-        self.logger.info(f"Actor {self.global_rank} shutdown")
 
-    def _prepare_comm_ops(self, stage_id, comm_ops, graphargs, ids):
+    def _prepare_comm_ops(self, stage_id):
         def hook_maker(tensor_id):
             def post_backward_hook(grad):
                 self.comm_op_status[stage_id][tensor_id] += 1
-                self.logger.debug(f"Updating tensor status dp_rank: {self.dp_rank}, tensor={comm_op.name}, shape={grad.shape}, status={self.comm_op_status[stage_id][tensor_id]}")
+                self.logger.debug(
+                    f"Updating status on dp_rank: {self.dp_rank}, tensor={tensor_id}, status={self.comm_op_status[stage_id][tensor_id]}"
+                )
+                if self.comm_op_status[stage_id][tensor_id] == self.num_mbs:
+                    with torch.cuda.stream(self.comm_stream):
+                        handle = dist.all_reduce(
+                            grad,
+                            op=dist.ReduceOp.AVG,
+                            group=self.dp_group,
+                            async_op=True,
+                        )
+                    self.logger.debug(
+                        f"Allreduce on dp_rank: {self.dp_rank}, tensor={tensor_id}"
+                    )
+                    self.comm_op_status[stage_id][tensor_id] = 0
+                    self.comm_op_handles[stage_id][tensor_id] = handle
                 return grad
             return post_backward_hook
-        
-        comm_op_ids = [op.tensor_id for op in comm_ops]
-        for (t, i) in zip(graphargs, ids):
-            if i in comm_op_ids:
-               comm_op = comm_ops[comm_op_ids.index(i)]
-               comm_op.tensor = t
-               match comm_op.op:
-                   case "allreduce":
-                        if comm_op.pass_type == "backward" and comm_op.dep == "post":
-                            tensor_id = i
-                            tensor_shape = t.shape
-                            t.register_post_accumulate_grad_hook(hook_maker(tensor_id))
-                        else:
-                            raise ValueError(f"Unknown comm op type or dependency: {comm_op.op} {comm_op.dep}")
-                   case _:
-                       raise ValueError(f"Unknown communication operation: {comm_op.op}")
 
-    async def _comm_loop(self):
-        stage_id = self.stage_id
-        # look into: nccl priority for sync vs async ops, stream priority
-        self.logger.debug(f"Running comm loop for stage {stage_id} on actor {self.global_rank}")
-        for comm_op in self.comm_ops[stage_id]:
-            done = False
-            while not done:
-                if comm_op.op == "allreduce" and comm_op.pass_type == "backward" and comm_op.dep == "post" and comm_op.group == "dp":
-                    # perform the all reduce when all gradients have been accumulated
-                    if self.comm_op_status[stage_id][comm_op.tensor_id] == self.num_mbs:
-                        with torch.cuda.stream(self.comm_stream):
-                            handle = dist.all_reduce(comm_op.tensor, op=dist.ReduceOp.AVG, group=self.dp_group, async_op=True)
-                        self.logger.debug(f"Allreduce on dp_rank: {self.dp_rank}, tensor={comm_op.name}, shape={comm_op.tensor.shape}")
-                        self.comm_op_status[stage_id][comm_op.tensor_id] = 0
-                        self.comm_op_handles[stage_id][comm_op.tensor_id] = handle
-                        done = True
-                else:
-                    raise ValueError(f"Unknown comm op: {comm_op}")
-        self.logger.debug(f"Completed comm loop for stage {stage_id} on actor {self.global_rank}")
+        ids = []
+        for t in self.forward_args[stage_id]:
+            if t is not None and t.requires_grad:
+                tid = id(t)
+                ids.append(tid)
+                t.register_post_accumulate_grad_hook(hook_maker(tid))
+        self.comm_op_tensor_ids[stage_id] = ids
 
     def _wait_for_comm_ops(self):
         self.logger.debug(f"Actor {self.global_rank} waiting for comm ops")
-        for stage_id, comm_ops in self.comm_ops.items():
-            for comm_op in comm_ops:
-                self.logger.debug(f"Waiting for comm op to be launched dp_rank: {self.dp_rank}, tensor={comm_op.name}, shape={comm_op.tensor.shape}")
+        for stage_id, tids in self.comm_op_tensor_ids.items():
+            for tid in tids:
+                self.logger.debug(
+                    f"Waiting for comm op to be launched dp_rank: {self.dp_rank}, tensor={tid}"
+                )
                 done = False
                 while not done:
-                    if comm_op.tensor_id in self.comm_op_handles[stage_id]:
-                        self.logger.debug(f"Waiting for comm op to be finished dp_rank: {self.dp_rank}, tensor={comm_op.name}, shape={comm_op.tensor.shape}")
-                        handle = self.comm_op_handles[stage_id][comm_op.tensor_id]
-                        handle.wait()
-                        del handle
+                    if tid in self.comm_op_handles[stage_id]:
+                        self.logger.debug(
+                            f"Waiting for comm op to be finished dp_rank: {self.dp_rank}, tensor={tid}"
+                        )
+                        self.comm_op_handles[stage_id][tid].wait()
                         done = True
 
-    def _load_stage(self, stage_id: int, gm_data, comm_ops, forward_args, ids, input_idxs):
-        self.logger.info(f"Loading stage {stage_id} graph on actor {self.global_rank}")
+    def _load_stage(
+        self, stage_id: int, gm_data, forward_args,input_idxs
+    ):
+        self.logger.debug(f"Loading stage {stage_id} graph on actor {self.global_rank}")
 
         # compile the graph with the given graphargs
         gm = _deserialize_graphmodule(gm_data)
@@ -267,64 +331,206 @@ class PiperActor:
                 return arg.to(self.device)
         forward_args = list(map(move_to_device, range(len(forward_args)), forward_args))
 
-        # prepare tensors with comm ops
-        if not self.naive_gradient_sync and self.dp_degree > 1:
-            self._prepare_comm_ops(stage_id, comm_ops, forward_args, ids)
-        self.comm_ops[stage_id] = list(reversed(comm_ops))
-
         # save parameters
         self.forward_args[stage_id] = forward_args
         self.stage_id = stage_id
 
         # save metadata for input tensors
         self.input_idxs[stage_id] = input_idxs
-        for i in self.input_idxs[stage_id]:
-            self.forward_input_meta[stage_id][i] = (forward_args[i].shape, forward_args[i].dtype, forward_args[i].requires_grad)
-            self.forward_args[stage_id][i] = None
+        # for i in self.input_idxs[stage_id]:
+        #     self.forward_input_meta[stage_id][i] = (forward_args[i].shape, forward_args[i].dtype, forward_args[i].requires_grad)
+        #     self.forward_args[stage_id][i] = None
+
+        # prepare tensors with comm ops
+        if not self.naive_gradient_sync and self.dp_degree > 1:
+            self._prepare_comm_ops(stage_id)
 
         # add the parameters to the optimizer for this stage
         params = [param for param in forward_args if param is not None and param.requires_grad]
         if stage_id not in self.optims:
             self.optims[stage_id] = self.optim_class(params)
         else:
-            self.optims[stage_id].add_param_group({'params': params})
-        
-        if CLEANUP_MEMORY:
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            self.optims[stage_id].add_param_group({"params": params})
 
         del gm_data
 
-    def _forward(self, stage_id: int, mb_idx: int, recv_bwd_b4_snd_fwd: bool = False):
+    def _exec_p2p_op(
+        self, src_stage: int, dst_stage: int, mb_idx: int, is_sender: bool, **kwargs
+    ):
+        p2p_op = (src_stage, dst_stage, mb_idx, is_sender)
+        if p2p_op in self.executed_p2ps:
+            return
 
-        self.logger.debug(f"Calling forward {stage_id} mb {mb_idx} on actor {self.global_rank}")
+        op_idx = self.next_p2p_idx
+        while op_idx < len(self.p2p_schedule):
+            op = self.p2p_schedule[op_idx]
+            if op == p2p_op:
+                break
+            op_idx += 1
+        assert op_idx < len(
+            self.p2p_schedule
+        ), f"P2P op {p2p_op} not found in schedule for actor {self.global_rank}"
+
+        # Execute everything before and including the given p2p op
+        for idx in range(self.next_p2p_idx, op_idx + 1):
+            op = self.p2p_schedule[idx]
+            src_stage, dst_stage, mb_idx, is_sender = op
+            is_fwd = src_stage == dst_stage - 1
+            is_bwd = src_stage == dst_stage + 1
+            assert is_fwd or is_bwd
+            is_recver = not is_sender
+
+            op_name = "P2P(unknown)"
+            if is_fwd and is_sender:
+                self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+                op_name = (
+                    f"P2P(fwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
+            elif is_fwd and is_recver:
+                self._exec_fwd_recv(dst_stage, mb_idx)
+                op_name = (
+                    f"P2P(fwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
+            elif is_bwd and is_sender:
+                self._exec_bwd_send(src_stage, mb_idx)
+                op_name = (
+                    f"P2P(bwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
+            elif is_bwd and is_recver:
+                self._exec_bwd_recv(dst_stage, mb_idx)
+                op_name = (
+                    f"P2P(bwd_recv, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
+                )
+            else:
+                raise ValueError(f"Invalid p2p op: {op}")
+
+            self.executed_p2ps.add(op)
+            logger.debug(f"Executed {op_name} on actor {self.global_rank}")
+
+        self.next_p2p_idx = op_idx + 1
+
+    def _exec_fwd_recv(self, stage_id: int, mb_idx: int):
+        if stage_id == 0:
+            return
+
+        # for i in self.input_idxs[stage_id]:
+        #     shape, dtype, requires_grad = self.forward_input_meta[stage_id][i]
+        #     self.forward_args[stage_id][i] = torch.empty(shape, dtype=dtype, requires_grad=requires_grad, device=self.device)
+
+        # For non-first stages, receive input tensors from the previous stage
+        pp_rank = piper_metadata.stage_to_device[stage_id - 1]
+        global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+
+        self.logger.debug(
+            f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}"
+        )
+        self._start_timing(self.p2p_stream, "fwd_p2p_recv")
+        with torch.cuda.stream(self.p2p_stream):
+            for i in self.input_idxs[stage_id]:
+                dist.recv(
+                    self.forward_args[stage_id][i],
+                    src=global_src_rank,
+                    group=self.pp_group,
+                )
+        self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
+        self.logger.debug(
+            f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}"
+        )
+
+    def _exec_fwd_send(self, stage_id: int, mb_idx: int, output):
+        if stage_id == self.num_stages - 1:
+            return
+
+        # For non-final stages, send output tensors to the next stage
+        pp_rank = piper_metadata.stage_to_device[stage_id + 1]
+        global_dst_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+
+        self.logger.debug(
+            f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}"
+        )
+        self._start_timing(self.p2p_stream, "fwd_p2p_send")
+        with torch.cuda.stream(self.p2p_stream):
+            for i in range(len(output)):
+                dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
+        self._stop_timing(self.p2p_stream, "fwd_p2p_send")
+        self.logger.debug(
+            f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}"
+        )
+
+    def _exec_bwd_recv(self, stage_id: int, mb_idx: int):
+        if stage_id >= self.num_stages - 1:
+            return
+
+        out_activation = self.out_activation[stage_id][mb_idx]
+        # For non-final stages, recieve input gradients from the subsequent backward pass
+        input_grad = torch.empty_like(out_activation)
+        pp_rank = piper_metadata.stage_to_device[stage_id + 1]
+        global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+
+        self.logger.debug(
+            f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}"
+        )
+        self._start_timing(self.p2p_stream, "bwd_p2p_recv")
+        with torch.cuda.stream(self.p2p_stream):
+            dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
+        self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
+        self.logger.debug(
+            f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}"
+        )
+
+        self._start_timing(self.comp_stream, "backward_comp")
+        with torch.cuda.stream(self.comp_stream):
+            out_activation.backward(gradient=input_grad)
+        self._stop_timing(self.comp_stream, "backward_comp")
+
+    def _exec_bwd_send(self, stage_id: int, mb_idx: int):
+        if stage_id <= 0:
+            return
+
+        # For non-first stages, send output gradients to the previous backward stage
+        output_grad = self.inp_activation[stage_id][mb_idx].grad
+        assert output_grad is not None
+        pp_rank = piper_metadata.stage_to_device[stage_id - 1]
+        global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+
+        self.logger.debug(
+            f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}"
+        )
+        self._start_timing(self.p2p_stream, "bwd_p2p_send")
+        with torch.cuda.stream(self.p2p_stream):
+            dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
+        self._stop_timing(self.p2p_stream, "bwd_p2p_send")
+        self.logger.debug(
+            f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}"
+        )
+
+        self.inp_activation[stage_id][mb_idx] = None
+
+    def _forward(self, stage_id: int, mb_idx: int):
+
+        self.logger.debug(
+            f"Calling forward {stage_id} mb {mb_idx} on actor {self.global_rank}"
+        )
 
         if stage_id == 0:
             # For the first stage, load input tensors from self.inputs
             for i, inp in zip(self.input_idxs[stage_id], self.inputs):
                 self.forward_args[stage_id][i] = inp
         else:
-            # For non-first stages, receive input tensors from the previous stage
-
-            # Create empty input tensors
-            for i, (shape, dtype, requires_grad) in self.forward_input_meta[stage_id].items():
-                self.forward_args[stage_id][i] = torch.empty(shape, dtype=dtype, requires_grad=requires_grad, device=self.device)
-
-            pp_rank = piper_metadata.stage_to_device[stage_id - 1]
-            global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
-
-            self.logger.debug(f"Dispatched fwd recv from {global_src_rank} on {self.global_rank}")
-            self._start_timing(self.p2p_stream, "fwd_p2p_recv")
-            for i in self.input_idxs[stage_id]:
-                dist.recv(self.forward_args[stage_id][i], src=global_src_rank, group=self.pp_group)
-            self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
-            self.logger.debug(f"Completed fwd recv from {global_src_rank} on {self.global_rank}")
+            self._exec_p2p_op(stage_id - 1, stage_id, mb_idx, False)
 
             # save first input that requires grad as input activation
-            inp_with_grad = [self.forward_args[stage_id][i] for i in self.input_idxs[stage_id] if self.forward_args[stage_id][i].requires_grad]
-            assert len(inp_with_grad) == 1, "Exactly one input per stage should require a gradient"
-            self.logger.debug(f"Saving input activation {inp_with_grad[0].shape} for stage {stage_id} mb {mb_idx}")
+            inp_with_grad = [
+                self.forward_args[stage_id][i]
+                for i in self.input_idxs[stage_id]
+                if self.forward_args[stage_id][i].requires_grad
+            ]
+            assert (
+                len(inp_with_grad) == 1
+            ), "Exactly one input per stage should require a gradient"
+            self.logger.debug(
+                f"Saving input activation {inp_with_grad[0].shape} for stage {stage_id} mb {mb_idx}"
+            )
             self.inp_activation[stage_id][mb_idx] = inp_with_grad[0]
         
 
@@ -337,80 +543,41 @@ class PiperActor:
         # Save first output that requires grad as output activation
         # TODO: support multiple outputs
         out_with_grad = [out for out in output if out.requires_grad]
-        assert len(out_with_grad) == 1, "Piper only supports one output per subgraph with requires_grad"
-        self.logger.debug(f"Saving output activation {out_with_grad[0].shape} for stage {stage_id} mb {mb_idx}")
+        assert (
+            len(out_with_grad) == 1
+        ), "Piper only supports one output per subgraph with requires_grad"
+        self.logger.debug(
+            f"Saving output activation {out_with_grad[0].shape} for stage {stage_id} mb {mb_idx}"
+        )
         self.out_activation[stage_id][mb_idx] = out_with_grad[0]
 
         # clear the input tensors
-        for i in self.input_idxs[stage_id]:
-            self.forward_args[stage_id][i] = None
+        # for i in self.input_idxs[stage_id]:
+        #     self.forward_args[stage_id][i] = None
 
         if stage_id < self.num_stages - 1:
-            # For non-final stages, send output tensors to the next stage
-            pp_rank = piper_metadata.stage_to_device[stage_id + 1]
-            global_dst_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+            self._exec_p2p_op(stage_id, stage_id + 1, mb_idx, True, output=output)
 
-            # TEMP: receive backward for the prev microbatch before sending forward for the current microbatch
-            if recv_bwd_b4_snd_fwd:
-                self.bwd_recv_buf = torch.empty_like(self.out_activation[stage_id][mb_idx-1])
-                pp_rank = piper_metadata.stage_to_device[stage_id + 1]
-                global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+        if CLEANUP_MEMORY:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
-                self.logger.debug(f"Dispatched bwd recv mb {mb_idx-1} from {global_src_rank} on {self.global_rank}")
-                self._start_timing(self.p2p_stream, "bwd_p2p_recv")
-                with torch.cuda.stream(self.p2p_stream):
-                    dist.recv(self.bwd_recv_buf, src=global_src_rank, group=self.pp_group)
-                self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
-                self.logger.debug(f"Completed bwd recv mb {mb_idx-1} from {global_src_rank} on {self.global_rank}")
-
-            self.logger.debug(f"Dispatched fwd send mb {mb_idx} to {global_dst_rank} on {self.global_rank}")
-            self._start_timing(self.p2p_stream, "fwd_p2p_send")
-            for i in range(len(output)):
-                dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
-            self._stop_timing(self.p2p_stream, "fwd_p2p_send")
-            self.logger.debug(f"Completed fwd send mb {mb_idx} to {global_dst_rank} on {self.global_rank}")
-            
-            del output
-
-        # if CLEANUP_MEMORY:
-        #     gc.collect()
-        #     if torch.cuda.is_available():
-        #         torch.cuda.empty_cache()
-        
-        self.logger.debug(f"Forward {stage_id} mb {mb_idx} on actor {self.global_rank} completed")
+        self.logger.debug(
+            f"Forward {stage_id} mb {mb_idx} on actor {self.global_rank} returning {[out.shape for out in output]}"
+        )
         torch.cuda.synchronize()
 
-    # @ray.method(tensor_transport="nccl")
-    def _backward(self, stage_id: int, mb_idx: int, loss_fn=None, recv_bwd_b4_snd_fwd: bool = False):
+    def _backward(self, stage_id: int, mb_idx: int, loss_fn=None):
 
-        self.logger.debug(f"Calling backward {stage_id} mb {mb_idx} on actor {self.global_rank}")
-        
+        self.logger.debug(
+            f"Calling backward {stage_id} mb {mb_idx} on actor {self.global_rank}"
+        )
+
         out_activation = self.out_activation[stage_id][mb_idx]
 
         if stage_id < self.num_stages - 1:
-            # For non-final stages, recieve input gradients from the subsequent backward pass
-            # TEMP: recv in _forward for all but last microbatch
-            if recv_bwd_b4_snd_fwd:
-                input_grad = self.bwd_recv_buf
-            else:
-                input_grad = torch.empty_like(out_activation)
-                pp_rank = piper_metadata.stage_to_device[stage_id + 1]
-                global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
-
-                self.logger.debug(f"Dispatched bwd recv mb {mb_idx} from {global_src_rank} on {self.global_rank}")
-                self._start_timing(self.p2p_stream, "bwd_p2p_recv")
-                with torch.cuda.stream(self.p2p_stream):
-                    dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
-                self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
-                self.logger.debug(f"Completed bwd recv mb {mb_idx} from {global_src_rank} on {self.global_rank}")
-                
-            self._start_timing(self.comp_stream, "backward_comp")
-            with torch.cuda.stream(self.comp_stream):
-                out_activation.backward(gradient=input_grad)
-            self._stop_timing(self.comp_stream, "backward_comp")
-            
-            del input_grad
-            self.bwd_recv_buf = None
+            self._exec_p2p_op(stage_id + 1, stage_id, mb_idx, False)
         else:
             # For the final stage, wait for the forward pass to complete
             assert loss_fn is not None
@@ -430,30 +597,15 @@ class PiperActor:
         del out_activation
 
         if stage_id > 0:
-            # For non-first stages, send output gradients to the previous backward stage
-            output_grad = self.inp_activation[stage_id][mb_idx].grad
-            assert output_grad is not None
-            pp_rank = piper_metadata.stage_to_device[stage_id - 1]
-            global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
+            self._exec_p2p_op(stage_id, stage_id - 1, mb_idx, True)
 
-            self.logger.debug(f"Dispatched bwd send mb {mb_idx} to {global_src_rank} on {self.global_rank}")
-            self._start_timing(self.p2p_stream, "bwd_p2p_send")
-            with torch.cuda.stream(self.p2p_stream):
-                dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
-            self._stop_timing(self.p2p_stream, "bwd_p2p_send")
-            self.logger.debug(f"Completed bwd send mb {mb_idx} to {global_src_rank} on {self.global_rank}")
+        if CLEANUP_MEMORY:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
-            # Clear input activation and its gradient after sending
-            self.inp_activation[stage_id][mb_idx] = None
-            del output_grad
-
-        # if CLEANUP_MEMORY:
-        #     gc.collect()
-        #     if torch.cuda.is_available():
-        #         torch.cuda.empty_cache()
-        
         torch.cuda.synchronize()
-        
+
     def _synchronize_gradients(self):
         self.logger.info(f"Actor {self.global_rank} synchronizing gradients")
         # Iterate over all stages on this actor and synchronize their parameters
@@ -461,11 +613,13 @@ class PiperActor:
             for param in parameters:
                 if param is not None and param.grad is not None:
                     with torch.cuda.stream(self.comm_stream):
-                        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG, group=self.dp_group)
+                        dist.all_reduce(
+                            param.grad, op=dist.ReduceOp.AVG, group=self.dp_group
+                        )
 
     def _update(self):
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
-            
+
         # if dp degree > 1, make sure all gradients are synchronized before optimizer step
         # TODO: this does not allow overlapping with the optimizer step
         if self.dp_degree > 1:
@@ -474,11 +628,8 @@ class PiperActor:
                 self._synchronize_gradients()
             else:
                 self._wait_for_comm_ops()
-                # Clear comm op handles after waiting
-                for stage_id in list(self.comm_op_handles.keys()):
-                    self.comm_op_handles[stage_id].clear()
             self._stop_timing(self.comm_stream, "backward_sync")
-        
+
         # step the optimizer for each stage
         self._start_timing(self.comp_stream, "optim_step")
         for _, optim in self.optims.items():
@@ -496,5 +647,7 @@ class PiperActor:
         #         torch.cuda.empty_cache()
 
         torch.cuda.synchronize()
+
+        self.reset_p2p_states()
 
         return losses

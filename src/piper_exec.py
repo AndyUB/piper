@@ -3,6 +3,7 @@ import ray
 import torch
 import torch.distributed as dist
 from typing import NamedTuple
+from enum import Enum
 import threading
 import time
 
@@ -10,13 +11,19 @@ from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 
 logger = create_logger("piper_exec", LOG_LEVEL)
 
+class CompType(Enum):
+    FWD = "forward"
+    BWD = "backward"
+    UPD = "update"
+    FWD_BWD = "forward_backward"
+
 class Task(NamedTuple):
     pp_rank: int
     stage_id: int
     mb_idx: int
-    is_fwd: bool
-    upd: bool
-    recv_bwd_b4_snd_fwd: bool = False
+    type: CompType
+    second_stage_id: int = None
+    second_mb_idx: int = None
 
 class DAGEdge(NamedTuple):
     from_stage: int
@@ -43,7 +50,7 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
     
     # Check well-formedness: no duplicates, pp_rank matches row, and all stages present
     all_tasks = set()
-    microbatch_tasks = {}  # mb_idx -> set of (stage_id, is_fwd, upd)
+    microbatch_tasks = {}  # mb_idx -> set of (stage_id, type)
     
     for stage_id in range(num_devices):
         for time_step in range(num_steps):
@@ -57,18 +64,18 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
                     )
                 
                 # Check for duplicates
-                task_key = (task.stage_id, task.mb_idx, task.is_fwd, task.upd)
+                task_key = (task.stage_id, task.mb_idx, task.type)
                 if task_key in all_tasks:
                     raise ValueError(
                         f"Duplicate task found: stage_id={task.stage_id}, "
-                        f"mb_idx={task.mb_idx}, is_fwd={task.is_fwd}, upd={task.upd}"
+                        f"mb_idx={task.mb_idx}, type={task.type}"
                     )
                 all_tasks.add(task_key)
                 
                 # Track tasks by microbatch
                 if task.mb_idx not in microbatch_tasks:
                     microbatch_tasks[task.mb_idx] = set()
-                microbatch_tasks[task.mb_idx].add((task.stage_id, task.is_fwd, task.upd))
+                microbatch_tasks[task.mb_idx].add((task.stage_id, task.type))
     
     # Get all required stages from DAG edges
     all_required_stages = set()
@@ -79,8 +86,8 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
     # Check that each microbatch has all required forward and backward stages
     for mb_idx, tasks in microbatch_tasks.items():
         # Find all stages that have forward/backward tasks for this microbatch
-        fwd_stages = {stage_id for stage_id, is_fwd, upd in tasks if is_fwd and not upd}
-        bwd_stages = {stage_id for stage_id, is_fwd, upd in tasks if not is_fwd and not upd}
+        fwd_stages = {stage_id for stage_id, task_type in tasks if task_type == CompType.FWD}
+        bwd_stages = {stage_id for stage_id, task_type in tasks if task_type == CompType.BWD}
         
         # Check that all required stages have forward tasks
         missing_fwd = all_required_stages - fwd_stages
@@ -106,9 +113,9 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
             for time_step in range(num_steps):
                 task = schedule[pp_rank][time_step]
                 if task is not None and task.mb_idx == mb_idx:
-                    if task.is_fwd and not task.upd:
+                    if task.type == CompType.FWD:
                         fwd_times[task.stage_id] = time_step
-                    elif not task.is_fwd and not task.upd:
+                    elif task.type == CompType.BWD:
                         bwd_times[task.stage_id] = time_step
         
         # Check forward stage ordering: if A -> B, then fwd(A) < fwd(B)
@@ -160,9 +167,7 @@ def piper_exec(schedule, inputs, truth, loss_fn, dp_degree=1, naive_gradient_syn
     num_steps, num_devices = len(schedule[0]), len(schedule)
 
     actors = piper_metadata.actors
-    if dp_degree > 1 and not naive_gradient_sync:
-        [actor._comm_loop.remote() for actor in actors.values()]
-    
+
     num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
     dag_edges = piper_metadata.dag
     dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata.dag)))
@@ -174,13 +179,13 @@ def piper_exec(schedule, inputs, truth, loss_fn, dp_degree=1, naive_gradient_syn
         for j in range(num_devices-1, -1, -1):
             task = schedule[j][i]
             if task:
-                _, stage_id, mb_idx, is_fwd, upd, recv_bwd_b4_snd_fwd = task
+                _, stage_id, mb_idx, task_type, _, _ = task
                 actor_id = j
                 actor = actors[actor_id]
-                if upd:
+                if task_type == CompType.UPD:
                     ret.append(actor._update.remote())
-                elif is_fwd:
-                    actor._forward.remote(stage_id, mb_idx, recv_bwd_b4_snd_fwd=recv_bwd_b4_snd_fwd)
-                else:
-                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn, recv_bwd_b4_snd_fwd=recv_bwd_b4_snd_fwd)
+                elif task_type == CompType.FWD:
+                    actor._forward.remote(stage_id, mb_idx)
+                else:  # CompType.BWD
+                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn)
     return ray.get(ret)

@@ -13,7 +13,7 @@ from src.piper_exec import piper_exec
 from src.piper_utils import piper_metadata
 
 from .models.mixtral import Transformer, ModelArgs
-from .schedule_helpers import build_1f1b_schedule, print_schedule
+from .schedule_helpers import build_1f1b_schedule, print_schedule, no_pp_schedule, pp2_interleaved_1f1b_grid_schedule, pp4_interleaved_1f1b_grid_schedule, build_gpipe_schedule
 from torch._dynamo.backends.debugging import eager
 
 def main(args):
@@ -32,6 +32,19 @@ def main(args):
         case 'large':
             config = ModelArgs.from_name("Mixtral-8x7B-v0.1")
 
+    schedule = None
+    match args.schedule:
+        case "no-pp":
+            schedule = no_pp_schedule
+        case "interleaved-1f1b":
+            schedule = pp2_interleaved_1f1b_grid_schedule if args.pp == 2 else pp4_interleaved_1f1b_grid_schedule
+        case "1f1b":
+            schedule = build_1f1b_schedule(args.mbs, args.pp)
+        case "gpipe":
+            schedule = build_gpipe_schedule(args.mbs, args.pp)
+    print("Schedule:")
+    print_schedule(schedule)
+
     model = Transformer(config)
     model.to('cuda')
 
@@ -39,9 +52,7 @@ def main(args):
     input_pos = torch.arange(config.block_size).to('cuda')
     y = torch.randn(batch_size, config.block_size, config.vocab_size).to('cuda')
 
-    schedule = build_1f1b_schedule(mbs, args.pp)
-    print_schedule(schedule)
-    model = piper_setup(
+    piper_setup(
         model, 
         torch.optim.Adam, 
         [x, input_pos], 
@@ -58,15 +69,13 @@ def main(args):
 
     print(f"Running {args.warmup} warmup iterations...")
     for _ in range(args.warmup):
-        piper_exec(model, schedule, [x, input_pos], y, loss_fn, args.dp)
+        piper_exec(schedule, [x, input_pos], y, loss_fn, args.dp, args.naive_gradient_sync)
     
-    ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
-
     print(f"Running {args.iters} timed iterations...")
     iter_times = []
     for _ in range(args.iters):
         start = time.perf_counter()
-        piper_exec(model, schedule, [x, input_pos], y, loss_fn, args.dp)
+        piper_exec(schedule, [x, input_pos], y, loss_fn, args.dp, args.naive_gradient_sync)
         end = time.perf_counter()
         iter_times.append(end - start)
     
@@ -77,10 +86,17 @@ def main(args):
     )
 
     if args.tracing:
-        trace_data_dicts = ray.get([actor.get_trace_data.remote() for actor in actors.values()])
-        for key in trace_data_dicts[0]:
-            all_times = list(itertools.chain.from_iterable(trace_data_dict[key] for trace_data_dict in trace_data_dicts))
-            print(f"rank {dp_rank} {key} time= {np.mean(all_times):.2f} ± {np.std(all_times):.2f} ms ({len(all_times)} samples)")
+        ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
+
+        print(f"Running {args.warmup} tracing iterations...")
+        for _ in range(args.warmup):
+            piper_exec(schedule, [x, input_pos], y, loss_fn, args.dp, args.naive_gradient_sync)
+
+        trace_data_ret = ray.get([actor.get_trace_data.remote() for actor in actors.values()])
+        for rank, trace_data in trace_data_ret:
+            for key in trace_data:
+                all_times = trace_data[key]
+                print(f"rank {rank} {key} time= {np.mean(all_times):.3f} ± {np.std(all_times):.3f} ms ({len(all_times)} samples)")
 
     timeline_filename = f"out/mixtral-pp{args.pp}-dp{args.dp}"
     ray.timeline(timeline_filename)
@@ -90,6 +106,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['tiny', 'small', 'medium', 'large'], default='tiny',
                         help='Model configuration: tiny, small, medium, or large (default: tiny)')
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
+                        help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
     parser.add_argument('--dp', type=int, default=2,
                         help='Number of data parallel degrees (default: 2)')
     parser.add_argument('--pp', type=int, default=2,
