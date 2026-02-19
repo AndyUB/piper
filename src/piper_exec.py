@@ -169,6 +169,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, dp_degree=1):
     
     _validate_schedule(schedule, dag_edges, num_mbs)
 
+    ray.get([actor.reset_p2p_states.remote() for actor in actors.values()])
     ret = []
     for i in range(num_steps):
         for j in range(num_devices-1, -1, -1):

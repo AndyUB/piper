@@ -157,6 +157,10 @@ class PiperActor:
 
         piper_metadata.actor_self = self
 
+    def reset_p2p_states(self):
+        self.next_p2p_idx = 0
+        self.executed_p2ps = set()
+
     def get_trace_data(self) -> dict:
         return self.global_rank, self.trace_data
 
