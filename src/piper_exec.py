@@ -4,8 +4,10 @@ import torch
 import torch.distributed as dist
 from typing import NamedTuple
 from enum import Enum
+from dataclasses import dataclass, field
 import threading
 import time
+from collections import defaultdict
 
 from .piper_utils import piper_metadata, create_logger, LOG_LEVEL
 
@@ -17,13 +19,62 @@ class CompType(Enum):
     UPD = "update"
     FWD_BWD = "forward_backward"
 
+
+class MicrobatchMetadata(NamedTuple):
+    """Metadata for one microbatch executed as part of a task."""
+    stage_id: int
+    mb_idx: int
+    comp_type: CompType
+
+
+class ScheduleTask(NamedTuple):
+    """A node in the schedule DAG: runs on pp_rank with one or more microbatches."""
+    pp_rank: int
+    microbatches: tuple[MicrobatchMetadata, ...]
+
+
+class ScheduleEdge(NamedTuple):
+    """Data dependency: to_task consumes output of from_task (source and destination only)."""
+    from_task_idx: int
+    to_task_idx: int
+
+
+class TemporalEdge(NamedTuple):
+    """Temporal dependency: to_task must run after from_task (ordering only)."""
+    from_task_idx: int
+    to_task_idx: int
+
+
+@dataclass
+class Schedule:
+    """DAG schedule: tasks (nodes), data edges, and temporal edges."""
+    tasks: list[ScheduleTask]
+    edges: list[ScheduleEdge]
+    temporal_edges: list[TemporalEdge] = field(default_factory=list)
+
+    def num_stages(self) -> int:
+        stages = set()
+        for task in self.tasks:
+            for mb in task.microbatches:
+                stages.add(mb.stage_id)
+        return max(stages) + 1 if stages else 0
+
+    def num_mbs(self) -> int:
+        mbs = set()
+        for task in self.tasks:
+            for mb in task.microbatches:
+                mbs.add(mb.mb_idx)
+        return max(mbs) + 1 if mbs else 0
+
+
+# Legacy single-microbatch task (for backward compatibility / conversion).
 class Task(NamedTuple):
     pp_rank: int
     stage_id: int
     mb_idx: int
     type: CompType
-    second_stage_id: int = None
-    second_mb_idx: int = None
+    second_stage_id: int | None = None
+    second_mb_idx: int | None = None
 
 class DAGEdge(NamedTuple):
     from_stage: int
@@ -34,158 +85,156 @@ def _get_backward_targets(stage_id: int, dag_edges: list[DAGEdge]):
     return [edge for edge in dag_edges if edge.to_stage == stage_id]
 
 
-def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdge], num_mbs: int) -> None:
+def _validate_schedule_dag(
+    schedule: Schedule,
+    dag_edges: list[DAGEdge],
+    num_stages: int,
+    num_mbs: int,
+) -> None:
     """
-    Validate that the schedule respects well-formedness rules and DAG dependencies.
-    
-    Args:
-        schedule: 2D array with one row per device and one column per time step
-        dag_edges: List of DAG edges defining stage dependencies
-        num_mbs: Number of microbatches in the schedule
-        
-    Raises:
-        ValueError: If the schedule violates any validation rules
+    Validate that the schedule DAG has valid data dependencies for all tasks.
+    For each microbatch: FWD/BWD have correct input/output edges; UPD has none.
     """
-    num_devices, num_steps = len(schedule), len(schedule[0]) if schedule else 0
-    
-    # Check well-formedness: no duplicates, pp_rank matches row, and all stages present
-    all_tasks = set()
-    microbatch_tasks = {}  # mb_idx -> set of (stage_id, type)
-    
-    for stage_id in range(num_devices):
-        for time_step in range(num_steps):
-            task = schedule[stage_id][time_step]
-            if task is not None:
-                # Check pp_rank matches row
-                if task.pp_rank != stage_id:
-                    raise ValueError(
-                        f"Task pp_rank {task.pp_rank} does not match row {stage_id} "
-                        f"at time step {time_step}"
-                    )
-                
-                # Check for duplicates
-                task_key = (task.stage_id, task.mb_idx, task.type)
-                if task_key in all_tasks:
-                    raise ValueError(
-                        f"Duplicate task found: stage_id={task.stage_id}, "
-                        f"mb_idx={task.mb_idx}, type={task.type}"
-                    )
-                all_tasks.add(task_key)
-                
-                # Track tasks by microbatch
-                if task.mb_idx not in microbatch_tasks:
-                    microbatch_tasks[task.mb_idx] = set()
-                microbatch_tasks[task.mb_idx].add((task.stage_id, task.type))
-    
-    # Get all required stages from DAG edges
+    tasks = schedule.tasks
+    edges = schedule.edges
+    edges_into: dict[int, list[int]] = defaultdict(list)
+    edges_out_of: dict[int, list[int]] = defaultdict(list)
+    for e in edges:
+        edges_into[e.to_task_idx].append(e.from_task_idx)
+        edges_out_of[e.from_task_idx].append(e.to_task_idx)
+
     all_required_stages = set()
     for edge in dag_edges:
         all_required_stages.add(edge.from_stage)
         all_required_stages.add(edge.to_stage)
-    
-    # Check that each microbatch has all required forward and backward stages
-    for mb_idx, tasks in microbatch_tasks.items():
-        # Find all stages that have forward/backward tasks for this microbatch
-        fwd_stages = {stage_id for stage_id, task_type in tasks if task_type == CompType.FWD}
-        bwd_stages = {stage_id for stage_id, task_type in tasks if task_type == CompType.BWD}
-        
-        # Check that all required stages have forward tasks
-        missing_fwd = all_required_stages - fwd_stages
-        if missing_fwd:
-            raise ValueError(
-                f"Microbatch {mb_idx} missing forward stages: {missing_fwd}"
-            )
-        
-        # Check that all required stages have backward tasks
-        missing_bwd = all_required_stages - bwd_stages
-        if missing_bwd:
-            raise ValueError(
-                f"Microbatch {mb_idx} missing backward stages: {missing_bwd}"
-            )
-    
-    # Check pipeline stage dependencies
-    for mb_idx in range(num_mbs):
-        # Find all tasks for this microbatch
-        fwd_times = {}  # stage_id -> time_step
-        bwd_times = {}  # stage_id -> time_step
-        
-        for pp_rank in range(num_devices):
-            for time_step in range(num_steps):
-                task = schedule[pp_rank][time_step]
-                if task is not None and task.mb_idx == mb_idx:
-                    if task.type == CompType.FWD:
-                        fwd_times[task.stage_id] = time_step
-                    elif task.type == CompType.BWD:
-                        bwd_times[task.stage_id] = time_step
-        
-        # Check forward stage ordering: if A -> B, then fwd(A) < fwd(B)
-        for edge in dag_edges:
-            from_stage, to_stage = edge.from_stage, edge.to_stage
-            if from_stage in fwd_times and to_stage in fwd_times:
-                if fwd_times[from_stage] >= fwd_times[to_stage]:
-                    raise ValueError(
-                        f"Forward stage ordering violation for microbatch {mb_idx}: "
-                        f"forward stage {from_stage} (time {fwd_times[from_stage]}) must come "
-                        f"before forward stage {to_stage} (time {fwd_times[to_stage]})"
-                    )
-        
-        # Check forward-backward ordering: fwd(A) < bwd(A)
-        for stage_id in fwd_times:
-            if stage_id in bwd_times:
-                if fwd_times[stage_id] >= bwd_times[stage_id]:
-                    raise ValueError(
-                        f"Forward-backward ordering violation for microbatch {mb_idx}, "
-                        f"stage {stage_id}: forward (time {fwd_times[stage_id]}) must come "
-                        f"before backward (time {bwd_times[stage_id]})"
-                    )
-        
-        # Check backward stage ordering: if A -> B, then bwd(B) < bwd(A)
-        for edge in dag_edges:
-            from_stage, to_stage = edge.from_stage, edge.to_stage
-            if from_stage in bwd_times and to_stage in bwd_times:
-                if bwd_times[to_stage] >= bwd_times[from_stage]:
-                    raise ValueError(
-                        f"Backward stage ordering violation for microbatch {mb_idx}: "
-                        f"backward stage {to_stage} (time {bwd_times[to_stage]}) must come "
-                        f"before backward stage {from_stage} (time {bwd_times[from_stage]})"
-                    )
 
-def piper_exec(schedule, inputs, truth, loss_fn, dp_degree=1, naive_gradient_sync=False):
+    task_produces: dict[int, set[tuple[int, int, CompType]]] = defaultdict(set)
+    for ti, task in enumerate(tasks):
+        for mb in task.microbatches:
+            task_produces[ti].add((mb.stage_id, mb.mb_idx, mb.comp_type))
+
+    for ti, task in enumerate(tasks):
+        predecessors = edges_into[ti]
+        successors = edges_out_of[ti]
+        for mb in task.microbatches:
+            s, m, c = mb.stage_id, mb.mb_idx, mb.comp_type
+            if c == CompType.UPD:
+                continue
+            if c == CompType.FWD:
+                if s > 0:
+                    required = (s - 1, m, c)
+                    if not any(required in task_produces[u] for u in predecessors):
+                        raise ValueError(
+                            f"Task {ti} microbatch (stage_id={s}, mb_idx={m}, FWD) missing input: "
+                            f"no predecessor produces {required}"
+                        )
+                if s < num_stages - 1:
+                    required = (s + 1, m, c)
+                    if not any(required in task_produces[v] for v in successors):
+                        raise ValueError(
+                            f"Task {ti} microbatch (stage_id={s}, mb_idx={m}, FWD) missing output: "
+                            f"no successor consumes {required}"
+                        )
+            else:  # BWD
+                if s == num_stages - 1:
+                    required = (s, m, CompType.FWD)
+                    if not any(required in task_produces[u] for u in predecessors):
+                        raise ValueError(
+                            f"Task {ti} microbatch (stage_id={s}, mb_idx={m}, BWD) missing FWD_BWD input: "
+                            f"no predecessor produces {required}"
+                        )
+                if s < num_stages - 1:
+                    required = (s + 1, m, c)
+                    if not any(required in task_produces[u] for u in predecessors):
+                        raise ValueError(
+                            f"Task {ti} microbatch (stage_id={s}, mb_idx={m}, BWD) missing BWD input: "
+                            f"no predecessor produces {required}"
+                        )
+                if s > 0:
+                    required = (s - 1, m, c)
+                    if not any(required in task_produces[v] for v in successors):
+                        raise ValueError(
+                            f"Task {ti} microbatch (stage_id={s}, mb_idx={m}, BWD) missing output: "
+                            f"no successor consumes {required}"
+                        )
+
+    mb_fwd_stages: dict[int, set[int]] = defaultdict(set)
+    mb_bwd_stages: dict[int, set[int]] = defaultdict(set)
+    for task in tasks:
+        for mb in task.microbatches:
+            if mb.comp_type == CompType.FWD:
+                mb_fwd_stages[mb.mb_idx].add(mb.stage_id)
+            elif mb.comp_type == CompType.BWD:
+                mb_bwd_stages[mb.mb_idx].add(mb.stage_id)
+    for mb_idx in range(num_mbs):
+        missing_fwd = all_required_stages - mb_fwd_stages.get(mb_idx, set())
+        if missing_fwd:
+            raise ValueError(f"Microbatch {mb_idx} missing forward stages: {missing_fwd}")
+        missing_bwd = all_required_stages - mb_bwd_stages.get(mb_idx, set())
+        if missing_bwd:
+            raise ValueError(f"Microbatch {mb_idx} missing backward stages: {missing_bwd}")
+
+
+def _topological_order(schedule: Schedule) -> list[int]:
+    """Return task indices in topological order (data + temporal predecessors)."""
+    tasks = schedule.tasks
+    edges = schedule.edges
+    temporal = schedule.temporal_edges or []
+    n = len(tasks)
+    in_degree = [0] * n
+    for e in edges:
+        in_degree[e.to_task_idx] += 1
+    for e in temporal:
+        in_degree[e.to_task_idx] += 1
+    queue = [i for i in range(n) if in_degree[i] == 0]
+    order = []
+    while queue:
+        u = queue.pop(0)
+        order.append(u)
+        for e in edges:
+            if e.from_task_idx == u:
+                in_degree[e.to_task_idx] -= 1
+                if in_degree[e.to_task_idx] == 0:
+                    queue.append(e.to_task_idx)
+        for e in temporal:
+            if e.from_task_idx == u:
+                in_degree[e.to_task_idx] -= 1
+                if in_degree[e.to_task_idx] == 0:
+                    queue.append(e.to_task_idx)
+    if len(order) != n:
+        raise ValueError("Schedule DAG has a cycle")
+    return order
+
+
+def piper_exec(schedule: Schedule, inputs, truth, loss_fn, dp_degree=1, naive_gradient_sync=False):
     """
     Execute one step of the pipeline schedule on the distributed model.
 
     Args:
-        schedule: A 2D list (device x time_step) of Tasks specifying execution order.
+        schedule: Schedule DAG (tasks and edges).
         inputs: Inputs to the model.
         truth: Ground-truth labels or targets.
         loss_fn: Loss function to be used for training.
-        num_mbs: Number of microbatches in the schedule.
 
     Returns:
-        List of losses per microbatch.)
+        List of losses per microbatch (from UPD tasks).
     """
-    num_steps, num_devices = len(schedule[0]), len(schedule)
+    dag_edges = [DAGEdge(e[0], e[1]) for e in piper_metadata.dag]
+    num_stages = schedule.num_stages()
+    num_mbs = schedule.num_mbs()
+    _validate_schedule_dag(schedule, dag_edges, num_stages, num_mbs)
 
+    order = _topological_order(schedule)
     actors = piper_metadata.actors
-
-    num_mbs = len(set([task.mb_idx for row in schedule for task in row if task is not None]))
-    dag_edges = piper_metadata.dag
-    dag_edges = list(map(lambda e: (DAGEdge(e[0], e[1])), list(piper_metadata.dag)))
-    
-    _validate_schedule(schedule, dag_edges, num_mbs)
-
     ret = []
-    for i in range(num_steps):
-        for j in range(num_devices-1, -1, -1):
-            task = schedule[j][i]
-            if task:
-                _, stage_id, mb_idx, task_type, _, _ = task
-                actor_id = j
-                actor = actors[actor_id]
-                if task_type == CompType.UPD:
-                    ret.append(actor._update.remote())
-                elif task_type == CompType.FWD:
-                    actor._forward.remote(stage_id, mb_idx)
-                else:  # CompType.BWD
-                    actor._backward.remote(stage_id, mb_idx, loss_fn=loss_fn)
+    for ti in order:
+        task = schedule.tasks[ti]
+        actor = actors[task.pp_rank]
+        for mb in task.microbatches:
+            if mb.comp_type == CompType.UPD:
+                ret.append(actor._update.remote())
+            elif mb.comp_type == CompType.FWD:
+                actor._forward.remote(mb.stage_id, mb.mb_idx)
+            elif mb.comp_type == CompType.BWD:
+                actor._backward.remote(mb.stage_id, mb.mb_idx, loss_fn=loss_fn)
     return ray.get(ret)
