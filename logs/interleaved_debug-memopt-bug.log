@@ -1,0 +1,385 @@
+2026-02-20 09:09:40,965	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+[36m(run_dp_rank pid=2467960)[0m Namespace(model='debug', schedule='interleaved-1f1b', dp=1, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=1, iters=1, tracing=False, naive_gradient_sync=False)
+[36m(run_dp_rank pid=2467960)[0m Schedule:
+[36m(run_dp_rank pid=2467960)[0m 0:0:f	0:1:f	2:0:f	2:1:f	0:2:f	0:3:f	2:0:b	 -- 	2:1:b	2:2:f	0:0:b	2:3:f	0:1:b	 -- 	2:2:b	2:3:b	0:2:b	0:3:b	0:0:u	
+[36m(run_dp_rank pid=2467960)[0m  -- 	1:0:f	1:1:f	3:0:f	3:0:b	3:1:f	3:1:b	1:2:f	1:0:b	1:3:f	1:1:b	3:2:f	3:2:b	3:3:f	3:3:b	1:2:b	1:3:b	1:0:u	 -- 	
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,380 - piper_coordinator - DEBUG - Running DP rank 1 of 1
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,403 - piper_compile - DEBUG - mbs: 4, stages: 4, devices: 2
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,403 - piper_compile - DEBUG - Fwd/bwd schedule: [[Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=2, mb_idx=3, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=0, stage_id=0, mb_idx=3, is_fwd=False, upd=False)], [Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=0, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=1, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=True, upd=False), Task(pp_rank=1, stage_id=3, mb_idx=3, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=2, is_fwd=False, upd=False), Task(pp_rank=1, stage_id=1, mb_idx=3, is_fwd=False, upd=False)]]
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,403 - piper_compile - DEBUG - P2P comms: [(0, 1, 0), (0, 1, 1), (1, 2, 0), (2, 3, 0), (1, 2, 1), (2, 3, 1), (0, 1, 2), (3, 2, 0), (0, 1, 3), (2, 1, 0), (3, 2, 1), (2, 1, 1), (1, 2, 2), (2, 3, 2), (1, 0, 0), (1, 2, 3), (2, 3, 3), (1, 0, 1), (3, 2, 2), (2, 1, 2), (3, 2, 3), (2, 1, 3), (1, 0, 2), (1, 0, 3)]
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,403 - piper_compile - DEBUG - P2P schedules: {0: [(0, 1, 0, True), (0, 1, 1, True), (1, 2, 0, False), (2, 3, 0, True), (1, 2, 1, False), (2, 3, 1, True), (0, 1, 2, True), (3, 2, 0, False), (0, 1, 3, True), (2, 1, 0, True), (3, 2, 1, False), (2, 1, 1, True), (1, 2, 2, False), (2, 3, 2, True), (1, 0, 0, False), (1, 2, 3, False), (2, 3, 3, True), (1, 0, 1, False), (3, 2, 2, False), (2, 1, 2, True), (3, 2, 3, False), (2, 1, 3, True), (1, 0, 2, False), (1, 0, 3, False)], 1: [(0, 1, 0, False), (0, 1, 1, False), (1, 2, 0, True), (2, 3, 0, False), (1, 2, 1, True), (2, 3, 1, False), (0, 1, 2, False), (3, 2, 0, True), (0, 1, 3, False), (2, 1, 0, False), (3, 2, 1, True), (2, 1, 1, False), (1, 2, 2, True), (2, 3, 2, False), (1, 0, 0, True), (1, 2, 3, True), (2, 3, 3, False), (1, 0, 1, True), (3, 2, 2, True), (2, 1, 2, False), (3, 2, 3, True), (2, 1, 3, False), (1, 0, 2, True), (1, 0, 3, True)]}
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,469 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 4d48938144c53713213caa6701000000) global rank 0
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:09:56,470 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, fe22d6a87fc51068dbea78fd01000000) global rank 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:09:59,615 - piper_actor - INFO - Initializing Ray actor 1 global rank 1 GPU 2
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:09:59,644 - piper_actor - INFO - Initializing Ray actor 0 global rank 0 GPU 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:01,897 - piper_actor - DEBUG - Actor 1 has GPU 2, joined the global process group
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:01,898 - piper_actor - INFO - Global rank 1 joined its pp group 0 along with ranks [0, 1]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:01,901 - piper_actor - DEBUG - Actor 0 has GPU 1, joined the global process group
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:01,902 - piper_actor - INFO - Global rank 0 joined its pp group 0 along with ranks [0, 1]
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:10:02,116 - piper_compile - INFO - DP rank 1 compiling...
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:04,964 - piper_actor - INFO - Loading stage 0 graph on actor 0
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:05,085 - piper_actor - INFO - Loading stage 1 graph on actor 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:06,233 - piper_actor - INFO - Loading stage 2 graph on actor 0
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:06,413 - piper_actor - INFO - Loading stage 3 graph on actor 1
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:10:06,537 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[36m(run_dp_rank pid=2467960)[0m Running 1 warmup iterations...
+[36m(run_dp_rank pid=2467960)[0m 2026-02-20 09:10:12,957 - piper_compile - INFO - DP rank 1 done.
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:12,992 - piper_actor - DEBUG - Actor 1 loaded labels torch.Size([16, 256, 512])
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:12,997 - piper_actor - DEBUG - Calling forward 1 mb 0 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:12,997 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 0 -> 1, mb 0, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:12,997 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (0 -> 1, mb 0)
+[36m(PiperActor pid=2467963)[0m [rank1]:[W220 09:10:13.484752123 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:12,981 - piper_actor - DEBUG - Actor 0 loaded inputs 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:12,997 - piper_actor - DEBUG - Calling forward 0 mb 0 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:13,541 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:13,541 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 0 -> 1, mb 0, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:13,542 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (0 -> 1, mb 0)
+[36m(PiperActor pid=2467971)[0m [rank0]:[W220 09:10:13.024049932 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:14,889 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (0 -> 1, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:14,889 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 0 -> 1, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:14,890 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 1 mb 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,878 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (0 -> 1, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,879 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,879 - piper_actor - DEBUG - Forward 0 mb 0 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,881 - piper_actor - DEBUG - Calling forward 0 mb 1 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,941 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,941 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 0 -> 1, mb 1, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,941 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (0 -> 1, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,942 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (0 -> 1, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,942 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 1) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,942 - piper_actor - DEBUG - Forward 0 mb 1 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,943 - piper_actor - DEBUG - Calling forward 2 mb 0 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,943 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 1 -> 2, mb 0, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:14,943 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1, op: (1 -> 2, mb 0)
+[36m(PiperActor pid=2467971)[0m [rank0]:[W220 09:10:14.425450680 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,187 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 1 mb 0
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,187 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 1 -> 2, mb 0, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,187 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (0 -> 1, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,188 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (0 -> 1, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,188 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 0 -> 1, mb 1) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,188 - piper_actor - DEBUG - Dispatch fwd p2p send on 1 to 0, op: (1 -> 2, mb 0)
+[36m(PiperActor pid=2467963)[0m [rank1]:[W220 09:10:15.670307636 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,514 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0, op: (1 -> 2, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,515 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 1 -> 2, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,515 - piper_actor - DEBUG - Forward 1 mb 0 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,516 - piper_actor - DEBUG - Calling forward 1 mb 1 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,516 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 0 -> 1, mb 1, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,516 - piper_actor - DEBUG - P2P op (0, 1, 1, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,516 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 1 mb 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 1 mb 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 1 -> 2, mb 1, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (2 -> 3, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (2 -> 3, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 2 -> 3, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Dispatch fwd p2p send on 1 to 0, op: (1 -> 2, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0, op: (1 -> 2, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 1 -> 2, mb 1) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Forward 1 mb 1 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Calling forward 3 mb 0 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 3, mb 0, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - P2P op (2, 3, 0, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 3 mb 0
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 3 mb 0
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Forward 3 mb 0 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,534 - piper_actor - DEBUG - Calling backward 3 mb 0 on actor 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,514 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1, op: (1 -> 2, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,514 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 1 -> 2, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,515 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,522 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,523 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 3, mb 0, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,523 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (2 -> 3, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,523 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (2 -> 3, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,523 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 2 -> 3, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,523 - piper_actor - DEBUG - Forward 2 mb 0 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Calling forward 2 mb 1 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 1 -> 2, mb 1, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,524 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1, op: (1 -> 2, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1, op: (1 -> 2, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 1 -> 2, mb 1) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,525 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 1
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 3, mb 1, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (2 -> 3, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (2 -> 3, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,533 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 2 -> 3, mb 1) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,534 - piper_actor - DEBUG - Forward 2 mb 1 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,534 - piper_actor - DEBUG - Calling forward 0 mb 2 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 2
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 0 -> 1, mb 2, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (0 -> 1, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (0 -> 1, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 2) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,541 - piper_actor - DEBUG - Forward 0 mb 2 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,542 - piper_actor - DEBUG - Calling forward 0 mb 3 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,548 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 0 mb 3
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,548 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 0 -> 1, mb 3, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,548 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1, op: (3 -> 2, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,549 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1, op: (3 -> 2, mb 0)
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._forward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 579, in _forward
+[36m(run_dp_rank pid=2467960)[0m     inp_with_grad = [
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 582, in <listcomp>
+[36m(run_dp_rank pid=2467960)[0m     if self.forward_args[stage_id][i].requires_grad
+[36m(run_dp_rank pid=2467960)[0m AttributeError: 'NoneType' object has no attribute 'requires_grad'
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._backward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 649, in _backward
+[36m(run_dp_rank pid=2467960)[0m     self._exec_p2p_op(stage_id, stage_id - 1, mb_idx, True)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 441, in _exec_p2p_op
+[36m(run_dp_rank pid=2467960)[0m     self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+[36m(run_dp_rank pid=2467960)[0m TypeError: PiperActor._exec_fwd_send() missing 1 required positional argument: 'output'
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._backward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 649, in _backward
+[36m(run_dp_rank pid=2467960)[0m     self._exec_p2p_op(stage_id, stage_id - 1, mb_idx, True)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 441, in _exec_p2p_op
+[36m(run_dp_rank pid=2467960)[0m     self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+[36m(run_dp_rank pid=2467960)[0m TypeError: PiperActor._exec_fwd_send() missing 1 required positional argument: 'output'
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._forward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 576, in _forward
+[36m(run_dp_rank pid=2467960)[0m     self._exec_p2p_op(stage_id - 1, stage_id, mb_idx, False)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 441, in _exec_p2p_op
+[36m(run_dp_rank pid=2467960)[0m     self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+[36m(run_dp_rank pid=2467960)[0m TypeError: PiperActor._exec_fwd_send() missing 1 required positional argument: 'output'
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._backward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 633, in _backward
+[36m(run_dp_rank pid=2467960)[0m     out_activation = self.out_activation[stage_id][mb_idx]
+[36m(run_dp_rank pid=2467960)[0m KeyError: 3
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._backward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 636, in _backward
+[36m(run_dp_rank pid=2467960)[0m     self._exec_p2p_op(stage_id + 1, stage_id, mb_idx, False)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 441, in _exec_p2p_op
+[36m(run_dp_rank pid=2467960)[0m     self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+[36m(run_dp_rank pid=2467960)[0m TypeError: PiperActor._exec_fwd_send() missing 1 required positional argument: 'output'
+[36m(run_dp_rank pid=2467960)[0m Unhandled error (suppress with 'RAY_IGNORE_UNHANDLED_ERRORS=1'): [36mray::PiperActor._backward()[39m (pid=2467963, ip=10.158.48.71, actor_id=fe22d6a87fc51068dbea78fd01000000, repr=<src.piper_actor.PiperActor object at 0x7fdc00baf760>)
+[36m(run_dp_rank pid=2467960)[0m   File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_actor.py", line 633, in _backward
+[36m(run_dp_rank pid=2467960)[0m     out_activation = self.out_activation[stage_id][mb_idx]
+[36m(run_dp_rank pid=2467960)[0m KeyError: 3
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,703 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 3 -> 2, mb 0, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,704 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (2 -> 3, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (2 -> 3, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 2 -> 3, mb 1) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (0 -> 1, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (0 -> 1, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 0 -> 1, mb 2) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,705 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0, op: (3 -> 2, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,706 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0, op: (3 -> 2, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,706 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 3 -> 2, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,708 - piper_actor - DEBUG - Calling forward 3 mb 1 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,708 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 3, mb 1, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,708 - piper_actor - DEBUG - P2P op (2, 3, 1, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,708 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 3 mb 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,711 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 3 mb 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,711 - piper_actor - DEBUG - Forward 3 mb 1 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,713 - piper_actor - DEBUG - Calling backward 3 mb 1 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,722 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 3 -> 2, mb 1, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,723 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (0 -> 1, mb 3)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,723 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (0 -> 1, mb 3)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,723 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 0 -> 1, mb 3) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,723 - piper_actor - DEBUG - Dispatch bwd p2p recv on 1 from 0, op: (2 -> 1, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,723 - piper_actor - DEBUG - Completed bwd p2p recv on 1 from 0, op: (2 -> 1, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,737 - piper_actor - DEBUG - Executed P2P(bwd_recv, stage 2 -> 1, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,737 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0, op: (3 -> 2, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,737 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0, op: (3 -> 2, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,738 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 3 -> 2, mb 1) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - Calling forward 1 mb 2 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,772 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 0 -> 1, mb 2, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,772 - piper_actor - DEBUG - P2P op (0, 1, 2, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,772 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 1 mb 2
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,774 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 1 mb 2
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,774 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 1 -> 2, mb 2, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,774 - piper_actor - DEBUG - Dispatch bwd p2p recv on 1 from 0, op: (2 -> 1, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,775 - piper_actor - DEBUG - Completed bwd p2p recv on 1 from 0, op: (2 -> 1, mb 1)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,779 - piper_actor - DEBUG - Executed P2P(bwd_recv, stage 2 -> 1, mb 1) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,779 - piper_actor - DEBUG - Dispatch fwd p2p send on 1 to 0, op: (1 -> 2, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,779 - piper_actor - DEBUG - Completed fwd p2p send on 1 to 0, op: (1 -> 2, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 1 -> 2, mb 2) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Forward 1 mb 2 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - Calling backward 1 mb 0 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 1, mb 0, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - P2P op (2, 1, 0, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 1 -> 0, mb 0, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - Dispatch fwd p2p recv on 1 from 0, op: (2 -> 3, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - Completed fwd p2p recv on 1 from 0, op: (2 -> 3, mb 2)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 2 -> 3, mb 2) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Dispatch bwd p2p send on 1 to 0, op: (1 -> 0, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Completed bwd p2p send on 1 to 0, op: (1 -> 0, mb 0)
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 1 -> 0, mb 0) on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Calling forward 1 mb 3 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 0 -> 1, mb 3, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - P2P op (0, 1, 3, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,785 - piper_actor - DEBUG - Calling backward 1 mb 1 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,785 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 1, mb 1, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,785 - piper_actor - DEBUG - P2P op (2, 1, 1, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,785 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 1 -> 0, mb 1, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,786 - piper_actor - DEBUG - Calling forward 3 mb 2 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,786 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 3, mb 2, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,787 - piper_actor - DEBUG - P2P op (2, 3, 2, False) already executed on actor 1, skipping
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,787 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 3 mb 2
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,789 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 3 mb 2
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,789 - piper_actor - DEBUG - Forward 3 mb 2 on actor 1 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,790 - piper_actor - DEBUG - Calling backward 3 mb 2 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,796 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 3 -> 2, mb 2, is_sender=True
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,800 - piper_actor - DEBUG - Calling forward 3 mb 3 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,800 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 3, mb 3, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,801 - piper_actor - DEBUG - Calling backward 3 mb 3 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,802 - piper_actor - DEBUG - Calling backward 1 mb 2 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,803 - piper_actor - DEBUG - [DEBUG] Actor 1 executing p2p op: 2 -> 1, mb 2, is_sender=False
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,804 - piper_actor - DEBUG - Calling backward 1 mb 3 on actor 1
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,805 - piper_actor - DEBUG - Actor 1 waiting for backward sync events
+[36m(PiperActor pid=2467963)[0m 2026-02-20 09:10:15,805 - piper_actor - DEBUG - Actor 1 waiting for p2p ops
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/autograd/graph.py:865: UserWarning: Attempting to run cuBLAS, but there was no current CUDA context! Attempting to set the primary context... (Triggered internally at /pytorch/aten/src/ATen/cuda/CublasHandlePool.cpp:330.)
+[36m(PiperActor pid=2467971)[0m   return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,768 - piper_actor - DEBUG - Executed P2P(bwd_recv, stage 3 -> 2, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,768 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (0 -> 1, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,769 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (0 -> 1, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,769 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 0 -> 1, mb 3) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,769 - piper_actor - DEBUG - Forward 0 mb 3 on actor 0 returning [torch.Size([256, 8]), torch.Size([16, 256, 512]), torch.Size([256, 256])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,770 - piper_actor - DEBUG - Calling backward 2 mb 0 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,770 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 3 -> 2, mb 0, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,770 - piper_actor - DEBUG - P2P op (3, 2, 0, False) already executed on actor 0, skipping
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,770 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 1, mb 0, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,770 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1, op: (2 -> 1, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1, op: (2 -> 1, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 2 -> 1, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - Calling backward 2 mb 1 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 3 -> 2, mb 1, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,771 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1, op: (3 -> 2, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,772 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1, op: (3 -> 2, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,776 - piper_actor - DEBUG - Executed P2P(bwd_recv, stage 3 -> 2, mb 1) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,776 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 1, mb 1, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,776 - piper_actor - DEBUG - Dispatch bwd p2p send on 0 to 1, op: (2 -> 1, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,776 - piper_actor - DEBUG - Completed bwd p2p send on 0 to 1, op: (2 -> 1, mb 1)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,776 - piper_actor - DEBUG - Executed P2P(bwd_send, stage 2 -> 1, mb 1) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,777 - piper_actor - DEBUG - Calling forward 2 mb 2 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,777 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 1 -> 2, mb 2, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,777 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1, op: (1 -> 2, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,778 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1, op: (1 -> 2, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,778 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 1 -> 2, mb 2) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,778 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 2
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 2
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 3, mb 2, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (2 -> 3, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (2 -> 3, mb 2)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,780 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 2 -> 3, mb 2) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,781 - piper_actor - DEBUG - Forward 2 mb 2 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Calling backward 0 mb 0 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 1 -> 0, mb 0, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Dispatch bwd p2p recv on 0 from 1, op: (1 -> 0, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,782 - piper_actor - DEBUG - Completed bwd p2p recv on 0 from 1, op: (1 -> 0, mb 0)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,904 - piper_actor - DEBUG - Executed P2P(bwd_recv, stage 1 -> 0, mb 0) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,905 - piper_actor - DEBUG - Calling forward 2 mb 3 on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,905 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 1 -> 2, mb 3, is_sender=False
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,905 - piper_actor - DEBUG - Dispatch fwd p2p recv on 0 from 1, op: (1 -> 2, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,906 - piper_actor - DEBUG - Completed fwd p2p recv on 0 from 1, op: (1 -> 2, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,906 - piper_actor - DEBUG - Executed P2P(fwd_recv, stage 1 -> 2, mb 3) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,906 - piper_actor - DEBUG - Saving input activation torch.Size([16, 256, 512]) for stage 2 mb 3
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - Saving output activation torch.Size([16, 256, 512]) for stage 2 mb 3
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - [DEBUG] Actor 0 executing p2p op: 2 -> 3, mb 3, is_sender=True
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - Dispatch fwd p2p send on 0 to 1, op: (2 -> 3, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - Completed fwd p2p send on 0 to 1, op: (2 -> 3, mb 3)
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - Executed P2P(fwd_send, stage 2 -> 3, mb 3) on actor 0
+[36m(PiperActor pid=2467971)[0m 2026-02-20 09:10:15,909 - piper_actor - DEBUG - Forward 2 mb 3 on actor 0 returning [torch.Size([16, 256, 512])]
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:15.416359497 ProcessGroupNCCL.cpp:688] [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600028 milliseconds before timing out.
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:15.421218835 ProcessGroupNCCL.cpp:2277] [PG ID 1 PG GUID 1 Rank 0]  failure detected by watchdog at work sequence id: 24 PG status: last enqueued work: 25, last completed work: 23
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:15.421254898 ProcessGroupNCCL.cpp:735] Stack trace of the failed collective not found, potentially because FlightRecorder is disabled. You can enable it by setting TORCH_NCCL_TRACE_BUFFER_SIZE to a non-zero value.
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:15.421360735 ProcessGroupNCCL.cpp:2610] [PG ID 1 PG GUID 1 Rank 0] First PG on this rank to signal dumping.
+[36m(PiperActor pid=2467963)[0m [rank1]:[E220 09:20:16.508893157 ProcessGroupNCCL.cpp:1825] [PG ID 0 PG GUID 0 Rank 1] Observed flight recorder dump signal from another rank via TCPStore.
+[36m(PiperActor pid=2467963)[0m [rank1]:[E220 09:20:16.509178231 ProcessGroupNCCL.cpp:1890] [PG ID 0 PG GUID 0 Rank 1] Received a dump signal due to a collective timeout from  rank 0 and we will try our best to dump the debug info. Last enqueued NCCL work: -1, last completed NCCL work: -1.This is most likely caused by incorrect usages of collectives, e.g., wrong sizes used across ranks, the order of collectives is not same for all ranks or the scheduled collective, for some reason, didn't run. Additionally, this can be caused by GIL deadlock or other reasons such as network errors or bugs in the communications library (e.g. NCCL), etc. 
+[36m(PiperActor pid=2467963)[0m [rank1]:[E220 09:20:16.510351766 ProcessGroupNCCL.cpp:1606] [PG ID 0 PG GUID 0 Rank 1] ProcessGroupNCCL preparing to dump debug info. Include stack trace: 1, only active collectives: 0
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:16.508834710 ProcessGroupNCCL.cpp:1890] [PG ID 0 PG GUID 0 Rank 0] Received a dump signal due to a collective timeout from this local rank and we will try our best to dump the debug info. Last enqueued NCCL work: -1, last completed NCCL work: -1.This is most likely caused by incorrect usages of collectives, e.g., wrong sizes used across ranks, the order of collectives is not same for all ranks or the scheduled collective, for some reason, didn't run. Additionally, this can be caused by GIL deadlock or other reasons such as network errors or bugs in the communications library (e.g. NCCL), etc. 
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:20:16.510330855 ProcessGroupNCCL.cpp:1606] [PG ID 0 PG GUID 0 Rank 0] ProcessGroupNCCL preparing to dump debug info. Include stack trace: 1, only active collectives: 0
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:21:15.421529580 ProcessGroupNCCL.cpp:749] [Rank 0] Some NCCL operations have failed or timed out. Due to the asynchronous nature of CUDA kernels, subsequent GPU operations might run on corrupted/incomplete data.
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:21:15.421675297 ProcessGroupNCCL.cpp:763] [Rank 0] To avoid data inconsistency, we are taking the entire process down.
+[36m(PiperActor pid=2467971)[0m [rank0]:[E220 09:21:15.426341366 ProcessGroupNCCL.cpp:2093] [PG ID 1 PG GUID 1 Rank 0] Process group watchdog thread terminated with exception: [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600028 milliseconds before timing out.
+[36m(PiperActor pid=2467971)[0m Exception raised from checkTimeout at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:691 (most recent call first):
+[36m(PiperActor pid=2467971)[0m frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f8bd43d9fdd in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libc10.so)
+[36m(PiperActor pid=2467971)[0m frame #1: c10d::ProcessGroupNCCL::WorkNCCL::checkTimeout(std::optional<std::chrono::duration<long, std::ratio<1l, 1000l> > >) + 0x26a (0x7f5b239ddd7a in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #2: c10d::ProcessGroupNCCL::Watchdog::runLoop() + 0x16a1 (0x7f5b239e2261 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #3: c10d::ProcessGroupNCCL::Watchdog::run() + 0x105 (0x7f5b239e35a5 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #4: <unknown function> + 0xdf0e6 (0x7f8bf6fe40e6 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6)
+[36m(PiperActor pid=2467971)[0m frame #5: <unknown function> + 0x8b2ea (0x7f8c0688b2ea in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m frame #6: <unknown function> + 0x1103c0 (0x7f8c069103c0 in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m [2026-02-20 09:21:16,076 E 2467971 2485050] logging.cc:118: Unhandled exception: N3c1016DistBackendErrorE. what(): [PG ID 1 PG GUID 1 Rank 0] Process group watchdog thread terminated with exception: [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=24, OpType=RECV, NumelIn=2097152, NumelOut=2097152, Timeout(ms)=600000) ran for 600028 milliseconds before timing out.
+[36m(PiperActor pid=2467971)[0m Exception raised from checkTimeout at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:691 (most recent call first):
+[36m(PiperActor pid=2467971)[0m frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f8bd43d9fdd in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libc10.so)
+[36m(PiperActor pid=2467971)[0m frame #1: c10d::ProcessGroupNCCL::WorkNCCL::checkTimeout(std::optional<std::chrono::duration<long, std::ratio<1l, 1000l> > >) + 0x26a (0x7f5b239ddd7a in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #2: c10d::ProcessGroupNCCL::Watchdog::runLoop() + 0x16a1 (0x7f5b239e2261 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #3: c10d::ProcessGroupNCCL::Watchdog::run() + 0x105 (0x7f5b239e35a5 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #4: <unknown function> + 0xdf0e6 (0x7f8bf6fe40e6 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6)
+[36m(PiperActor pid=2467971)[0m frame #5: <unknown function> + 0x8b2ea (0x7f8c0688b2ea in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m frame #6: <unknown function> + 0x1103c0 (0x7f8c069103c0 in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m Exception raised from run at /pytorch/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp:2099 (most recent call first):
+[36m(PiperActor pid=2467971)[0m frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7f8bd43d9fdd in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libc10.so)
+[36m(PiperActor pid=2467971)[0m frame #1: <unknown function> + 0x9bbbc8 (0x7f5b23249bc8 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so)
+[36m(PiperActor pid=2467971)[0m frame #2: <unknown function> + 0xdf0e6 (0x7f8bf6fe40e6 in /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6)
+[36m(PiperActor pid=2467971)[0m frame #3: <unknown function> + 0x8b2ea (0x7f8c0688b2ea in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m frame #4: <unknown function> + 0x1103c0 (0x7f8c069103c0 in /lib64/libc.so.6)
+[36m(PiperActor pid=2467971)[0m  /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ad67a) [0x7f8bf87a767a] ray::operator<<()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ae12c) [0x7f8bf87a812c] ray::RayLog::operator<< <>()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x85eda1) [0x7f8bf7958da1] ray::TerminateHandler()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7f8bf6fc7519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(_ZSt10unexpectedv+0) [0x7f8bf6fc1063] std::unexpected()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7f8bf6fc7512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7f5b23249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xdf0e6) [0x7f8bf6fe40e6] execute_native_thread_routine
+[36m(PiperActor pid=2467971)[0m /lib64/libc.so.6(+0x8b2ea) [0x7f8c0688b2ea] start_thread
+[36m(PiperActor pid=2467971)[0m /lib64/libc.so.6(+0x1103c0) [0x7f8c069103c0] __GI___clone3
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m [2026-02-20 09:21:16,093 E 2467971 2485050] logging.cc:125: Stack trace: 
+[36m(PiperActor pid=2467971)[0m  /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ad67a) [0x7f8bf87a767a] ray::operator<<()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16ae12c) [0x7f8bf87a812c] ray::RayLog::operator<< <>()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_raylet.so(+0x16b06e8) [0x7f8bf87aa6e8] ray::TerminateHandler()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2519) [0x7f8bf6fc7519] __cxxabiv1::__terminate()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(_ZSt10unexpectedv+0) [0x7f8bf6fc1063] std::unexpected()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xc2512) [0x7f8bf6fc7512] __cxxabiv1::__terminate()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so(+0x9bbc82) [0x7f5b23249c82] c10d::ProcessGroupNCCL::Watchdog::run()
+[36m(PiperActor pid=2467971)[0m /m-coriander/coriander/wxdeng/conda-envs/piper_ref/bin/../lib/libstdc++.so.6(+0xdf0e6) [0x7f8bf6fe40e6] execute_native_thread_routine
+[36m(PiperActor pid=2467971)[0m /lib64/libc.so.6(+0x8b2ea) [0x7f8c0688b2ea] start_thread
+[36m(PiperActor pid=2467971)[0m /lib64/libc.so.6(+0x1103c0) [0x7f8c069103c0] __GI___clone3
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m *** SIGABRT received at time=1771579276 on cpu 173 ***
+[36m(PiperActor pid=2467971)[0m PC: @     0x7f8c0688d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=2467971)[0m     @     0x7f8c0683fc30  (unknown)  (unknown)
+[36m(PiperActor pid=2467971)[0m [2026-02-20 09:21:16,095 E 2467971 2485050] logging.cc:474: *** SIGABRT received at time=1771579276 on cpu 173 ***
+[36m(PiperActor pid=2467971)[0m [2026-02-20 09:21:16,095 E 2467971 2485050] logging.cc:474: PC: @     0x7f8c0688d02c  (unknown)  __pthread_kill_implementation
+[36m(PiperActor pid=2467971)[0m [2026-02-20 09:21:16,095 E 2467971 2485050] logging.cc:474:     @     0x7f8c0683fc30  (unknown)  (unknown)
+[36m(PiperActor pid=2467971)[0m Fatal Python error: Aborted
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m 
+[36m(PiperActor pid=2467971)[0m Extension modules: msgpack._cmsgpack, psutil._psutil_linux, google._upb._message, charset_normalizer.md, requests.packages.charset_normalizer.md, requests.packages.chardet.md, yaml._yaml, ray._raylet, numpy._core._multiarray_umath, numpy.linalg._umath_linalg, torch._C, torch._C._dynamo.autograd_compiler, torch._C._dynamo.eval_frame, torch._C._dynamo.guards, torch._C._dynamo.utils, torch._C._fft, torch._C._linalg, torch._C._nested, torch._C._nn, torch._C._sparse, torch._C._special, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator (total: 30)
+[33m(raylet)[0m A worker died or was killed while executing a task by an unexpected system error. To troubleshoot the problem, check the logs for the dead worker. Lease ID: 010000009299451b288663495fbc378cce73468cad54968441361628549d6948 Worker ID: eb0cd9a472c4adbbb7946238f80410ebced80b0b9d70391be5c13dd4 Node ID: 05f9f2052e3e02c4b4cd769ea37a36de9737c05c9ec5d4cca1b3a5da Worker IP address: 10.158.48.71 Worker port: 38937 Worker PID: 2467971 Worker exit type: SYSTEM_ERROR Worker exit detail: Worker unexpectedly exits with a connection error code 2. End of file. Some common causes include: (1) the process was killed by the OOM killer due to high memory usage, (2) ray stop --force was called, or (3) the worker crashed unexpectedly due to SIGSEGV or another unexpected error.
+Traceback (most recent call last):
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 161, in <module>
+    ray.get(piper_coordinator.run_program.remote(main, args))
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/auto_init_hook.py", line 22, in auto_init_wrapper
+    return fn(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 104, in wrapper
+    return func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 2967, in get
+    values, debugger_breakpoint = worker.get_objects(
+  File "/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py", line 1015, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::PiperProgramCoordinator.run_program()[39m (pid=2467957, ip=10.158.48.71, actor_id=3ebe3fe0b12c3ba9c2c691b901000000, repr=<src.piper_coordinator.PiperProgramCoordinator object at 0x7f65bd2b4730>)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 41, in run_program
+    return ray.get([run_dp_rank.remote(
+ray.exceptions.RayTaskError(ActorDiedError): [36mray::run_dp_rank()[39m (pid=2467960, ip=10.158.48.71)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_coordinator.py", line 22, in run_dp_rank
+    return training_func(*args, **kwargs)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/test/test_llama.py", line 94, in main
+    piper_exec(compiled, schedule, [x], y, loss_fn, args.dp)
+  File "/m-coriander/coriander/wxdeng/mlsys/piper_ref/src/piper_exec.py", line 187, in piper_exec
+    return ray.get(ret)
+ray.exceptions.ActorDiedError: The actor died unexpectedly before finishing this task.
+	class_name: PiperActor
+	actor_id: 4d48938144c53713213caa6701000000
+	pid: 2467971
+	namespace: llama
+	ip: 10.158.48.71
+The actor is dead because its worker process has died. Worker exit type: SYSTEM_ERROR Worker exit detail: Worker unexpectedly exits with a connection error code 2. End of file. Some common causes include: (1) the process was killed by the OOM killer due to high memory usage, (2) ray stop --force was called, or (3) the worker crashed unexpectedly due to SIGSEGV or another unexpected error.

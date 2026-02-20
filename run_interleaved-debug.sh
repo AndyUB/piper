@@ -7,7 +7,7 @@ mkdir -p $RAY_TMP
 export RAY_TMPDIR="$RAY_TMP"
 export PYTHONUNBUFFERED=1
 
-export CUDA_VISIBLE_DEVICES=0,1,2
+export CUDA_VISIBLE_DEVICES=0,1,4
 export RAY_DEDUP_LOGS=0
 export PIPER_MASTER_PORT=12389
 
@@ -17,5 +17,5 @@ python3 -m test.test_llama \
     --iters 1 \
     --schedule interleaved-1f1b \
     --mbs 4 \
-    --model debug > $LOG_DIR/interleaved_debug-1warm_1it.log 2>&1
+    --model debug > $LOG_DIR/interleaved_debug-memopt.log 2>&1
     # --tracing \
