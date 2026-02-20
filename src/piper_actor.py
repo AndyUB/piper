@@ -456,7 +456,7 @@ class PiperActor:
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "fwd_p2p_recv")
         with torch.cuda.stream(self.p2p_stream):
@@ -468,7 +468,7 @@ class PiperActor:
                 )
         self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
         self.logger.debug(
-            f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
         )
 
     def _exec_fwd_send(self, stage_id: int, mb_idx: int, output):
@@ -480,7 +480,7 @@ class PiperActor:
         global_dst_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}"
+            f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "fwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
@@ -488,7 +488,7 @@ class PiperActor:
                 dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "fwd_p2p_send")
         self.logger.debug(
-            f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}"
+            f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
 
     def _exec_bwd_recv(self, stage_id: int, mb_idx: int):
@@ -502,14 +502,14 @@ class PiperActor:
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "bwd_p2p_recv")
         with torch.cuda.stream(self.p2p_stream):
             dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
         self.logger.debug(
-            f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
         )
 
         out_activation.backward(gradient=input_grad)
@@ -525,14 +525,14 @@ class PiperActor:
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}"
+            f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "bwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
             dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "bwd_p2p_send")
         self.logger.debug(
-            f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}"
+            f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
 
         self.inp_activation[stage_id][mb_idx] = None
