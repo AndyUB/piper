@@ -447,13 +447,9 @@ class PiperActor:
             self.parameters[stage_id][i] = arg
 
         # save first input as previous activation
-        # if args[0].dtype == torch.float:
-        #     args[0].requires_grad_().retain_grad()
-        # self.inp_activation[stage_id][mb_idx] = args[0]
-        if stage_id != 0:
-            if not args[0].requires_grad:
-                args[0].requires_grad_()
-            self.inp_activation[stage_id][mb_idx] = args[0]
+        if args[0].dtype == torch.float:
+            args[0].requires_grad_().retain_grad()
+        self.inp_activation[stage_id][mb_idx] = args[0]
 
         # Record start event for forward timing
         if self.tracing:
@@ -530,13 +526,9 @@ class PiperActor:
             self.parameters[stage_id][i] = arg
 
         # save first input as input activation
-        # if args[0].dtype == torch.float:
-        #     args[0].requires_grad_().retain_grad()
-        # self.inp_activation[stage_id][mb_idx] = args[0]
-        if stage_id != 0:
-            if not args[0].requires_grad:
-                args[0].requires_grad_()
-            self.inp_activation[stage_id][mb_idx] = args[0]
+        if args[0].dtype == torch.float:
+            args[0].requires_grad_().retain_grad()
+        self.inp_activation[stage_id][mb_idx] = args[0]
 
         out = self.forward_fns[stage_id](*self.parameters[stage_id])
 
@@ -794,7 +786,6 @@ class PiperActor:
             return [gx, upstream_grads]
 
         stage_input = self.inp_activation[stage_id][mb_idx]
-        # stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
         stage_params = [p for p in self.parameters[stage_id] if isinstance(p, torch.nn.Parameter)]
 
         # Lists of autograd nodes for the layer outputs, inputs, and parameters
@@ -865,6 +856,9 @@ class PiperActor:
         for h in handles:
             h.remove()
 
+        del activation_or_loss
+        del stage_input
+
         # Save parameter groups for use in backward_weight
         self._bw_param_groups[stage_id][mb_idx] = param_groups
 
@@ -925,7 +919,8 @@ class PiperActor:
                 else:
                     p.grad.add_(pg)
 
-            del self.out_activation[stage_id][mb_idx]
+            del activation
+            del self.inp_activation[stage_id][mb_idx]
 
             if self.tracing:
                 end_event.record()
