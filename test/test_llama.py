@@ -13,7 +13,7 @@ from piper.utils import piper_metadata
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import build_1f1b_schedule, build_gpipe_schedule, build_zb1p_schedule, print_schedule
-from piper.piper_coordinator import PiperProgramCoordinator
+from piper.coordinator import PiperProgramCoordinator
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import (

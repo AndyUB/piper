@@ -4,7 +4,7 @@ from typing import Callable
 import os
 import socket
 
-from .piper_utils import create_logger, LOG_LEVEL
+from piper.utils import create_logger, LOG_LEVEL
 
 
 @ray.remote(num_gpus=0.1)

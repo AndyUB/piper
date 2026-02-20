@@ -3,10 +3,10 @@ import torch.nn as nn
 import ray
 import time
 
-from src.piper_compile import piper_setup
-from src.piper_exec import piper_exec
-from src.piper import distributed_stage
-from src.piper_coordinator import PiperProgramCoordinator
+from piper.compile import piper_setup
+from piper.exec import piper_exec
+from piper.piper import distributed_stage
+from piper.coordinator import PiperProgramCoordinator
 
 from .schedule_helpers import build_1f1b_schedule, print_schedule
 
@@ -41,7 +41,7 @@ def main():
     print_schedule(schedule)
     loss_fn = torch.nn.CrossEntropyLoss()
 
-    from src.piper_utils import piper_metadata
+    from piper.utils import piper_metadata
     stage1_weights = ray.get(piper_metadata.actors[0].get_weights.remote(0))
     stage2_weights = ray.get(piper_metadata.actors[1].get_weights.remote(1))
     print("stage 1 weights:", stage1_weights)

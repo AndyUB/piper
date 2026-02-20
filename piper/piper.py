@@ -1,4 +1,4 @@
-from . import piper_patches
+from . import patches
 
 import ray
 import torch
@@ -6,9 +6,9 @@ import os
 from torch._dynamo.backends.registry import register_backend
 from torch._dynamo.decorators import _disallow_in_graph_helper
 
-from .piper_utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger, print_backward_graph, LOG_LEVEL
-from .piper_graph_transform import split_gm_by_experts
-from .piper_actor import get_actor
+from piper.utils import RemoteTensor, serialize_graphmodule, piper_metadata, create_logger, print_backward_graph, LOG_LEVEL
+from piper.graph_transform import split_gm_by_experts
+from piper.actor import get_actor
 
 logger = create_logger("piper_backend", LOG_LEVEL)
 

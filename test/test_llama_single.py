@@ -5,10 +5,10 @@ import argparse
 from torch import nn, optim
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from src.piper_exec import Task, piper_exec
-from src.piper_compile import piper_setup
-from src.piper import piper
-from src.piper_utils import piper_metadata
+from piper.exec import Task, piper_exec
+from piper.compile import piper_setup
+from piper.piper import piper
+from piper.utils import piper_metadata
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
 from .schedule_helpers import print_schedule

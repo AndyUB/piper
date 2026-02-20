@@ -5,7 +5,7 @@ These patches enable Piper's RemoteTensor to work correctly with TorchDynamo
 and Ray's tensor transport backends.
 
 Import this module early in your application to apply patches:
-    import src.piper_patches
+    import piper.patches
 """
 
 import functools

@@ -4,11 +4,11 @@ import torch.nn as nn
 import argparse
 import time
 
-from src.piper_coordinator import PiperProgramCoordinator
-from src.piper_compile import piper_setup
-from src.piper_exec import piper_exec
-from src.piper import distributed_stage, piper
-from src.piper_actor import get_actor
+from piper.coordinator import PiperProgramCoordinator
+from piper.compile import piper_setup
+from piper.exec import piper_exec
+from piper.piper import distributed_stage, piper
+from piper.actor import get_actor
 
 from .schedule_helpers import no_pp_schedule, print_schedule, build_1f1b_schedule
 
