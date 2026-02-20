@@ -39,7 +39,7 @@ def piper_setup(model_class, model_args, optim_fn, example_inputs, num_stages, p
     compiled = torch.compile(model, dynamic=dynamic, backend=piper)
 
     from piper.utils import events_tls
-    events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(pp_size)])
+    events_tls.actor_mutexes = dict([(actor_id, threading.Lock()) for actor_id in range(pp_degree)])
     events_tls.events = [threading.Event() for _ in range(num_stages)]
     for event in events_tls.events:
         event.set()

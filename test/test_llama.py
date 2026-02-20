@@ -124,8 +124,8 @@ def main(args):
     iters = args.iters
     
     # creating the training data; might make this a new method to get the dataloader to work properly
-    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len)).to(device)
-    y = torch.zeros((batch_size, llama_config.vocab_size), dtype=torch.long).to(device)
+    x = torch.randint(0, llama_config.vocab_size, (batch_size, seq_len))
+    y = torch.randn((batch_size, seq_len, llama_config.vocab_size))
 
     # Generate different input data for each data parallel rank so that model weights get updated differently
     if args.dp_degree > 1:

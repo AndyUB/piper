@@ -380,6 +380,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                     stage_id,
                                     mb_idx,
                                     fwd_ref.get_ref(),
+                                    truth=truth,
                                     loss_fn=loss_fn,
                                 )
                             )
@@ -411,7 +412,6 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                     stage_id,
                                     mb_idx,
                                     upstream_ref,
-                                    loss_fn=None,
                                 )
                             )
 
@@ -436,6 +436,7 @@ def piper_exec(model, schedule, inputs, truth, loss_fn, num_mbs, num_stages):
                                 mb_idx,
                                 gx,
                                 upstream_grad,
+                                truth=truth if is_last_stage else None,
                                 loss_fn=loss_fn if is_last_stage else None,
                             )
                         )
