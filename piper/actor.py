@@ -275,28 +275,45 @@ class PiperActor:
         if stage_id in self.parameters:
             self.logger.debug(f"Param group already exists for stage {stage_id}")
             return
-        
-        # place parameters on the device
-        def move_to_device(idx, arg):
-            if idx not in input_idxs:
-                return arg.to(self.device).detach().requires_grad_(True)
-            else:
-                return arg.to(self.device)
-        params = list(map(move_to_device, range(len(params)), params))
 
-        # discard the graphargs that correspond to input tensors
+        input_set = set(input_idxs)
+
+        def move_to_device(idx, arg):
+            if arg is None:
+                return None
+
+            if not isinstance(arg, torch.Tensor):
+                return arg
+
+            t = arg.to(self.device)
+
+            # ignore inputs
+            if idx in input_set:
+                return t
+
+            # keep model weights as nn.Parameter
+            if isinstance(arg, Parameter):
+                return Parameter(t.detach(), requires_grad=True)
+
+            # everything else is not a parameter, so 
+            # keep them as a tensor with requires_grad=False
+            t = t.detach()
+            t.requires_grad_(False)
+            return t
+
+        params = [move_to_device(i, a) for i, a in enumerate(params)]
+
         for i in input_idxs:
             params[i] = None
 
-        # save the parameters
         self.input_idxs[stage_id] = input_idxs
         self.parameters[stage_id] = params
 
-        # add the parameters to the optimizer for this stage
+        stage_params = [p for p in params if isinstance(p, Parameter)]
         if stage_id not in self.optims:
-            self.optims[stage_id] = self.optim_class([param for param in params if param is not None])
+            self.optims[stage_id] = self.optim_class(stage_params)
         else:
-            self.optims[stage_id].add_param_group({'params': [param for param in params if param is not None]})
+            self.optims[stage_id].add_param_group({'params': stage_params})
 
     def load_expert(self, stage_id, expert_id, local_expert_id, batch_idx, expert_module, input_idxs, param_idxs, params):
         self.logger.debug(f"Loading expert {expert_id} on actor {self.actor_id} global rank {self.global_rank}")
@@ -777,7 +794,8 @@ class PiperActor:
             return [gx, upstream_grads]
 
         stage_input = self.inp_activation[stage_id][mb_idx]
-        stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
+        # stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
+        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, torch.nn.Parameter)]
 
         # Lists of autograd nodes for the layer outputs, inputs, and parameters
         # Tracing for graph pruning computation time
@@ -796,39 +814,6 @@ class PiperActor:
         # (2) in a path from the output node(s) a parameter node/gradient accumulator
         reverse_edges = construct_reverse_graph(output_nodes)
         param_groups = get_param_groups(input_nodes, param_nodes, reverse_edges)
-
-        pgs = param_groups
-        with_int = [pg for pg in pgs if pg.get("intermediates")]
-        self.logger.debug(
-            f"stage {stage_id} mb {mb_idx}: groups={len(pgs)} with_intermediates={len(with_int)} "
-            f"intermediates_sizes={[len(pg.get('intermediates', [])) for pg in with_int]}"
-        )
-
-        def ancestors(start_nodes, reverse_edges):
-            # reverse_edges: dict[node] -> list[node] giving "incoming" edges when traversing backward
-            seen = set()
-            stack = list(start_nodes)
-            while stack:
-                n = stack.pop()
-                if n in seen:
-                    continue
-                seen.add(n)
-                for p in reverse_edges.get(n, []):
-                    stack.append(p)
-            return seen
-
-        # build ancestor sets for a handful of groups
-        anc_sets = []
-        for pg in param_groups[:10]:  # sample first 10 to keep it cheap
-            ints = pg.get("intermediates", [])
-            anc_sets.append(ancestors(ints, reverse_edges))
-
-        shared = 0
-        for i in range(len(anc_sets)):
-            for j in range(i+1, len(anc_sets)):
-                shared += len(anc_sets[i].intersection(anc_sets[j])) > 0
-
-        self.logger.info(f"stage {stage_id} mb {mb_idx}: sampled_pairs_with_shared_ancestors={shared}")
 
         # Hooks to capture grads at intermediate nodes. In backward_weight,
         # we'll backprop from these intermediate values
@@ -898,7 +883,8 @@ class PiperActor:
             end_event = torch.cuda.Event(enable_timing=True)
             start_event.record()
 
-        stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
+        # stage_params = [p for p in self.parameters[stage_id] if p is not None and p.requires_grad]
+        stage_params = [p for p in self.parameters[stage_id] if isinstance(p, torch.nn.Parameter)]
 
         # We only pass to enforce temporal dependency.
         # upstream is only required for the stage 0 case
@@ -957,22 +943,6 @@ class PiperActor:
 
         param_groups = self._bw_param_groups[stage_id][mb_idx]
 
-        pgs = param_groups
-        with_int = [pg for pg in pgs if pg.get("intermediates")]
-        self.logger.info(
-            f"stage {stage_id} mb {mb_idx}: groups={len(pgs)} with_intermediates={len(with_int)} "
-            f"intermediates_sizes={[len(pg.get('intermediates', [])) for pg in with_int]}"
-        )
-
-        seen = set()
-        overlap = 0
-        for pg in param_groups:
-            for n in pg.get("intermediates", []) or []:
-                k = id(n)
-                overlap += (k in seen)
-                seen.add(k)
-        self.logger.info(f"stage {stage_id} mb {mb_idx}: intermediate_overlaps={overlap}")
-
         # Perform the weight updates separately for each param_group, beginning
         # backprop from each the intermediate node(s) of each group
         for pg in param_groups:
@@ -1021,7 +991,7 @@ class PiperActor:
                 outputs=intermediate_edges,
                 inputs=weight_edges,
                 grad_outputs=intermediate_edge_grads,
-                retain_graph=True,
+                retain_graph=False,
             )
 
             del pg["grads"]
