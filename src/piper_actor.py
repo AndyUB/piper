@@ -9,6 +9,7 @@ from torch.nn import Parameter
 from collections import defaultdict
 import torch.distributed as dist
 import threading
+from pathlib import Path
 from typing import Callable
 
 from .piper_utils import (
@@ -154,6 +155,7 @@ class PiperActor:
         self.p2p_op_handles = defaultdict(list)
 
         self.tracing = False
+        self.update_step = 0
         self.trace_events = dict()
         self.trace_data = defaultdict(list)
 
@@ -195,6 +197,29 @@ class PiperActor:
 
     def get_peak_memory(self):
         return torch.cuda.max_memory_allocated() / (1024**3)
+
+    def get_stage_parameter_vectors(self):
+        stage_to_vector = {}
+        for stage_id in sorted(self.forward_args.keys()):
+            stage_to_vector[stage_id] = self._stage_parameter_vector(stage_id)
+        return stage_to_vector
+
+
+    def _stage_parameter_vector(self, stage_id: int):
+        params = [
+            tensor.detach().cpu().reshape(-1)
+            for tensor in self.forward_args[stage_id]
+            if isinstance(tensor, torch.Tensor) and tensor.requires_grad
+        ]
+        return torch.cat(params) if params else torch.empty(0)
+
+    def _maybe_dump_parity_data(self, filename: str, payload: dict):
+        dump_dir = os.environ.get("PIPER_PARITY_DUMP_DIR")
+        if not dump_dir:
+            return
+        output_path = Path(dump_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        torch.save(payload, output_path / filename)
 
     def load_input(self, inputs):
         self.inputs = [inp.to(self.device) for inp in inputs]
@@ -387,6 +412,11 @@ class PiperActor:
         self.input_idxs[stage_id] = input_idxs
         self.forward_args[stage_id] = forward_args
         self.stage_id = stage_id
+
+        self._maybe_dump_parity_data(
+            f"rank{self.global_rank}_stage{stage_id}_init.pt",
+            {"global_rank": self.global_rank, "stage_id": stage_id, "vector": self._stage_parameter_vector(stage_id)},
+        )
 
         for i in self.input_idxs[stage_id]:
             self.forward_input_meta[stage_id][i] = (
@@ -705,6 +735,17 @@ class PiperActor:
             optim.zero_grad()
         losses = self.loss
         self.loss.clear()
+
+        self._maybe_dump_parity_data(
+            f"rank{self.global_rank}_step{self.update_step}.pt",
+            {
+                "global_rank": self.global_rank,
+                "step": self.update_step,
+                "losses": losses,
+                "stage_to_vector": self.get_stage_parameter_vectors(),
+            },
+        )
+        self.update_step += 1
 
         torch.cuda.synchronize()
 

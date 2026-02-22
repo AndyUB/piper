@@ -41,7 +41,10 @@ def main(args):
     print(args) 
 
     loss_fn = torch.nn.CrossEntropyLoss()
-    
+
+    if os.environ.get("PIPER_TEST_SEED") is not None:
+        torch.manual_seed(int(os.environ["PIPER_TEST_SEED"]))
+
     x = torch.randint(0, llama_config.vocab_size, (args.batch_size, args.seq_len))
     y = torch.randn((args.batch_size, args.seq_len, llama_config.vocab_size))
 
