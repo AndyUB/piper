@@ -157,6 +157,10 @@ class PiperActor:
         self.trace_events = dict()
         self.trace_data = defaultdict(list)
 
+        self.p2p_tensor_log_dir = os.environ.get("PIPER_P2P_TENSOR_LOG_DIR")
+        if self.p2p_tensor_log_dir:
+            os.makedirs(self.p2p_tensor_log_dir, exist_ok=True)
+
         from .piper_utils import piper_metadata
 
         piper_metadata.actor_self = self
@@ -505,6 +509,14 @@ class PiperActor:
         )
 
         self.p2p_cache[p2p_op] = inputs_to_recv
+        self._log_p2p_tensors(
+            tensors=inputs_to_recv,
+            direction="recv",
+            pass_name="fwd",
+            src_stage=stage_id - 1,
+            dst_stage=stage_id,
+            mb_idx=mb_idx,
+        )
 
     def _exec_fwd_send(self, stage_id: int, mb_idx: int):
         if stage_id == self.num_stages - 1:
@@ -527,6 +539,14 @@ class PiperActor:
         self.logger.debug(
             f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
+        self._log_p2p_tensors(
+            tensors=output,
+            direction="send",
+            pass_name="fwd",
+            src_stage=stage_id,
+            dst_stage=stage_id + 1,
+            mb_idx=mb_idx,
+        )
 
     def _exec_bwd_recv(self, stage_id: int, mb_idx: int):
         if stage_id >= self.num_stages - 1:
@@ -547,6 +567,14 @@ class PiperActor:
         self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
         self.logger.debug(
             f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
+        )
+        self._log_p2p_tensors(
+            tensors=[input_grad],
+            direction="recv",
+            pass_name="bwd",
+            src_stage=stage_id + 1,
+            dst_stage=stage_id,
+            mb_idx=mb_idx,
         )
 
         out_activation.backward(gradient=input_grad)
@@ -571,8 +599,57 @@ class PiperActor:
         self.logger.debug(
             f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
+        self._log_p2p_tensors(
+            tensors=[output_grad],
+            direction="send",
+            pass_name="bwd",
+            src_stage=stage_id,
+            dst_stage=stage_id - 1,
+            mb_idx=mb_idx,
+        )
 
         self.inp_activation[stage_id][mb_idx] = None
+
+    def _log_p2p_tensors(
+        self,
+        tensors,
+        direction: str,
+        pass_name: str,
+        src_stage: int,
+        dst_stage: int,
+        mb_idx: int,
+    ):
+        if not self.p2p_tensor_log_dir:
+            return
+
+        for tensor_idx, tensor in enumerate(tensors):
+            tensor_to_log = tensor.detach().cpu()
+            key = {
+                "pass": pass_name,
+                "src_stage": src_stage,
+                "dst_stage": dst_stage,
+                "mb_idx": mb_idx,
+                "tensor_idx": tensor_idx,
+                "dp_rank": self.dp_rank,
+            }
+            key_text = "__".join(f"{k}-{v}" for k, v in key.items())
+            output_path = os.path.join(
+                self.p2p_tensor_log_dir,
+                f"{direction}__{key_text}__actor-{self.global_rank}.pt",
+            )
+            torch.save(
+                {
+                    "meta": {
+                        **key,
+                        "direction": direction,
+                        "global_rank": self.global_rank,
+                        "shape": list(tensor_to_log.shape),
+                        "dtype": str(tensor_to_log.dtype),
+                    },
+                    "tensor": tensor_to_log,
+                },
+                output_path,
+            )
 
     def _forward(self, stage_id: int, mb_idx: int):
 
