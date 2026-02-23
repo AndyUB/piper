@@ -36,6 +36,8 @@ def _task_label(task: Task) -> str:
     if len(task.batches) > 1:
         second = task.batches[1]
         label += f"+{second.stage_id}:{second.mb_idx}"
+    else:
+        label += "    "
     return label
 
 

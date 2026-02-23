@@ -115,7 +115,6 @@ def piper_setup(
 
     stage_to_device = schedule.stage_to_device()
     piper_metadata.stage_to_device = stage_to_device
-    print(f"stage_to_device: {stage_to_device}")
 
     num_mbs = schedule.num_mbs()
     num_stages = schedule.num_stages()
