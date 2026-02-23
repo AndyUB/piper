@@ -49,7 +49,9 @@ def _create_actors(
         else:
             max_concurrency = 1
         p2p_schedule = p2p_schedules[pp_rank]
-        actor = PiperActor.options(num_gpus=1, max_concurrency=max_concurrency).remote(
+        actor = PiperActor.options(
+            num_gpus=0.8, max_concurrency=max_concurrency
+        ).remote(
             pp_rank,
             optim_class,
             world_size,
@@ -503,6 +505,8 @@ class PiperActor:
                     src=global_src_rank,
                     group=self.pp_group,
                 )
+        # Ensure the default stream only consumes tensors after recv completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
         self.logger.debug(
             f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
@@ -531,11 +535,15 @@ class PiperActor:
         self.logger.debug(
             f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
+        # Ensure send sees the latest writes from the default stream.
+        self.p2p_stream.wait_stream(torch.cuda.current_stream())
         self._start_timing(self.p2p_stream, "fwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
             for i in range(len(output)):
                 dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "fwd_p2p_send")
+        # Ensure the default stream does not reuse/mutate buffers before send completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self.logger.debug(
             f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
@@ -564,6 +572,8 @@ class PiperActor:
         self._start_timing(self.p2p_stream, "bwd_p2p_recv")
         with torch.cuda.stream(self.p2p_stream):
             dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
+        # Ensure the default stream only consumes gradients after recv completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
         self.logger.debug(
             f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
@@ -592,9 +602,13 @@ class PiperActor:
         self.logger.debug(
             f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
+        # Ensure send sees the latest gradient writes from the default stream.
+        self.p2p_stream.wait_stream(torch.cuda.current_stream())
         self._start_timing(self.p2p_stream, "bwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
             dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
+        # Ensure the default stream does not reuse/mutate buffers before send completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "bwd_p2p_send")
         self.logger.debug(
             f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"

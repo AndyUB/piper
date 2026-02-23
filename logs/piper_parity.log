@@ -1,0 +1,4 @@
+Running Piper with warmup=1 iters=1 mbs=4 schedule=interleaved-1f1b model=debug
+Comparing send/recv P2P tensors in ./logs/p2p_tensors
+P2P tensor comparison passed. Checked 32 send/recv pairs.
+Workflow completed successfully
