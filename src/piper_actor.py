@@ -46,7 +46,7 @@ def _create_actors(
     for pp_rank in range(num_actors):
         global_rank = _get_rank(pp_rank, dp_rank, pp_degree)
         p2p_schedule = p2p_schedules[pp_rank]
-        actor = PiperActor.options(num_gpus=0.8).remote(
+        actor = PiperActor.options(num_gpus=1).remote(
             pp_rank,
             optim_class,
             world_size,
