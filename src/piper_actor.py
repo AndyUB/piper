@@ -130,6 +130,8 @@ class PiperActor:
         self.graph_modules = dict()
         # map stage id -> model parameters used by the fx.Graph with holes (None values) for input tensors
         self.forward_args = dict()
+        # map stage id -> input idx -> input tensor metadata
+        self.forward_input_meta = defaultdict(dict)
         # map stage id -> indices of the input tensors (as opposed to model parameters) used by the fx.Graph
         self.input_idxs = dict()
         # map stage id -> optimizer for the fx.Graph
@@ -138,6 +140,8 @@ class PiperActor:
         self.inp_activation = defaultdict(dict)
         # map stage id -> mb_idx -> current activation
         self.out_activation = defaultdict(dict)
+        # map (src_stage, dst_stage, mb_idx, is_sender) -> tensor for p2p communication
+        self.p2p_cache = dict()
         # accumuate loss for each microbatch
         self.loss = []
         # map stage id -> data parallel communication operations
@@ -160,6 +164,7 @@ class PiperActor:
     def reset_p2p_states(self):
         self.next_p2p_idx = 0
         self.executed_p2ps = set()
+        self.p2p_cache = dict()
 
     def get_trace_data(self) -> dict:
         return self.global_rank, self.trace_data
@@ -383,6 +388,13 @@ class PiperActor:
         self.forward_args[stage_id] = forward_args
         self.stage_id = stage_id
 
+        for i in self.input_idxs[stage_id]:
+            self.forward_input_meta[stage_id][i] = (
+                forward_args[i].shape,
+                forward_args[i].dtype,
+                forward_args[i].requires_grad,
+            )
+
         # add the parameters to the optimizer for this stage
         params = [param for param in forward_args if param.requires_grad]
         if stage_id not in self.optims:
@@ -390,10 +402,13 @@ class PiperActor:
         else:
             self.optims[stage_id].add_param_group({"params": params})
 
+        for i in self.input_idxs[stage_id]:
+            self.forward_args[stage_id][i] = None
+
         del gm_data
 
     def _exec_p2p_op(
-        self, src_stage: int, dst_stage: int, mb_idx: int, is_sender: bool, **kwargs
+        self, src_stage: int, dst_stage: int, mb_idx: int, is_sender: bool
     ):
         p2p_op = (src_stage, dst_stage, mb_idx, is_sender)
         if p2p_op in self.executed_p2ps:
@@ -420,7 +435,7 @@ class PiperActor:
 
             op_name = "P2P(unknown)"
             if is_fwd and is_sender:
-                self._exec_fwd_send(src_stage, mb_idx, **kwargs)
+                self._exec_fwd_send(src_stage, mb_idx)
                 op_name = (
                     f"P2P(fwd_send, stage {src_stage} -> {dst_stage}, mb {mb_idx})"
                 )
@@ -451,44 +466,66 @@ class PiperActor:
         if stage_id == 0:
             return
 
+        p2p_op = (stage_id - 1, stage_id, mb_idx, False)
+        assert p2p_op not in self.p2p_cache
+
+        inputs_to_recv = []
+        for i in self.input_idxs[stage_id]:
+            shape, dtype, requires_grad = self.forward_input_meta[stage_id][i]
+            inputs_to_recv.append(
+                torch.empty(
+                    shape, dtype=dtype, requires_grad=requires_grad, device=self.device
+                )
+            )
+
         # For non-first stages, receive input tensors from the previous stage
         pp_rank = piper_metadata.stage_to_device[stage_id - 1]
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "fwd_p2p_recv")
         with torch.cuda.stream(self.p2p_stream):
             for i in self.input_idxs[stage_id]:
                 dist.recv(
-                    self.forward_args[stage_id][i],
+                    inputs_to_recv[i],
                     src=global_src_rank,
                     group=self.pp_group,
                 )
+        # Ensure the default stream only consumes tensors after recv completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
         self.logger.debug(
-            f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
         )
 
-    def _exec_fwd_send(self, stage_id: int, mb_idx: int, output):
+        self.p2p_cache[p2p_op] = inputs_to_recv
+
+    def _exec_fwd_send(self, stage_id: int, mb_idx: int):
         if stage_id == self.num_stages - 1:
             return
 
+        p2p_op = (stage_id, stage_id + 1, mb_idx, True)
+        output = self.p2p_cache.pop(p2p_op)
         # For non-final stages, send output tensors to the next stage
         pp_rank = piper_metadata.stage_to_device[stage_id + 1]
         global_dst_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}"
+            f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
+        # Ensure send sees the latest writes from the default stream.
+        self.p2p_stream.wait_stream(torch.cuda.current_stream())
         self._start_timing(self.p2p_stream, "fwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
             for i in range(len(output)):
                 dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
         self._stop_timing(self.p2p_stream, "fwd_p2p_send")
+        # Ensure the default stream does not reuse/mutate buffers before send completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self.logger.debug(
-            f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}"
+            f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
         )
 
     def _exec_bwd_recv(self, stage_id: int, mb_idx: int):
@@ -502,14 +539,16 @@ class PiperActor:
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
         )
         self._start_timing(self.p2p_stream, "bwd_p2p_recv")
         with torch.cuda.stream(self.p2p_stream):
             dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
+        # Ensure the default stream only consumes gradients after recv completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
         self.logger.debug(
-            f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}"
+            f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id+1} -> {stage_id}, mb {mb_idx})"
         )
 
         out_activation.backward(gradient=input_grad)
@@ -525,14 +564,18 @@ class PiperActor:
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
-            f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}"
+            f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
+        # Ensure send sees the latest gradient writes from the default stream.
+        self.p2p_stream.wait_stream(torch.cuda.current_stream())
         self._start_timing(self.p2p_stream, "bwd_p2p_send")
         with torch.cuda.stream(self.p2p_stream):
             dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
+        # Ensure the default stream does not reuse/mutate buffers before send completes.
+        torch.cuda.current_stream().wait_stream(self.p2p_stream)
         self._stop_timing(self.p2p_stream, "bwd_p2p_send")
         self.logger.debug(
-            f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}"
+            f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
         )
 
         self.inp_activation[stage_id][mb_idx] = None
@@ -549,6 +592,11 @@ class PiperActor:
                 self.forward_args[stage_id][i] = inp
         else:
             self._exec_p2p_op(stage_id - 1, stage_id, mb_idx, False)
+            inputs_from_prev_stage = self.p2p_cache.pop(
+                (stage_id - 1, stage_id, mb_idx, False)
+            )
+            for i, tensor in zip(self.input_idxs[stage_id], inputs_from_prev_stage):
+                self.forward_args[stage_id][i] = tensor
 
             # save first input that requires grad as input activation
             inp_with_grad = [
@@ -582,8 +630,14 @@ class PiperActor:
         # for i in self.input_idxs[stage_id]:
         #     self.forward_args[stage_id][i] = torch.empty_like(self.forward_args[stage_id][i])
 
+        for i in self.input_idxs[stage_id]:
+            self.forward_args[stage_id][i] = None
+
         if stage_id < self.num_stages - 1:
-            self._exec_p2p_op(stage_id, stage_id + 1, mb_idx, True, output=output)
+            send_p2p_op = (stage_id, stage_id + 1, mb_idx, True)
+            assert send_p2p_op not in self.p2p_cache
+            self.p2p_cache[send_p2p_op] = output
+            self._exec_p2p_op(stage_id, stage_id + 1, mb_idx, True)
 
         if CLEANUP_MEMORY:
             gc.collect()
