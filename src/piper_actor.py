@@ -137,7 +137,6 @@ class PiperActor:
         self.inp_activation = defaultdict(dict)
         # map stage id -> mb_idx -> current activation
         self.out_activation = defaultdict(dict)
-        self.bwd_recv_buf = None
         # accumuate loss for each microbatch
         self.loss = []
         # map stage id -> data parallel communication operations
@@ -148,6 +147,8 @@ class PiperActor:
         self.comm_op_handles = defaultdict(dict)
         # map stage id -> list of tensor ids that require communciation
         self.comm_op_tensor_ids = dict()
+
+        self.p2p_self_buf = None
 
         self.tracing = False
         self.trace_events = dict()
@@ -424,15 +425,19 @@ class PiperActor:
         self.logger.debug(
             f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}"
         )
-        self._start_timing(self.p2p_stream, "fwd_p2p_recv")
-        with torch.cuda.stream(self.p2p_stream):
+        if self.global_rank == global_src_rank:
             for i in self.input_idxs[stage_id]:
-                dist.recv(
-                    self.forward_args[stage_id][i],
-                    src=global_src_rank,
-                    group=self.pp_group,
-                )
-        self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
+                self.forward_args[stage_id][i] = self.p2p_self_buf[i]
+        else:
+            self._start_timing(self.p2p_stream, "fwd_p2p_recv")
+            with torch.cuda.stream(self.p2p_stream):
+                for i in self.input_idxs[stage_id]:
+                    dist.recv(
+                        self.forward_args[stage_id][i],
+                        src=global_src_rank,
+                        group=self.pp_group,
+                    )
+            self._stop_timing(self.p2p_stream, "fwd_p2p_recv")
         self.logger.debug(
             f"Completed fwd p2p recv on {self.global_rank} from {global_src_rank}"
         )
@@ -448,11 +453,14 @@ class PiperActor:
         self.logger.debug(
             f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}"
         )
-        self._start_timing(self.p2p_stream, "fwd_p2p_send")
-        with torch.cuda.stream(self.p2p_stream):
-            for i in range(len(output)):
-                dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
-        self._stop_timing(self.p2p_stream, "fwd_p2p_send")
+        if self.global_rank == global_dst_rank:
+            self.p2p_self_buf = output
+        else:
+            self._start_timing(self.p2p_stream, "fwd_p2p_send")
+            with torch.cuda.stream(self.p2p_stream):
+                for i in range(len(output)):
+                    dist.send(output[i], dst=global_dst_rank, group=self.pp_group)
+            self._stop_timing(self.p2p_stream, "fwd_p2p_send")
         self.logger.debug(
             f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}"
         )
@@ -470,10 +478,13 @@ class PiperActor:
         self.logger.debug(
             f"Dispatch bwd p2p recv on {self.global_rank} from {global_src_rank}"
         )
-        self._start_timing(self.p2p_stream, "bwd_p2p_recv")
-        with torch.cuda.stream(self.p2p_stream):
-            dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
-        self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
+        if self.global_rank == global_src_rank:
+            input_grad = self.p2p_self_buf
+        else:
+            self._start_timing(self.p2p_stream, "bwd_p2p_recv")
+            with torch.cuda.stream(self.p2p_stream):
+                dist.recv(input_grad, src=global_src_rank, group=self.pp_group)
+            self._stop_timing(self.p2p_stream, "bwd_p2p_recv")
         self.logger.debug(
             f"Completed bwd p2p recv on {self.global_rank} from {global_src_rank}"
         )
@@ -489,24 +500,29 @@ class PiperActor:
 
         # For non-first stages, send output gradients to the previous backward stage
         output_grad = self.inp_activation[stage_id][mb_idx].grad
-        assert output_grad is not None
+        if output_grad is None:
+            self.logger.warning(f"No output gradient found for stage {stage_id} mb {mb_idx} on actor {self.global_rank}")
+            assert False
         pp_rank = piper_metadata.stage_to_device[stage_id - 1]
         global_src_rank = _get_rank(pp_rank, self.dp_rank, self.pp_degree)
 
         self.logger.debug(
             f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}"
         )
-        self._start_timing(self.p2p_stream, "bwd_p2p_send")
-        with torch.cuda.stream(self.p2p_stream):
-            dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
-        self._stop_timing(self.p2p_stream, "bwd_p2p_send")
+        if self.global_rank == global_src_rank:
+            self.p2p_self_buf = output_grad
+        else:
+            self._start_timing(self.p2p_stream, "bwd_p2p_send")
+            with torch.cuda.stream(self.p2p_stream):
+                dist.send(output_grad, dst=global_src_rank, group=self.pp_group)
+            self._stop_timing(self.p2p_stream, "bwd_p2p_send")
         self.logger.debug(
             f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}"
         )
 
         self.inp_activation[stage_id][mb_idx] = None
 
-    def _forward(self, stage_id: int, mb_idx: int):
+    def _forward(self, stage_id: int, mb_idx: int, dep):
 
         self.logger.debug(
             f"Calling forward {stage_id} mb {mb_idx} on actor {self.global_rank}"
@@ -518,6 +534,12 @@ class PiperActor:
                 self.forward_args[stage_id][i] = inp
         else:
             self._exec_p2p_op(stage_id - 1, stage_id, mb_idx, False)
+
+            # Detach the computation graph for cases where two consecutive stages are on the same actor
+            if stage_id > 0 and piper_metadata.stage_to_device[stage_id] == piper_metadata.stage_to_device[stage_id - 1]:
+                for i in self.input_idxs[stage_id]:
+                    if self.forward_args[stage_id][i].requires_grad:
+                        self.forward_args[stage_id][i] = self.forward_args[stage_id][i].detach().requires_grad_(True)
 
             # save first input that requires grad as input activation
             inp_with_grad = [
@@ -568,18 +590,21 @@ class PiperActor:
         )
         torch.cuda.synchronize()
 
-    def _backward(self, stage_id: int, mb_idx: int, loss_fn=None):
+        return 1
+
+    def _backward(self, stage_id: int, mb_idx: int, dep, loss_fn=None):
 
         self.logger.debug(
             f"Calling backward {stage_id} mb {mb_idx} on actor {self.global_rank}"
         )
 
+        if mb_idx not in self.out_activation[stage_id]:
+            self.logger.warning(f"No output activation found for stage {stage_id} mb {mb_idx} on actor {self.global_rank}")
         out_activation = self.out_activation[stage_id][mb_idx]
 
         if stage_id < self.num_stages - 1:
             self._exec_p2p_op(stage_id + 1, stage_id, mb_idx, False)
         else:
-            # For the final stage, wait for the forward pass to complete
             assert loss_fn is not None
             labels = self.labels
             assert out_activation.shape == labels.shape
@@ -606,6 +631,13 @@ class PiperActor:
 
         torch.cuda.synchronize()
 
+        return 1
+
+    def _forward_backward(self, fwd_stage_id: int, fwd_mb_idx: int, bwd_stage_id: int, bwd_mb_idx: int, dep, loss_fn=None):
+        self._forward(fwd_stage_id, fwd_mb_idx, dep)
+        self._backward(bwd_stage_id, bwd_mb_idx, dep, loss_fn=loss_fn)
+        return 1
+
     def _synchronize_gradients(self):
         self.logger.info(f"Actor {self.global_rank} synchronizing gradients")
         # Iterate over all stages on this actor and synchronize their parameters
@@ -617,7 +649,7 @@ class PiperActor:
                             param.grad, op=dist.ReduceOp.AVG, group=self.dp_group
                         )
 
-    def _update(self):
+    def _update(self, dep):
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
 
         # if dp degree > 1, make sure all gradients are synchronized before optimizer step

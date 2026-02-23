@@ -1,21 +1,17 @@
 from .schedule_helpers import print_schedule, build_1f1b_schedule, build_gpipe_schedule
 
-num_mbs = 4
-num_stages = 2
-schedule = build_1f1b_schedule(num_mbs, num_stages)
-print("1F1B Schedule -> 1f1b_schedule.pdf")
-print_schedule(schedule, path="1f1b_schedule_pp2")
+schedule = build_1f1b_schedule(4, 2)
+print("1F1B Schedule")
+print_schedule(schedule)
 
-schedule = build_gpipe_schedule(num_mbs, num_stages)
-print("GPipe Schedule -> gpipe_schedule.pdf")
-print_schedule(schedule, path="gpipe_schedule_pp2")
+schedule = build_gpipe_schedule(4, 2)
+print("GPipe Schedule")
+print_schedule(schedule)
 
-num_mbs = 8
-num_stages = 4
-schedule = build_1f1b_schedule(num_mbs, num_stages)
-print("1F1B Schedule -> 1f1b_schedule.pdf")
-print_schedule(schedule, path="1f1b_schedule_pp4")
+schedule = build_1f1b_schedule(8, 4)
+print("1F1B Schedule")
+print_schedule(schedule)
 
-schedule = build_gpipe_schedule(num_mbs, num_stages)
-print("GPipe Schedule -> gpipe_schedule.pdf")
-print_schedule(schedule, path="gpipe_schedule_pp4")
+schedule = build_gpipe_schedule(8, 4)
+print("GPipe Schedule")
+print_schedule(schedule)

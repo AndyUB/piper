@@ -3,16 +3,11 @@ import torch
 import time
 import argparse
 import os
-from torch import nn, optim
-from torch.profiler import profile, record_function, ProfilerActivity
 import numpy as np
-import itertools
 import gc
 
-from src.piper_exec import Task, piper_exec
-from src.piper_compile import piper_setup
-from src.piper import piper
-from src.piper_utils import piper_metadata
+from src.piper_exec import piper_exec
+from src.piper_compile import piper_setup, piper_shutdown
 from src.piper_coordinator import PiperProgramCoordinator
 
 from .models.llama import Transformer, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
@@ -20,9 +15,10 @@ from .schedule_helpers import (
     build_1f1b_schedule, 
     build_gpipe_schedule, 
     print_schedule,
-    pp2_interleaved_1f1b_grid_schedule, 
-    pp4_interleaved_1f1b_grid_schedule,
-    no_pp_schedule
+    INTERLEAVED_1F1B_PP2_SCHEDULE, 
+    INTERLEAVED_1F1B_PP4_SCHEDULE,
+    NO_PP_SCHEDULE,
+    DUALPIPEV_SCHEDULE,
 )
 
 
@@ -51,28 +47,26 @@ def main(args):
     schedule = None
     match args.schedule:
         case "no-pp":
-            schedule = no_pp_schedule
+            schedule = NO_PP_SCHEDULE
         case "interleaved-1f1b":
-            schedule = pp2_interleaved_1f1b_grid_schedule if args.pp == 2 else pp4_interleaved_1f1b_grid_schedule
+            schedule = INTERLEAVED_1F1B_PP2_SCHEDULE if args.pp == 2 else INTERLEAVED_1F1B_PP4_SCHEDULE
         case "1f1b":
             schedule = build_1f1b_schedule(args.mbs, args.pp)
         case "gpipe":
             schedule = build_gpipe_schedule(args.mbs, args.pp)
+        case "dualpipev":
+            schedule = DUALPIPEV_SCHEDULE
     print("Schedule:")
     print_schedule(schedule)
 
     piper_setup(
         model,
         torch.optim.Adam, 
-        [x], 
+        [x],
+        y,
         schedule,
         args.naive_gradient_sync,
     )
-
-    # Send data to actors ahead of time
-    actors = piper_metadata.actors
-    ray.get(actors[0].load_input.remote([x]))
-    ray.get(actors[len(actors)-1].load_labels.remote(y))
 
     del model
     del x
@@ -84,7 +78,7 @@ def main(args):
     # Warmup
     print(f"Running {args.warmup} warmup iterations...")
     for i in range(args.warmup):
-        piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
+        piper_exec(schedule, loss_fn, args.dp, args.naive_gradient_sync)
         print(f"Warmup {i} completed")
 
     # Time training steps
@@ -92,7 +86,7 @@ def main(args):
     iter_times = []
     for _ in range(args.iters):
         start = time.perf_counter()
-        piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
+        piper_exec(schedule, loss_fn, args.dp, args.naive_gradient_sync)
         end = time.perf_counter()
         iter_times.append(end - start)
     
@@ -107,7 +101,7 @@ def main(args):
 
         print(f"Running {args.warmup} tracing iterations...")
         for _ in range(args.warmup):
-            piper_exec(schedule, [None], None, loss_fn, args.dp, args.naive_gradient_sync)
+            piper_exec(schedule, loss_fn, args.dp, args.naive_gradient_sync)
 
         trace_data_ret = ray.get([actor.get_trace_data.remote() for actor in actors.values()])
         for rank, trace_data in trace_data_ret:
@@ -123,15 +117,14 @@ def main(args):
     ray.timeline(timeline_filename)
     print(f"Ray timeline saved to: {timeline_filename}")
 
-    ray.get([actor.shutdown.remote() for actor in actors.values()])
-
+    piper_shutdown()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['debug', '1b', '3b', '8b'], default='debug',
                         help='Model configuration: debug, 1b, 3b, or 8b (default: debug)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'no-pp'], default='1f1b',
-                        help='Schedule type: gpipe, 1f1b, or interleaved-1f1b (default: 1f1b)')
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'dualpipev', 'no-pp'], default='1f1b',
+                        help='Schedule type: gpipe, 1f1b, interleaved-1f1b, dualpipev, or no-pp (default: 1f1b)')
     parser.add_argument('--dp', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
     parser.add_argument('--pp', type=int, default=2,
