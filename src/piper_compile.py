@@ -16,26 +16,11 @@ from .piper import piper
 logger = create_logger("piper_compile", LOG_LEVEL)
 
 
-def _expand_task(task: Task | None) -> list[Task]:
-    if task is None or task.type == CompType.UPD:
-        return []
-    if task.type != CompType.FWD_BWD:
-        return [task]
-    return [
-        Task(pp_rank=task.pp_rank, batches=[task.batches[0]], type=CompType.FWD),
-        Task(pp_rank=task.pp_rank, batches=[task.batches[1]], type=CompType.BWD),
-    ]
-
-
 def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, stage_to_device: dict[int, int]):
     schedule = schedule.grid
     # Filter to fwd/bwd tasks and split FWD_BWD into two consecutive tasks (FWD then BWD).
-    schedule = [
-        list(itertools.chain.from_iterable(_expand_task(task) for task in row))
-        for row in schedule
-    ]
+    schedule = [[task for task in row if task is not None and task.type != CompType.UPD] for row in schedule]
 
-    logger.debug(f"Fwd/bwd schedule: {schedule}")
     assert num_devices == len(schedule), "Some rank has no fwd/bwd tasks"
     # Tasks are guaranteed to be fwd or bwd
     num_fwd_bwd_tasks = sum(len(rank_tasks) for rank_tasks in schedule)
@@ -52,17 +37,25 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
         for rank, time_step in rank_to_next_task.items():
             if time_step < len(schedule[rank]):
                 task = schedule[rank][time_step]
-                assert len(task.batches) == 1, "FWD_BWD tasks should be expanded into two consecutive tasks"
-                batch = task.batches[0]
                 # Check the task's dependency is satisfied
                 # i.e., the sender has enqueued the comm
-                dependee = None
-                if task.type == CompType.FWD and batch.stage_id > 0:
-                    dependee = (batch.stage_id - 1, batch.stage_id, batch.mb_idx)
-                elif task.type == CompType.BWD and batch.stage_id < num_stages - 1:
-                    dependee = (batch.stage_id + 1, batch.stage_id, batch.mb_idx)
+                dependee = []
+                if task.type == CompType.FWD:
+                    batch = task.batches[0]
+                    if batch.stage_id > 0:
+                        dependee.append((batch.stage_id - 1, batch.stage_id, batch.mb_idx))
+                elif task.type == CompType.BWD:
+                    batch = task.batches[0]
+                    if batch.stage_id < num_stages - 1:
+                        dependee.append((batch.stage_id + 1, batch.stage_id, batch.mb_idx))
+                elif task.type == CompType.FWD_BWD:
+                    fwd_batch, bwd_batch = task.batches
+                    if fwd_batch.stage_id > 0:
+                        dependee.append((fwd_batch.stage_id - 1, fwd_batch.stage_id, fwd_batch.mb_idx))
+                    if bwd_batch.stage_id < num_stages - 1:
+                        dependee.append((bwd_batch.stage_id + 1, bwd_batch.stage_id, bwd_batch.mb_idx))
 
-                can_exec = dependee is None or dependee in p2p_comms
+                can_exec = dependee is [] or all(dependee in p2p_comms for dependee in dependee)
                 if can_exec:
                     executable_tasks.append((rank, task))
 
@@ -70,12 +63,20 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
             break
 
         for rank, task in executable_tasks:
-            assert len(task.batches) == 1, "FWD_BWD tasks should be expanded into two consecutive tasks"
-            batch = task.batches[0]
-            if task.type == CompType.FWD and batch.stage_id < num_stages - 1:
-                p2p_comms.append((batch.stage_id, batch.stage_id + 1, batch.mb_idx))
-            elif task.type == CompType.BWD and batch.stage_id > 0:
-                p2p_comms.append((batch.stage_id, batch.stage_id - 1, batch.mb_idx))
+            if task.type == CompType.FWD:
+                batch = task.batches[0]
+                if batch.stage_id < num_stages - 1:
+                    p2p_comms.append((batch.stage_id, batch.stage_id + 1, batch.mb_idx))
+            elif task.type == CompType.BWD:
+                batch = task.batches[0]
+                if batch.stage_id > 0:
+                    p2p_comms.append((batch.stage_id, batch.stage_id - 1, batch.mb_idx))
+            elif task.type == CompType.FWD_BWD:
+                fwd_batch, bwd_batch = task.batches
+                if fwd_batch.stage_id < num_stages - 1:
+                    p2p_comms.append((fwd_batch.stage_id, fwd_batch.stage_id + 1, fwd_batch.mb_idx))
+                if bwd_batch.stage_id > 0:
+                    p2p_comms.append((bwd_batch.stage_id, bwd_batch.stage_id - 1, bwd_batch.mb_idx))
             rank_to_next_task[rank] += 1
 
         num_executed_tasks += len(executable_tasks)
@@ -86,7 +87,6 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
             f"fwd/bwd tasks can be executed"
         )
 
-    logger.debug(f"P2P comms: {p2p_comms}")
     # (src_stage, dst_stage, mb_idx, is_sender)
     p2p_schedules = {rank: [] for rank in range(num_devices)}
     for src_stage, dst_stage, mb_idx in p2p_comms:
@@ -94,7 +94,9 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
         dst_rank = stage_to_device[dst_stage]
         p2p_schedules[src_rank].append((src_stage, dst_stage, mb_idx, True))
         p2p_schedules[dst_rank].append((src_stage, dst_stage, mb_idx, False))
-    logger.debug(f"P2P schedules: {p2p_schedules}")
+    
+    for rank, schedule in p2p_schedules.items():
+        logger.info(f"P2P schedule for rank {rank}: {schedule}")
 
     return p2p_schedules
 

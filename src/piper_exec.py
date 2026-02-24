@@ -318,6 +318,7 @@ def piper_exec(
     """
     num_mbs = schedule.num_mbs()
     num_devices = schedule.num_ranks()
+    num_stages = schedule.num_stages()
     num_steps = len(schedule.grid[0])
 
     schedule = schedule.grid
@@ -330,7 +331,7 @@ def piper_exec(
 
     ret = []
     # map pp_rank -> latest dependency
-    deps = defaultdict(dict)
+    deps = {}
     for i in range(num_steps):
         for j in range(num_devices-1, -1, -1):
             if not i < len(schedule[j]):
@@ -347,20 +348,30 @@ def piper_exec(
                     case CompType.FWD:
                         stage_id, mb_idx = batches[0]
                         # logger.info(f"Executing forward {stage_id} mb {mb_idx} on actor {actor_id}")
-                        if pp_rank not in deps:
-                            dep = actor._forward.remote(stage_id, mb_idx, None)
+                        dep = deps[pp_rank] if pp_rank in deps else None
+                        if stage_id == 0:
+                            dep = actor._forward.remote(stage_id, mb_idx, dep)
                         else:
-                            dep = actor._forward.remote(stage_id, mb_idx, deps[pp_rank])
+                            dep = actor._exec_p2p_op.remote(stage_id - 1, stage_id, mb_idx, False, dep)
+                            dep = actor._forward.remote(stage_id, mb_idx, dep)
+                        if stage_id < num_stages - 1:
+                            dep = actor._exec_p2p_op.remote(stage_id, stage_id + 1, mb_idx, True, dep)
                         deps[pp_rank] = dep
                     case CompType.BWD:
                         stage_id, mb_idx = batches[0]
                         # logger.info(f"Executing backward {stage_id} mb {mb_idx} on actor {actor_id}")
-                        dep = actor._backward.remote(stage_id, mb_idx, deps[pp_rank], loss_fn=loss_fn)
+                        dep = deps[pp_rank]
+                        if stage_id < num_stages - 1:
+                            dep = actor._exec_p2p_op.remote(stage_id + 1, stage_id, mb_idx, False, dep)
+                        dep = actor._backward.remote(stage_id, mb_idx, dep, loss_fn=loss_fn)
+                        if stage_id > 0:
+                            dep = actor._exec_p2p_op.remote(stage_id, stage_id - 1, mb_idx, True, dep)
                         deps[pp_rank] = dep
                     case CompType.FWD_BWD:
                         fwd_stage_id, fwd_mb_idx = batches[0]
                         bwd_stage_id, bwd_mb_idx = batches[1]
                         # logger.info(f"Executing forward-backward {fwd_stage_id} mb {fwd_mb_idx} -> {bwd_stage_id} mb {bwd_mb_idx} on actor {actor_id}")
+                        # Don't explicitly schedule p2p ops -- overlapped in _forward_backward
                         dep = actor._forward_backward.remote(fwd_stage_id, fwd_mb_idx, bwd_stage_id, bwd_mb_idx, deps[pp_rank], loss_fn=loss_fn)
                         deps[pp_rank] = dep
     return ray.get(ret)
