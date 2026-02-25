@@ -20,6 +20,7 @@ from .schedule_helpers import (
     INTERLEAVED_1F1B_PP4_SCHEDULE,
     NO_PP_SCHEDULE,
     DUALPIPEV_SCHEDULE,
+    INTERLEAVED_GPIPE_PP2_SCHEDULE,
 )
 
 
@@ -58,6 +59,8 @@ def main(args):
             schedule = build_1f1b_schedule(args.mbs, args.pp)
         case "gpipe":
             schedule = build_gpipe_schedule(args.mbs, args.pp)
+        case "interleaved-gpipe":
+            schedule = INTERLEAVED_GPIPE_PP2_SCHEDULE
         case "dualpipev":
             schedule = DUALPIPEV_SCHEDULE
     print("Schedule:")
@@ -129,7 +132,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['debug', '1b', '3b', '8b'], default='debug',
                         help='Model configuration: debug, 1b, 3b, or 8b (default: debug)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'dualpipev', 'no-pp'], default='1f1b',
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe', 'dualpipev', 'no-pp'], default='1f1b',
                         help='Schedule type: gpipe, 1f1b, interleaved-1f1b, dualpipev, or no-pp (default: 1f1b)')
     parser.add_argument('--dp', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')

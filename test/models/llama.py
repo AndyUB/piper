@@ -397,6 +397,50 @@ class Transformer(nn.Module):
         mask = torch.triu(mask, diagonal=1)
         self.mask = torch.hstack([torch.zeros((self.seq_len, 0)), mask]).to('cuda')
 
+    # """
+    # forward method for pp8-1f1b or pp4-interleaved-1f1b
+    # requires:
+    # - 8 stages
+    # - n_layers is divisible by 7
+    # """
+    # def forward(self, tokens: torch.Tensor):
+
+    #     with torch.fx.traceback.annotate({"stage": 0}):
+    #         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
+    #         start_pos = 0
+    #         for layer in self.layers[:self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 1}):
+    #         for layer in self.layers[self.n_layers//7:2*self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 2}):
+    #         for layer in self.layers[2*self.n_layers//7:3*self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 3}):
+    #         for layer in self.layers[3*self.n_layers//7:4*self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 4}):
+    #         for layer in self.layers[4*self.n_layers//7:5*self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 5}):
+    #         for layer in self.layers[5*self.n_layers//7:6*self.n_layers//7]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 6}):
+    #         for layer in self.layers[6*self.n_layers//7:]:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+
+    #     with torch.fx.traceback.annotate({"stage": 7}):
+    #         h = self.norm(h) if self.norm else h
+    #         output = self.output(h).float() if self.output else h
+
+    #     return output
+
     """
     forward method for pp4-1f1b or pp2-interleaved-1f1b
     requires:

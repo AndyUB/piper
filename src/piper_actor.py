@@ -46,7 +46,11 @@ def _create_actors(
     for pp_rank in range(num_actors):
         global_rank = _get_rank(pp_rank, dp_rank, pp_degree)
         p2p_schedule = p2p_schedules[pp_rank]
-        actor = PiperActor.options(num_gpus=1).remote(
+        # if pp_rank == 0:
+        #     num_gpus = 0.3
+        # else:
+        num_gpus = 0.8
+        actor = PiperActor.options(num_gpus=num_gpus).remote(
             pp_rank,
             optim_class,
             world_size,
@@ -520,6 +524,7 @@ class PiperActor:
                         src=global_src_rank,
                         group=self.pp_group,
                     )
+                    inputs_to_recv[i].record_stream(comp_stream)
             # Ensure the default stream only consumes tensors after recv completes.
             comp_stream.wait_stream(p2p_stream)
             torch.cuda.synchronize()
@@ -594,6 +599,7 @@ class PiperActor:
                 dist.recv(
                     input_grad, src=global_src_rank, group=self.pp_group
                 )
+                input_grad.record_stream(comp_stream)
             # Ensure the default stream only consumes gradients after recv completes.
             comp_stream.wait_stream(p2p_stream)
             torch.cuda.synchronize()
@@ -773,12 +779,12 @@ class PiperActor:
         )
 
         # PREPARE FORWARD PASS
+
         if fwd_stage_id == 0:
             # For the first stage, load input tensors from self.inputs
             for i, inp in zip(self.input_idxs[fwd_stage_id], self.inputs):
                 self.forward_args[fwd_stage_id][i] = inp
         else:
-            self._exec_p2p_op(fwd_stage_id - 1, fwd_stage_id, fwd_mb_idx, False, p2p_stream=fwd_p2p_stream)
             inputs_from_prev_stage = self.p2p_cache.pop(
                 (fwd_stage_id - 1, fwd_stage_id, fwd_mb_idx, False)
             )
@@ -804,17 +810,10 @@ class PiperActor:
             )
             self.inp_activation[fwd_stage_id][fwd_mb_idx] = inp_with_grad[0]
 
-        # RUN FORWARD PASS
-        self._start_timing(fwd_comp_stream, "forward_comp")
-        with torch.cuda.stream(fwd_comp_stream):
-            output = self.forward_fns[fwd_stage_id](*self.forward_args[fwd_stage_id])
-        self._stop_timing(fwd_comp_stream, "forward_comp")
-        
         # PREPARE BACKWARD PASS
+
         out_activation = self.out_activation[bwd_stage_id][bwd_mb_idx]
         if bwd_stage_id < self.num_stages - 1:
-            self._exec_p2p_op(bwd_stage_id + 1, bwd_stage_id, bwd_mb_idx, False, p2p_stream=bwd_p2p_stream)
-
             input_grad = self.p2p_cache.pop(
                 (bwd_stage_id + 1, bwd_stage_id, bwd_mb_idx, False)
             )
@@ -822,8 +821,16 @@ class PiperActor:
             assert loss_fn is not None
             labels = self.labels
             assert out_activation.shape == labels.shape
+            
+        # RUN FORWARD PASS
+
+        self._start_timing(fwd_comp_stream, "forward_comp")
+        with torch.cuda.stream(fwd_comp_stream):
+            output = self.forward_fns[fwd_stage_id](*self.forward_args[fwd_stage_id])
+        self._stop_timing(fwd_comp_stream, "forward_comp")
 
         # RUN BACKWARD PASS
+
         if bwd_stage_id < self.num_stages - 1:
             self._start_timing(bwd_comp_stream, "backward_comp")
             with torch.cuda.stream(bwd_comp_stream):
@@ -837,6 +844,7 @@ class PiperActor:
             self._stop_timing(bwd_comp_stream, "backward_comp")
 
         # POST PROCESS FORWARD PASS
+
         out_with_grad = [out for out in output if out.requires_grad]
         assert (
             len(out_with_grad) == 1
@@ -850,24 +858,19 @@ class PiperActor:
         for i in self.input_idxs[fwd_stage_id]:
             self.forward_args[fwd_stage_id][i] = None
         
+        if fwd_stage_id < self.num_stages - 1:
+            send_p2p_op = (fwd_stage_id, fwd_stage_id + 1, fwd_mb_idx, True)
+            assert send_p2p_op not in self.p2p_cache
+            self.p2p_cache[send_p2p_op] = output
+
         # POST PROCESS BACKWARD PASS
+
         if bwd_stage_id == self.num_stages - 1:
             self.loss.append(loss.item())
 
         # Clear output activation after backward pass
         self.out_activation[bwd_stage_id][bwd_mb_idx] = None
         del out_activation
-
-        # POST FORWARD P2P OPERATIONS
-        if fwd_stage_id < self.num_stages - 1:
-            send_p2p_op = (fwd_stage_id, fwd_stage_id + 1, fwd_mb_idx, True)
-            assert send_p2p_op not in self.p2p_cache
-            self.p2p_cache[send_p2p_op] = output
-            self._exec_p2p_op(fwd_stage_id, fwd_stage_id + 1, fwd_mb_idx, True, p2p_stream=fwd_p2p_stream)
-
-        # POST BACKWARD P2P OPERATIONS
-        if bwd_stage_id > 0:
-            self._exec_p2p_op(bwd_stage_id, bwd_stage_id - 1, bwd_mb_idx, True, p2p_stream=bwd_p2p_stream)
 
         if CLEANUP_MEMORY:
             gc.collect()
@@ -890,7 +893,6 @@ class PiperActor:
                         )
 
     def _update(self, *deps):
-        self._wait_pending_sends()
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
 
         # if dp degree > 1, make sure all gradients are synchronized before optimizer step
