@@ -15,6 +15,14 @@ from .piper import piper
 
 logger = create_logger("piper_compile", LOG_LEVEL)
 
+def _sort_by_task(executable_tasks: list[tuple[int, Task]]) -> list[tuple[int, Task]]:
+    """Sort executable tasks by type so that BWD comes before FWD (then FWD_BWD)."""
+    type_order = {CompType.BWD: 2, CompType.FWD: 1, CompType.FWD_BWD: 0}
+    return sorted(
+        executable_tasks,
+        key=lambda item: type_order.get(item[1].type, 3),
+    )
+
 
 def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, stage_to_device: dict[int, int]):
     schedule = schedule.grid
@@ -62,6 +70,7 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
         if not executable_tasks:
             break
 
+        executable_tasks = _sort_by_task(executable_tasks)
         for rank, task in executable_tasks:
             if task.type == CompType.FWD:
                 batch = task.batches[0]
@@ -96,7 +105,7 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
         p2p_schedules[dst_rank].append((src_stage, dst_stage, mb_idx, False))
     
     for rank, schedule in p2p_schedules.items():
-        logger.info(f"P2P schedule for rank {rank}: {schedule}")
+        logger.debug(f"P2P schedule for rank {rank}: {schedule}")
 
     return p2p_schedules
 

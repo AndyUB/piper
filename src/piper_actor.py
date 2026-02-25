@@ -141,8 +141,6 @@ class PiperActor:
         self.out_activation = defaultdict(dict)
         # map (src_stage, dst_stage, mb_idx, is_sender) -> tensor for p2p communication
         self.p2p_cache = dict()
-        # pending send operation handles; waited on before starting the next task
-        self.pending_send_handles: list = []
         # accumuate loss for each microbatch
         self.loss = []
         # map stage id -> data parallel communication operations
@@ -166,12 +164,6 @@ class PiperActor:
         self.next_p2p_idx = 0
         self.executed_p2ps = set()
         self.p2p_cache = dict()
-
-    def _wait_pending_sends(self) -> None:
-        """Wait on all pending send handles from previous task before starting the next."""
-        for handle in self.pending_send_handles:
-            handle.wait()
-        self.pending_send_handles.clear()
 
     def get_trace_data(self) -> dict:
         return self.global_rank, self.trace_data
@@ -521,19 +513,13 @@ class PiperActor:
                 f"Dispatch fwd p2p recv on {self.global_rank} from {global_src_rank}, op: ({stage_id-1} -> {stage_id}, mb {mb_idx})"
             )
             self._start_timing(p2p_stream, "fwd_p2p_recv")
-            p2p_op_list = [
-                dist.P2POp(
-                    dist.irecv,
-                    inputs_to_recv[i],
-                    global_src_rank,
-                    group=self.pp_group,
-                )
-                for i in self.input_idxs[stage_id]
-            ]
             with torch.cuda.stream(p2p_stream):
-                recv_handles = dist.batch_isend_irecv(p2p_op_list)
-            for handle in recv_handles:
-                handle.wait()
+                for i in self.input_idxs[stage_id]:
+                    dist.recv(
+                        inputs_to_recv[i],
+                        src=global_src_rank,
+                        group=self.pp_group,
+                    )
             # Ensure the default stream only consumes tensors after recv completes.
             comp_stream.wait_stream(p2p_stream)
             torch.cuda.synchronize()
@@ -563,23 +549,21 @@ class PiperActor:
             self.p2p_cache[p2p_op] = output
         else:
             # Ensure send sees the latest writes from the default stream.
+            self.logger.debug(
+                f"Dispatch fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
+            )
             self._start_timing(p2p_stream, "fwd_p2p_send")
             p2p_stream.wait_stream(comp_stream)
-            p2p_op_list = [
-                dist.P2POp(
-                    dist.isend,
-                    output[i],
-                    global_dst_rank,
-                    group=self.pp_group,
-                )
-                for i in range(len(output))
-            ]
             with torch.cuda.stream(p2p_stream):
-                send_handles = dist.batch_isend_irecv(p2p_op_list)
-            self.pending_send_handles.extend(send_handles)
+                for i in range(len(output)):
+                    dist.send(
+                        output[i],
+                        dst=global_dst_rank,
+                        group=self.pp_group,
+                    )
             self._stop_timing(p2p_stream, "fwd_p2p_send")
             self.logger.debug(
-                f"Dispatched fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
+                f"Completed fwd p2p send on {self.global_rank} to {global_dst_rank}, op: ({stage_id} -> {stage_id+1}, mb {mb_idx})"
             )
 
     def _exec_bwd_recv(self, stage_id: int, mb_idx: int, p2p_stream=None, comp_stream=None):
@@ -607,10 +591,9 @@ class PiperActor:
             )
             self._start_timing(p2p_stream, "bwd_p2p_recv")
             with torch.cuda.stream(p2p_stream):
-                recv_handle = dist.irecv(
+                dist.recv(
                     input_grad, src=global_src_rank, group=self.pp_group
                 )
-            recv_handle.wait()
             # Ensure the default stream only consumes gradients after recv completes.
             comp_stream.wait_stream(p2p_stream)
             torch.cuda.synchronize()
@@ -642,24 +625,24 @@ class PiperActor:
             p2p_op = (stage_id, stage_id - 1, mb_idx, True)
             self.p2p_cache[p2p_op] = output_grad
         else:
-            # Ensure send sees the latest gradient writes from the default stream.
+            self.logger.debug(
+                f"Dispatch bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
+            )
             self._start_timing(p2p_stream, "bwd_p2p_send")
+            # Ensure send sees the latest gradient writes from the default stream.
             p2p_stream.wait_stream(comp_stream)
             with torch.cuda.stream(p2p_stream):
-                handle = dist.isend(
+                dist.send(
                     output_grad, dst=global_src_rank, group=self.pp_group
                 )
-                self.pending_send_handles.append(handle)
             self._stop_timing(p2p_stream, "bwd_p2p_send")
             self.logger.debug(
-                f"Dispatched bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
+                f"Completed bwd p2p send on {self.global_rank} to {global_src_rank}, op: ({stage_id} -> {stage_id-1}, mb {mb_idx})"
             )
 
         self.inp_activation[stage_id][mb_idx] = None
     
     def _forward(self, stage_id: int, mb_idx: int, *deps):
-        # self._wait_pending_sends()
-
         comp_stream = self.comp_stream
 
         self.logger.debug(
@@ -671,7 +654,6 @@ class PiperActor:
             for i, inp in zip(self.input_idxs[stage_id], self.inputs):
                 self.forward_args[stage_id][i] = inp
         else:
-            # self._exec_p2p_op(stage_id - 1, stage_id, mb_idx, False)
             inputs_from_prev_stage = self.p2p_cache.pop(
                 (stage_id - 1, stage_id, mb_idx, False)
             )
@@ -723,7 +705,6 @@ class PiperActor:
             send_p2p_op = (stage_id, stage_id + 1, mb_idx, True)
             assert send_p2p_op not in self.p2p_cache
             self.p2p_cache[send_p2p_op] = output
-            # self._exec_p2p_op(stage_id, stage_id + 1, mb_idx, True)
 
         if CLEANUP_MEMORY:
             gc.collect()
@@ -734,11 +715,11 @@ class PiperActor:
             f"Forward {stage_id} mb {mb_idx} on actor {self.global_rank} returning {[out.shape for out in output]}"
         )
 
+        torch.cuda.synchronize()
+
         return 1
 
     def _backward(self, stage_id: int, mb_idx: int, *deps, loss_fn=None):
-        # self._wait_pending_sends()
-
         comp_stream = self.comp_stream
 
         self.logger.debug(
@@ -747,8 +728,6 @@ class PiperActor:
         out_activation = self.out_activation[stage_id][mb_idx]
 
         if stage_id < self.num_stages - 1:
-            # self._exec_p2p_op(stage_id + 1, stage_id, mb_idx, False)
-
             input_grad = self.p2p_cache.pop(
                 (stage_id + 1, stage_id, mb_idx, False)
             )
@@ -774,19 +753,16 @@ class PiperActor:
         self.out_activation[stage_id][mb_idx] = None
         del out_activation
 
-        # if stage_id > 0:
-        #     self._exec_p2p_op(stage_id, stage_id - 1, mb_idx, True)
-
         if CLEANUP_MEMORY:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+        torch.cuda.synchronize()
+
         return 1
 
     def _forward_backward(self, fwd_stage_id: int, fwd_mb_idx: int, bwd_stage_id: int, bwd_mb_idx: int, *deps, loss_fn=None):
-        # self._wait_pending_sends()
-
         fwd_comp_stream = self.comp_stream
         bwd_comp_stream = self.overlapped_comp_stream
         fwd_p2p_stream = self.p2p_stream
@@ -898,6 +874,8 @@ class PiperActor:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+        torch.cuda.synchronize()
+
         return 1
 
     def _synchronize_gradients(self):
@@ -934,12 +912,6 @@ class PiperActor:
 
         losses = self.loss
         self.loss.clear()
-
-        # Aggressive memory cleanup after optimizer step
-        # if CLEANUP_MEMORY:
-        #     gc.collect()
-        #     if torch.cuda.is_available():
-        #         torch.cuda.empty_cache()
 
         torch.cuda.synchronize()
 

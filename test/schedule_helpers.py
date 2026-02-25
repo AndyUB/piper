@@ -421,6 +421,68 @@ DUALPIPEV_SCHEDULE = Schedule2D(
         ]
     ])
 
+INTERLEAVED_1F1B_PP2_MB6_SCHEDULE = Schedule2D(
+    grid=[
+        [
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=2)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=3)], type=CompType.FWD),
+            None,
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=1)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=2)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=3)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=1)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=4)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=2)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=5)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=3)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=4)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=2)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=5)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=3)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=4)], type=CompType.BWD),
+            None,
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=5)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=4)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=5)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[], type=CompType.UPD),
+        ],
+        [
+            None,
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=1)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=2)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=3)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=1)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=2)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=2)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=3)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=3)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=4)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=2)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=5)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=3)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=4)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=4)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=5)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=3, mb_idx=5)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=4)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=5)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[], type=CompType.UPD),
+            None,
+        ],
+    ])
+
 # 2D grid literals for interleaved 1F1B (used only to build DAGs below)
 INTERLEAVED_1F1B_PP2_SCHEDULE = Schedule2D(
     grid=[

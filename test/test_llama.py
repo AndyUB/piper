@@ -15,7 +15,8 @@ from .schedule_helpers import (
     build_1f1b_schedule, 
     build_gpipe_schedule, 
     print_schedule,
-    INTERLEAVED_1F1B_PP2_SCHEDULE, 
+    INTERLEAVED_1F1B_PP2_SCHEDULE,
+    INTERLEAVED_1F1B_PP2_MB6_SCHEDULE,
     INTERLEAVED_1F1B_PP4_SCHEDULE,
     NO_PP_SCHEDULE,
     DUALPIPEV_SCHEDULE,
@@ -49,7 +50,10 @@ def main(args):
         case "no-pp":
             schedule = NO_PP_SCHEDULE
         case "interleaved-1f1b":
-            schedule = INTERLEAVED_1F1B_PP2_SCHEDULE if args.pp == 2 else INTERLEAVED_1F1B_PP4_SCHEDULE
+            if args.mbs == 6:
+                schedule = INTERLEAVED_1F1B_PP2_MB6_SCHEDULE
+            else:
+                schedule = INTERLEAVED_1F1B_PP2_SCHEDULE if args.pp == 2 else INTERLEAVED_1F1B_PP4_SCHEDULE
         case "1f1b":
             schedule = build_1f1b_schedule(args.mbs, args.pp)
         case "gpipe":
@@ -97,6 +101,8 @@ def main(args):
     )
 
     if args.tracing:
+        from src.piper_utils import piper_metadata
+        actors = piper_metadata.actors
         ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
 
         print(f"Running {args.warmup} tracing iterations...")

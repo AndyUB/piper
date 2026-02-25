@@ -80,6 +80,9 @@ class Task(NamedTuple):
     batches: list[BatchMeta]
     type: CompType
 
+    def __repr__(self) -> str:
+        return f"Task(pp_rank={self.pp_rank}, batches={[(batch.stage_id, batch.mb_idx) for batch in self.batches]}, type={self.type})"
+
 
 @dataclass
 class Schedule2D:
