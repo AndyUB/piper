@@ -15,13 +15,14 @@ from .schedule_helpers import (
     build_1f1b_schedule, 
     build_gpipe_schedule, 
     print_schedule,
-    INTERLEAVED_1F1B_PP2_SCHEDULE,
+    INTERLEAVED_1F1B_PP2_MB4_SCHEDULE,
     INTERLEAVED_1F1B_PP2_MB6_SCHEDULE,
-    INTERLEAVED_1F1B_PP4_SCHEDULE,
+    INTERLEAVED_1F1B_PP4_MB8_SCHEDULE,
+    INTERLEAVED_GPIPE_PP2_MB4_SCHEDULE,
     NO_PP_SCHEDULE,
-    DUALPIPEV_SCHEDULE,
-    INTERLEAVED_GPIPE_PP2_SCHEDULE,
-    ZEROBUBBLE_SCHEDULE,
+    DUALPIPEV_MB6_SCHEDULE,
+    DUALPIPEV_NOZB_MB6_SCHEDULE,
+    ZEROBUBBLE_MB4_SCHEDULE,
 )
 
 
@@ -53,20 +54,32 @@ def main(args):
         case "no-pp":
             schedule = NO_PP_SCHEDULE
         case "interleaved-1f1b":
-            if args.mbs == 6:
-                schedule = INTERLEAVED_1F1B_PP2_MB6_SCHEDULE
-            else:
-                schedule = INTERLEAVED_1F1B_PP2_SCHEDULE if args.pp == 2 else INTERLEAVED_1F1B_PP4_SCHEDULE
+            if args.pp == 2:
+                if args.mbs == 6:
+                    schedule = INTERLEAVED_1F1B_PP2_MB6_SCHEDULE
+                elif args.mbs == 4:
+                    schedule = INTERLEAVED_1F1B_PP2_MB4_SCHEDULE
+                else:
+                    raise ValueError(f"Unsupported number of microbatches: for interleaved-1f1b with PP={args.pp}: {args.mbs}")
+            elif args.pp == 4:
+                assert args.mbs == 8
+                schedule = INTERLEAVED_1F1B_PP4_MB8_SCHEDULE
         case "1f1b":
             schedule = build_1f1b_schedule(args.mbs, args.pp)
         case "gpipe":
             schedule = build_gpipe_schedule(args.mbs, args.pp)
         case "interleaved-gpipe":
-            schedule = INTERLEAVED_GPIPE_PP2_SCHEDULE
+            assert args.pp == 2 and args.mbs == 4
+            schedule = INTERLEAVED_GPIPE_PP2_MB4_SCHEDULE
         case "dualpipev":
-            schedule = DUALPIPEV_SCHEDULE
+            assert args.pp == 2 and args.mbs == 6
+            schedule = DUALPIPEV_MB6_SCHEDULE
+        case "dualpipev-nozb":
+            assert args.pp == 2 and args.mbs == 6
+            schedule = DUALPIPEV_NOZB_MB6_SCHEDULE
         case "zerobubble":
-            schedule = ZEROBUBBLE_SCHEDULE
+            assert args.pp == 2 and args.mbs == 4
+            schedule = ZEROBUBBLE_MB4_SCHEDULE
     print("Schedule:")
     print_schedule(schedule)
 
@@ -111,10 +124,16 @@ def main(args):
         from src.piper_utils import piper_metadata
         actors = piper_metadata.actors
         ray.get([actor.set_tracing.remote(args.tracing) for actor in actors.values()])
+        ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
+        ray.get([actor.start_mem_tracing.remote() for actor in actors.values()])
 
         print(f"Running {args.warmup} tracing iterations...")
         for _ in range(args.warmup):
             piper_exec(schedule, loss_fn, args.dp, args.naive_gradient_sync)
+
+        mem_data_ret = ray.get([actor.get_peak_memory.remote() for actor in actors.values()])
+        for rank, peak_mem in mem_data_ret:
+            print(f"rank {rank} peak memory= {peak_mem:.3f} GB")
 
         trace_data_ret = ray.get([actor.get_trace_data.remote() for actor in actors.values()])
         for rank, trace_data in trace_data_ret:
@@ -136,7 +155,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['debug', '1b', '3b', '8b'], default='debug',
                         help='Model configuration: debug, 1b, 3b, or 8b (default: debug)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe', 'dualpipev', 'zerobubble', 'no-pp'], default='1f1b',
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe', 'dualpipev-nozb', 'dualpipev', 'zerobubble', 'no-pp'], default='1f1b',
                         help='Schedule type: gpipe, 1f1b, interleaved-1f1b, dualpipev, zerobubble, or no-pp (default: 1f1b)')
     parser.add_argument('--dp', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')

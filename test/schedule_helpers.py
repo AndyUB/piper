@@ -112,7 +112,7 @@ def build_1f1b_schedule(n_mbs: int, n_stages: int) -> Schedule2D:
     return Schedule2D(grid=schedule)
 
 
-ZEROBUBBLE_SCHEDULE = Schedule2D(
+ZEROBUBBLE_MB4_SCHEDULE = Schedule2D(
     grid=[
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),          # t0:  F0
@@ -158,7 +158,65 @@ NO_PP_SCHEDULE = Schedule2D(
     ],
 )
 
-DUALPIPEV_SCHEDULE = Schedule2D(
+DUALPIPEV_MB6_SCHEDULE = Schedule2D(
+    grid=[
+        [
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=2)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.BWD_I),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.BWD_W),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=1)], type=CompType.BWD_I),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=1)], type=CompType.BWD_W),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=3)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=2), BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD_BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=4), BatchMeta(stage_id=3, mb_idx=2)], type=CompType.FWD_BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=3), BatchMeta(stage_id=0, mb_idx=1)], type=CompType.FWD_BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=5), BatchMeta(stage_id=3, mb_idx=3)], type=CompType.FWD_BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=4), BatchMeta(stage_id=0, mb_idx=2)], type=CompType.FWD_BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=4)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=5), BatchMeta(stage_id=0, mb_idx=3)], type=CompType.FWD_BWD),
+            None,
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=4)], type=CompType.BWD_I),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=5)], type=CompType.BWD_I),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=4)], type=CompType.BWD_W),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=5)], type=CompType.BWD_W),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=5)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[], type=CompType.UPD),
+            None,
+        ],
+        [
+            None,
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=1)], type=CompType.FWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=2), BatchMeta(stage_id=2, mb_idx=0)], type=CompType.FWD_BWD),
+            None,
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=2), BatchMeta(stage_id=1, mb_idx=0)], type=CompType.FWD_BWD),
+            None,
+            None,
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=3), BatchMeta(stage_id=2, mb_idx=1)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=3), BatchMeta(stage_id=1, mb_idx=1)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=4), BatchMeta(stage_id=2, mb_idx=2)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=4), BatchMeta(stage_id=1, mb_idx=2)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=5), BatchMeta(stage_id=2, mb_idx=3)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=5), BatchMeta(stage_id=1, mb_idx=3)], type=CompType.FWD_BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=4)], type=CompType.BWD),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=4)], type=CompType.BWD_I),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=4)], type=CompType.BWD_W),
+            None,
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=5)], type=CompType.BWD_I),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=5)], type=CompType.BWD_I),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=2, mb_idx=5)], type=CompType.BWD_W),
+            Task(pp_rank=1, batches=[BatchMeta(stage_id=1, mb_idx=5)], type=CompType.BWD_W),
+            Task(pp_rank=1, batches=[], type=CompType.UPD),
+        ]
+    ])
+
+DUALPIPEV_NOZB_MB6_SCHEDULE = Schedule2D(
     grid=[
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
@@ -268,7 +326,7 @@ INTERLEAVED_1F1B_PP2_MB6_SCHEDULE = Schedule2D(
         ],
     ])
 
-INTERLEAVED_1F1B_PP2_SCHEDULE = Schedule2D(
+INTERLEAVED_1F1B_PP2_MB4_SCHEDULE = Schedule2D(
     grid=[
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
@@ -314,7 +372,7 @@ INTERLEAVED_1F1B_PP2_SCHEDULE = Schedule2D(
         ],
     ])
 
-INTERLEAVED_GPIPE_PP2_SCHEDULE = Schedule2D(
+INTERLEAVED_GPIPE_PP2_MB4_SCHEDULE = Schedule2D(
     grid=[
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
@@ -360,7 +418,7 @@ INTERLEAVED_GPIPE_PP2_SCHEDULE = Schedule2D(
         ],
     ])
 
-INTERLEAVED_1F1B_PP4_SCHEDULE = Schedule2D(
+INTERLEAVED_1F1B_PP4_MB8_SCHEDULE = Schedule2D(
     grid=[
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),

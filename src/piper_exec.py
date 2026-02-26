@@ -158,7 +158,8 @@ def _validate_schedule(schedule: list[list[Task | None]], dag_edges: list[DAGEdg
         missing_bwd = all_required_stages - bwd_stages
         if missing_bwd:
             raise ValueError(
-                f"Microbatch {mb_idx} missing backward stages: {missing_bwd}"
+                f"Microbatch {mb_idx} missing backward stages: {missing_bwd} "
+                f"(need BWD, BWD_I, or FWD_BWD backward for each stage)"
             )
     
     # Check pipeline stage dependencies

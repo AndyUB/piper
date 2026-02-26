@@ -206,7 +206,7 @@ class PiperActor:
         torch.cuda.reset_peak_memory_stats()
 
     def get_peak_memory(self):
-        return torch.cuda.max_memory_allocated() / (1024**3)
+        return self.global_rank, torch.cuda.max_memory_allocated() / (1024**3)
 
     def load_input(self, inputs):
         self.inputs = [inp.to(self.device) for inp in inputs]

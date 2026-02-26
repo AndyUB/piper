@@ -60,7 +60,7 @@ def order_p2p_comms(schedule: Schedule2D, num_devices: int, num_stages: int, sta
                     batch = task.batches[0]
                     if batch.stage_id > 0:
                         dependee.append((batch.stage_id - 1, batch.stage_id, batch.mb_idx))
-                elif task.type == CompType.BWD or task.type == CompType.BWD_I:
+                elif task.type in (CompType.BWD, CompType.BWD_I):
                     batch = task.batches[0]
                     if batch.stage_id < num_stages - 1:
                         dependee.append((batch.stage_id + 1, batch.stage_id, batch.mb_idx))
