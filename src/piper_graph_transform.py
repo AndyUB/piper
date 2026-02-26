@@ -168,7 +168,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         prev_stage_outputs = set()
         for prev_stage_id in range(stage_annotation_id):
             if prev_stage_id in stage_modules:
-                _, _, _, prev_outputs, _, _, _, _, _ = stage_modules[prev_stage_id]
+                _, _, _, prev_outputs, _, _, _, _, _, _ = stage_modules[prev_stage_id]
                 prev_stage_outputs.update(prev_outputs)
         
         # Find all inputs needed by this stage (nodes that are not in the stage set)
@@ -253,7 +253,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         if stage_annotation_id > 0:
             prev_stage_id = stage_annotation_id - 1
             if prev_stage_id in stage_modules:
-                _, _, _, prev_stage_outputs_list, _, _, _, _, _ = stage_modules[prev_stage_id]
+                _, _, _, prev_stage_outputs_list, _, _, _, _, _, _ = stage_modules[prev_stage_id]
                 prev_stage_outputs_ordered = prev_stage_outputs_list
         
         # For stages > 0, first add inputs that come from previous stage outputs
@@ -300,7 +300,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         prev_stage_outputs = set()
         for prev_stage_id in range(stage_annotation_id):
             if prev_stage_id in stage_modules:
-                _, _, _, prev_outputs, _, _, _, _, _ = stage_modules[prev_stage_id]
+                _, _, _, prev_outputs, _, _, _, _, _, _ = stage_modules[prev_stage_id]
                 prev_stage_outputs.update(prev_outputs)
         
         # Find all nodes computed in this stage (dependencies of stage_nodes)
@@ -381,7 +381,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                 if not user_in_other_stage:
                     for other_stage_id in range(stage_annotation_id):
                         if other_stage_id in stage_modules:
-                            _, _, _, _, _, other_ordered_nodes, _, _, _ = stage_modules[other_stage_id]
+                            _, _, _, _, _, other_ordered_nodes, _, _, _, _ = stage_modules[other_stage_id]
                             if user in other_ordered_nodes:
                                 user_in_other_stage = True
                                 break
@@ -441,6 +441,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         # Load the module on the corresponding actor
         # Track which inputs come from previous stage outputs
         input_idxs = []
+        param_idxs = []
         graphargs = []
         placeholders = stage_gm.graph.find_nodes(op="placeholder")
         
@@ -451,14 +452,21 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
         prev_stage_outputs = set()
         prev_stage_id = stage_annotation_id - 1
         if prev_stage_id in stage_modules:
-            _, _, _, prev_stage_outputs_list, _, _, _, _, _ = stage_modules[prev_stage_id]
+            _, _, _, prev_stage_outputs_list, _, _, _, _, _, _ = stage_modules[prev_stage_id]
             prev_stage_outputs = set(prev_stage_outputs_list)
         
         for i, placeholder in enumerate(placeholders):
             if "grapharg" in placeholder.meta:
-                graphargs.append(placeholder.meta["grapharg"]._example())
+                example = placeholder.meta["grapharg"]._example()
             else:
-                graphargs.append(torch.zeros(placeholder.meta["example_value"].shape, dtype=placeholder.meta["example_value"].dtype, requires_grad=placeholder.meta["example_value"].requires_grad, device=placeholder.meta["example_value"].device))
+                example = torch.zeros(
+                    placeholder.meta["example_value"].shape, 
+                    dtype=placeholder.meta["example_value"].dtype, 
+                    requires_grad=placeholder.meta["example_value"].requires_grad, 
+                    device=placeholder.meta["example_value"].device)
+            graphargs.append(example)
+            if isinstance(example, torch.nn.Parameter):
+                param_idxs.append(i)
             # For the first stage, the input indices are everything that's not an attribute
             if stage_annotation_id == 0:
                 if 'self' not in placeholder.name:
@@ -470,6 +478,8 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                 if is_from_prev_stage:
                     input_idxs.append(i)
 
+        assert set(input_idxs) & set(param_idxs) == set(), "Input and parameter indices should be disjoint"
+
         stage_modules[stage_annotation_id] = (
             stage_gm,
             input_placeholders,
@@ -479,6 +489,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
             ordered_stage_nodes,
             stage_annotation_id,
             input_idxs,
+            param_idxs,
             graphargs,
         )
 
@@ -527,7 +538,7 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
                 in_stage = True
                 
                 # Get the stage module info
-                stage_gm, input_placeholders, input_order, stage_outputs, stage_nodes, ordered_stage_nodes, _, _, _ = stage_modules[stage_annotation_id]
+                stage_gm, input_placeholders, input_order, stage_outputs, stage_nodes, ordered_stage_nodes, _, _, _, _= stage_modules[stage_annotation_id]
                 
                 # Check if we've already created the call_module for this stage call
                 if stage_annotation_id not in stage_call_replaced:
@@ -600,10 +611,10 @@ def _split_gm_by_stages(gm) -> tuple[fx.GraphModule, list[tuple[int, fx.GraphMod
     # Create root module and add stage modules as submodules
     root_module = torch.nn.Module()
     submodule_list = []
-    for stage_annotation_id, (stage_gm, placeholders, _, _, _, _, _, input_idxs, params) in stage_modules.items():
+    for stage_annotation_id, (stage_gm, placeholders, _, _, _, _, _, input_idxs, param_idxs, params) in stage_modules.items():
         module_name = f"stage_{stage_annotation_id}"
         root_module.add_module(module_name, stage_gm)
-        submodule_list.append((stage_annotation_id, stage_gm, input_idxs, params, placeholders))
+        submodule_list.append((stage_annotation_id, stage_gm, input_idxs, param_idxs, params, placeholders))
     
     new_gm = fx.GraphModule(root_module, new_graph)
     

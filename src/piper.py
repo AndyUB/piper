@@ -1,5 +1,3 @@
-from . import piper_patches
-
 import ray
 import torch
 import os
@@ -38,7 +36,7 @@ def piper(gm, example_inputs, **kwargs):
 
     refs = []
     actor_stages = []
-    for (stage_id, stage_gm, input_idxs, graphargs, placeholders) in submodules:
+    for (stage_id, stage_gm, input_idxs, param_idxs, graphargs, placeholders) in submodules:
         if dp_degree > 1:
             stage_gm = _insert_a2a_ops(stage_gm)
 
@@ -62,6 +60,7 @@ def piper(gm, example_inputs, **kwargs):
             stage_gm_data,
             graphargs,
             input_idxs,
+            param_idxs,
         ))
 
         del stage_gm

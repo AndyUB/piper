@@ -21,6 +21,7 @@ from .schedule_helpers import (
     NO_PP_SCHEDULE,
     DUALPIPEV_SCHEDULE,
     INTERLEAVED_GPIPE_PP2_SCHEDULE,
+    ZEROBUBBLE_SCHEDULE,
 )
 
 
@@ -47,6 +48,7 @@ def main(args):
     y = torch.randn((args.batch_size, args.seq_len, llama_config.vocab_size)).to('cuda')
 
     schedule = None
+
     match args.schedule:
         case "no-pp":
             schedule = NO_PP_SCHEDULE
@@ -63,6 +65,8 @@ def main(args):
             schedule = INTERLEAVED_GPIPE_PP2_SCHEDULE
         case "dualpipev":
             schedule = DUALPIPEV_SCHEDULE
+        case "zerobubble":
+            schedule = ZEROBUBBLE_SCHEDULE
     print("Schedule:")
     print_schedule(schedule)
 
@@ -132,8 +136,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run LLaMA model with pipeline parallelism')
     parser.add_argument('--model', choices=['debug', '1b', '3b', '8b'], default='debug',
                         help='Model configuration: debug, 1b, 3b, or 8b (default: debug)')
-    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe', 'dualpipev', 'no-pp'], default='1f1b',
-                        help='Schedule type: gpipe, 1f1b, interleaved-1f1b, dualpipev, or no-pp (default: 1f1b)')
+    parser.add_argument('--schedule', choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe', 'dualpipev', 'zerobubble', 'no-pp'], default='1f1b',
+                        help='Schedule type: gpipe, 1f1b, interleaved-1f1b, dualpipev, zerobubble, or no-pp (default: 1f1b)')
     parser.add_argument('--dp', type=int, default=1,
                         help='Number of data parallel degrees (default: 1)')
     parser.add_argument('--pp', type=int, default=2,
