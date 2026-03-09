@@ -126,10 +126,22 @@ def piper_setup(
     example_outputs,
     schedule: Schedule2D,
     naive_gradient_sync=False,
+    zero_stage: int = 0,
 ):
     """
     Compile a model with the piper backend.
-    schedule: 2D schedule grid (rank x time_step).
+
+    Args:
+        model: The model to compile.
+        optim_fn: Callable ``(params) -> Optimizer`` used to create optimizers.
+        example_inputs: Example inputs for tracing.
+        example_outputs: Example outputs (labels) for tracing.
+        schedule: 2D schedule grid (rank x time_step).
+        naive_gradient_sync: Use a simple blocking all-reduce instead of
+            pipelined per-param hooks. Ignored when ``zero_stage >= 1``.
+        zero_stage: ZeRO optimisation stage.
+            0 = disabled (standard DDP).
+            1 = optimizer state partitioning with bucketed reduce-scatter.
     """
 
     stage_to_device = schedule.stage_to_device()
@@ -146,7 +158,8 @@ def piper_setup(
         stage_to_device=stage_to_device
     )
     _create_actors(
-        num_devices, optim_fn, num_mbs, num_stages, p2p_schedules, naive_gradient_sync
+        num_devices, optim_fn, num_mbs, num_stages, p2p_schedules,
+        naive_gradient_sync, zero_stage=zero_stage,
     )
 
     last_stage_rank = stage_to_device[num_stages - 1]

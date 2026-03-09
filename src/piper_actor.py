@@ -18,6 +18,7 @@ from .piper_utils import (
     piper_metadata,
 )
 from .backward_utils import get_param_groups, construct_reverse_graph, _get_grad_fn_or_grad_acc
+from .piper_zero1 import ZeROOneState, _get_param_forward_order
 
 CLEANUP_MEMORY = False
 
@@ -35,6 +36,7 @@ def _create_actors(
     num_stages,
     p2p_schedules,
     naive_gradient_sync=False,
+    zero_stage: int = 0,
 ):
     dp_rank = int(os.environ["PIPER_DP_RANK"])
     world_size = int(os.environ["PIPER_WORLD_SIZE"])
@@ -61,6 +63,7 @@ def _create_actors(
             dp_rank=dp_rank,
             dp_degree=dp_degree,
             pp_degree=pp_degree,
+            zero_stage=zero_stage,
         )
         piper_metadata.actors[pp_rank] = actor
         logger.debug(
@@ -88,12 +91,15 @@ class PiperActor:
         dp_rank=0,
         dp_degree=1,
         pp_degree=1,
+        zero_stage: int = 0,
     ):
         self.logger = create_logger("piper_actor", LOG_LEVEL)
 
         self.pp_rank = pp_rank
         self.optim_class = optim_class
         self.naive_gradient_sync = naive_gradient_sync
+        # ZeRO optimisation stage (0 = disabled, 1 = optimizer state partitioning).
+        self.zero_stage = zero_stage
 
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
@@ -141,6 +147,8 @@ class PiperActor:
         self.param_idxs = dict()
         # map stage id -> optimizer for the fx.Graph
         self.optims = dict()
+        # map stage id -> ZeROOneState (populated when zero_stage >= 1 and dp_degree > 1)
+        self.zero1_states: dict[int, ZeROOneState] = dict()
         # map stage id -> mb_idx -> previous activation (if this stage is not first)
         self.inp_activation = defaultdict(dict)
         # map stage id -> mb_idx -> current activation
@@ -365,16 +373,46 @@ class PiperActor:
             )
             self.forward_args[stage_id][i] = None
 
-        # prepare tensors with DP comm ops
-        if not self.naive_gradient_sync and self.dp_degree > 1:
-            self._prepare_dp_comm_ops(stage_id)
+        # Collect trainable parameters (input slots are already None at this point).
+        trainable_param_idxs = [
+            i for i in param_idxs
+            if forward_args[i] is not None and forward_args[i].requires_grad
+        ]
+        params = [forward_args[i] for i in trainable_param_idxs]
 
-        # add the parameters to the optimizer for this stage
-        params = [param for param in forward_args if param is not None and param.requires_grad]
-        if stage_id not in self.optims:
-            self.optims[stage_id] = self.optim_class(params)
+        if self.zero_stage >= 1 and self.dp_degree > 1:
+            # ZeRO-1 path: gradient hooks and per-bucket optimizers are managed
+            # inside ZeROOneState; skip the per-param DDP hook setup.
+            params_in_fwd_order = _get_param_forward_order(gm, trainable_param_idxs, params)
+            if stage_id not in self.zero1_states:
+                self.zero1_states[stage_id] = ZeROOneState(
+                    all_params=params,
+                    params_in_forward_order=params_in_fwd_order,
+                    dp_rank=self.dp_rank,
+                    dp_degree=self.dp_degree,
+                    dp_group=self.dp_group,
+                    device=self.device,
+                    num_mbs=self.num_mbs,
+                    optim_class=self.optim_class,
+                    comm_stream=self.comm_stream,
+                    comp_stream=self.comp_stream,
+                )
+            else:
+                # A second graph loaded onto the same stage (shouldn't normally
+                # happen, but guard against it gracefully).
+                self.logger.warning(
+                    f"ZeROOneState already exists for stage {stage_id}; "
+                    "skipping re-initialisation."
+                )
         else:
-            self.optims[stage_id].add_param_group({"params": params})
+            # Standard DDP path: per-param post-accumulate hooks for gradient sync.
+            if not self.naive_gradient_sync and self.dp_degree > 1:
+                self._prepare_dp_comm_ops(stage_id)
+
+            if stage_id not in self.optims:
+                self.optims[stage_id] = self.optim_class(params)
+            else:
+                self.optims[stage_id].add_param_group({"params": params})
 
         del gm_data
 
@@ -1146,22 +1184,32 @@ class PiperActor:
     def _update(self, *deps):
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
 
-        # if dp degree > 1, make sure all gradients are synchronized before optimizer step
-        # TODO: this does not allow overlapping with the optimizer step
-        if self.dp_degree > 1:
+        if self.zero_stage >= 1 and self.dp_degree > 1:
+            # ZeRO-1 path: hooks launched reduce_scatters during backward;
+            # finalize_step completes the pipelined reduce_scatter → optimizer →
+            # all_gather sequence for every bucket on every stage.
             self._start_timing(self.comm_stream, "backward_sync")
-            if self.naive_gradient_sync:
-                self._synchronize_gradients()
-            else:
-                self._wait_for_comm_ops()
+            for zero1_state in self.zero1_states.values():
+                zero1_state.finalize_step(self.comm_stream, self.comp_stream)
             self._stop_timing(self.comm_stream, "backward_sync")
+        else:
+            # Standard DDP path.
+            if self.dp_degree > 1:
+                # if dp degree > 1, make sure all gradients are synchronized before optimizer step
+                # TODO: this does not allow overlapping with the optimizer step
+                self._start_timing(self.comm_stream, "backward_sync")
+                if self.naive_gradient_sync:
+                    self._synchronize_gradients()
+                else:
+                    self._wait_for_comm_ops()
+                self._stop_timing(self.comm_stream, "backward_sync")
 
-        # step the optimizer for each stage
-        self._start_timing(self.comp_stream, "optim_step")
-        for _, optim in self.optims.items():
-            optim.step()
-            optim.zero_grad()
-        self._stop_timing(self.comp_stream, "optim_step")
+            # step the optimizer for each stage
+            self._start_timing(self.comp_stream, "optim_step")
+            for _, optim in self.optims.items():
+                optim.step()
+                optim.zero_grad()
+            self._stop_timing(self.comp_stream, "optim_step")
 
         losses = self.loss
         self.loss.clear()
