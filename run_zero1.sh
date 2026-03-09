@@ -18,7 +18,7 @@ export PIPER_MASTER_PORT="${PIPER_MASTER_PORT:-12388}"
 
 echo "Logging to $LOG_FILE"
 python3 -m test.test_llama \
-  --dp 1 \
+  --dp 2 \
   --pp 2 \
   --warmup 5 \
   --iters 10 \
