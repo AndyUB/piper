@@ -5,7 +5,7 @@ LOG_DIR="logs"
 mkdir -p "$LOG_DIR"
 
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
-LOG_FILE="$LOG_DIR/piper_zero1_${TIMESTAMP}.log"
+LOG_FILE="$LOG_DIR/piper_zero2_${TIMESTAMP}.log"
 
 RAY_TMP="${RAY_TMP:-/tmp/ray}"
 mkdir -p "$RAY_TMP"
@@ -25,5 +25,5 @@ python3 -m test.test_llama \
   --schedule interleaved-1f1b \
   --mbs 4 \
   --model debug \
-  --zero_stage 1 \
+  --zero_stage 2 \
   >"$LOG_FILE" 2>&1
