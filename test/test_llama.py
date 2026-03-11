@@ -176,8 +176,8 @@ def parse_args():
                         help='Enable tracing')
     parser.add_argument('--naive_gradient_sync', action='store_true', default=False,
                         help='Enable naive gradient sync')
-    parser.add_argument('--zero_stage', type=int, choices=[0, 1], default=0,
-                        help='ZeRO optimization stage (0: disabled, 1: ZeRO-1)')
+    parser.add_argument('--zero_stage', type=int, choices=[0, 1, 2], default=0,
+                        help='ZeRO optimization stage (0: disabled, 1: strict ZeRO-1, 2: strict ZeRO-2)')
     return parser.parse_args()
 
 

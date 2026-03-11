@@ -141,7 +141,8 @@ def piper_setup(
             pipelined per-param hooks. Ignored when ``zero_stage >= 1``.
         zero_stage: ZeRO optimisation stage.
             0 = disabled (standard DDP).
-            1 = optimizer state partitioning with bucketed reduce-scatter.
+            1 = strict ZeRO-1 (optimizer sharding + bucketed all-reduce grads).
+            2 = strict ZeRO-2 (optimizer sharding + bucketed reduce-scatter grads).
     """
 
     stage_to_device = schedule.stage_to_device()

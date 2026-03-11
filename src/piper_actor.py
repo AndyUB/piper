@@ -381,8 +381,8 @@ class PiperActor:
         params = [forward_args[i] for i in trainable_param_idxs]
 
         if self.zero_stage >= 1 and self.dp_degree > 1:
-            # ZeRO-1 path: gradient hooks and per-bucket optimizers are managed
-            # inside ZeROOneState; skip the per-param DDP hook setup.
+            # ZeRO path (stage 1 or 2): gradient hooks and per-bucket optimizers
+            # are managed inside ZeROOneState; skip per-param DDP hook setup.
             params_in_fwd_order = _get_param_forward_order(gm, trainable_param_idxs, params)
             if stage_id not in self.zero1_states:
                 self.zero1_states[stage_id] = ZeROOneState(
@@ -396,6 +396,7 @@ class PiperActor:
                     optim_class=self.optim_class,
                     comm_stream=self.comm_stream,
                     comp_stream=self.comp_stream,
+                    zero_stage=self.zero_stage,
                 )
             else:
                 # A second graph loaded onto the same stage (shouldn't normally
@@ -1185,8 +1186,8 @@ class PiperActor:
         self.logger.debug(f"Actor {self.global_rank} waiting for backward sync events")
 
         if self.zero_stage >= 1 and self.dp_degree > 1:
-            # ZeRO-1 path: hooks launched reduce_scatters during backward;
-            # finalize_step completes the pipelined reduce_scatter → optimizer →
+            # ZeRO path: hooks launch bucketed async gradient-sync collectives
+            # during backward; finalize_step completes grad-sync → optimizer →
             # all_gather sequence for every bucket on every stage.
             self._start_timing(self.comm_stream, "backward_sync")
             for zero1_state in self.zero1_states.values():

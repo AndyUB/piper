@@ -1,5 +1,5 @@
 """
-ZeRO-1 with bucketed reduce-scatter for Piper.
+Bucketed ZeRO optimizer stages for Piper.
 
 Each trainable parameter is divided into dp_degree contiguous shards; each DP rank
 owns and optimises one shard. Parameters are grouped into 25 MB gradient-sync buckets
@@ -7,7 +7,8 @@ ordered by reverse forward-use (approximating backward arrival order), enabling
 overlap between communication and backward computation.
 
 Per-step communication pipeline (per bucket, pipelined across buckets):
-  1. reduce_scatter gradient flat buffer → local grad shard   (async, on comm_stream)
+  1. stage-1: all_reduce flat gradients (async, on comm_stream), or
+     stage-2: reduce_scatter gradient flat buffer → local grad shard (async)
   2. Optimizer step on local param shard                      (comp_stream)
   3. all_gather local param shard → flat param buffer         (async, on comm_stream)
   4. Scatter flat param buffer back to p.data
@@ -123,6 +124,7 @@ class ZeROOneBucket:
         dtype: torch.dtype,
         optim_class: Callable[[list[Parameter]], Optimizer],
         num_mbs: int,
+        zero_stage: int,
     ) -> None:
         self.bucket_id = bucket_id
         self.params = params
@@ -130,6 +132,7 @@ class ZeROOneBucket:
         self.dp_degree = dp_degree
         self.dp_group = dp_group
         self.num_mbs = num_mbs
+        self.zero_stage = zero_stage
 
         # ------------------------------------------------------------------
         # Flat buffer layout: [p0 elems | p1 elems | ... | padding]
@@ -181,7 +184,7 @@ class ZeROOneBucket:
         self._ready_param_count: int = 0
 
         # Async collective handles (None until launched).
-        self.reduce_scatter_handle: Optional[dist.Work] = None
+        self.grad_sync_handle: Optional[dist.Work] = None
         self.all_gather_handle: Optional[dist.Work] = None
 
         logger.debug(
@@ -211,35 +214,58 @@ class ZeROOneBucket:
     # Communication and computation
     # ------------------------------------------------------------------
 
-    def launch_reduce_scatter(
+    def launch_grad_sync(
         self,
         comm_stream: torch.cuda.Stream,
-        comp_stream: torch.cuda.Stream,
+        producer_stream: torch.cuda.Stream,
     ) -> dist.Work:
         """
         Copy accumulated per-param gradients into the flat gradient buffer, then
-        launch an async ``reduce_scatter_tensor`` on *comm_stream*.
+        launch stage-specific async gradient synchronisation on *comm_stream*.
 
-        After completion, ``self.local_grad_shard`` holds the averaged gradient
-        for this rank's shard of the bucket.
+        - stage 1: ``all_reduce`` on ``flat_grad_buf`` (full grads preserved)
+        - stage 2: ``reduce_scatter_tensor`` into ``local_grad_shard``
 
         Returns the ``dist.Work`` handle for the caller to wait on.
         """
-        comm_stream.wait_stream(comp_stream)
+        comm_stream.wait_stream(producer_stream)
         with torch.cuda.stream(comm_stream):
             for p, off in zip(self.params, self.param_offsets):
                 if p.grad is not None:
                     self.flat_grad_buf[off : off + p.numel()].copy_(p.grad.view(-1))
                 else:
                     self.flat_grad_buf[off : off + p.numel()].zero_()
-            handle = dist.reduce_scatter_tensor(
-                self.local_grad_shard,
-                self.flat_grad_buf,
-                op=dist.ReduceOp.AVG,
-                group=self.dp_group,
-                async_op=True,
-            )
+            if self.zero_stage == 1:
+                handle = dist.all_reduce(
+                    self.flat_grad_buf,
+                    op=dist.ReduceOp.AVG,
+                    group=self.dp_group,
+                    async_op=True,
+                )
+            else:
+                handle = dist.reduce_scatter_tensor(
+                    self.local_grad_shard,
+                    self.flat_grad_buf,
+                    op=dist.ReduceOp.AVG,
+                    group=self.dp_group,
+                    async_op=True,
+                )
+
+        # Bucket gradients are fully materialized in flat_grad_buf; free per-param
+        # gradients as soon as bucket sync is launched.
+        for p in self.params:
+            p.grad = None
+
         return handle
+
+    def prepare_local_grad_shard(self) -> None:
+        """Prepare local shard gradient after grad sync and free full flat grads."""
+        if self.zero_stage == 1:
+            self.local_grad_shard.copy_(
+                self.flat_grad_buf[self.shard_start : self.shard_end]
+            )
+        # In stage-2 local_grad_shard is already the communication output.
+        self.flat_grad_buf.zero_()
 
     def optimizer_step(self) -> None:
         """
@@ -267,7 +293,7 @@ class ZeROOneBucket:
         Must be called after ``optimizer_step()``.
         Returns the ``dist.Work`` handle.
         """
-        comp_stream.wait_stream(comm_stream)
+        comm_stream.wait_stream(comp_stream)
         with torch.cuda.stream(comm_stream):
             handle = dist.all_gather_into_tensor(
                 self.flat_param_buf,
@@ -293,9 +319,8 @@ class ZeROOneBucket:
         for pid in self._mb_accumulated:
             self._mb_accumulated[pid] = 0
         self._ready_param_count = 0
-        self.reduce_scatter_handle = None
+        self.grad_sync_handle = None
         self.all_gather_handle = None
-        self.flat_grad_buf.zero_()
 
     @property
     def size_bytes(self) -> int:
@@ -347,8 +372,13 @@ class ZeROOneState:
         comm_stream: torch.cuda.Stream,
         comp_stream: torch.cuda.Stream,
         bucket_size_bytes: int = BUCKET_SIZE_BYTES_DEFAULT,
+        zero_stage: int = 1,
     ) -> None:
+        if zero_stage not in (1, 2):
+            raise ValueError(f"ZeRO state must be 1 or 2, got {zero_stage}")
+
         self.all_params = all_params
+        self.zero_stage = zero_stage
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
         self.dp_group = dp_group
@@ -365,6 +395,7 @@ class ZeROOneState:
             num_mbs=num_mbs,
             optim_class=optim_class,
             bucket_size_bytes=bucket_size_bytes,
+            zero_stage=zero_stage,
         )
 
         # Fast lookup: parameter id → owning bucket.
@@ -378,7 +409,8 @@ class ZeROOneState:
 
         logger.debug(
             f"ZeROOneState: {len(self._buckets)} buckets, "
-            f"{len(all_params)} params, dp_rank={dp_rank}/{dp_degree}"
+            f"{len(all_params)} params, dp_rank={dp_rank}/{dp_degree}, "
+            f"zero_stage={zero_stage}"
         )
 
     # ------------------------------------------------------------------
@@ -398,11 +430,12 @@ class ZeROOneState:
         def _hook(_param: Parameter) -> None:
             if bucket.on_grad_accumulated(_param):
                 # All params in bucket have full gradients: launch reduce_scatter.
-                bucket.reduce_scatter_handle = bucket.launch_reduce_scatter(
-                    self._comm_stream, self._comp_stream
+                bucket.grad_sync_handle = bucket.launch_grad_sync(
+                    self._comm_stream,
+                    torch.cuda.current_stream(),
                 )
                 logger.debug(
-                    f"Launched reduce_scatter for bucket {bucket.bucket_id}"
+                    f"Launched grad sync for bucket {bucket.bucket_id}"
                 )
 
         return _hook
@@ -426,18 +459,21 @@ class ZeROOneState:
           For bucket k: wait rs_k → optim_k → launch ag_k
           The all_gather of bucket k-1 overlaps with optim_k and launch_ag_k.
         """
-        # Ensure every bucket has a reduce_scatter in flight (handles buckets
+        # Ensure every bucket has gradient sync in flight (handles buckets
         # whose hooks were never triggered, e.g. params with no gradient).
         for bucket in self._buckets:
-            if bucket.reduce_scatter_handle is None:
-                bucket.reduce_scatter_handle = bucket.launch_reduce_scatter(
-                    comm_stream, comp_stream
+            if bucket.grad_sync_handle is None:
+                bucket.grad_sync_handle = bucket.launch_grad_sync(
+                    comm_stream,
+                    torch.cuda.current_stream(),
                 )
 
         # Pipeline: per-bucket wait → optimizer → async all_gather.
         for bucket in self._buckets:
-            bucket.reduce_scatter_handle.wait()
-            bucket.optimizer_step()
+            bucket.grad_sync_handle.wait()
+            bucket.prepare_local_grad_shard()
+            with torch.cuda.stream(comp_stream):
+                bucket.optimizer_step()
             bucket.all_gather_handle = bucket.launch_all_gather(
                 comm_stream, comp_stream
             )
@@ -447,7 +483,7 @@ class ZeROOneState:
             bucket.all_gather_handle.wait()
             bucket.copy_flat_to_params()
 
-        # Zero all parameter gradients and reset per-step state.
+        # Ensure no stale parameter gradients remain.
         for p in self.all_params:
             p.grad = None
         for bucket in self._buckets:
@@ -466,6 +502,7 @@ class ZeROOneState:
     def __repr__(self) -> str:
         return (
             f"ZeROOneState(dp_rank={self.dp_rank}/{self.dp_degree}, "
+            f"zero_stage={self.zero_stage}, "
             f"buckets={self.num_buckets()}, "
             f"params={len(self.all_params)})"
         )
@@ -484,6 +521,7 @@ def _build_buckets(
     num_mbs: int,
     optim_class: Callable[[list[Parameter]], Optimizer],
     bucket_size_bytes: int,
+    zero_stage: int,
 ) -> list[ZeROOneBucket]:
     """
     Fill buckets greedily: add parameters in *params_in_bwd_order* until a
@@ -504,7 +542,7 @@ def _build_buckets(
                 ZeROOneBucket(
                     len(buckets), current,
                     dp_rank, dp_degree, dp_group,
-                    device, dtype, optim_class, num_mbs,
+                    device, dtype, optim_class, num_mbs, zero_stage,
                 )
             )
             current = []
@@ -518,7 +556,7 @@ def _build_buckets(
             ZeROOneBucket(
                 len(buckets), current,
                 dp_rank, dp_degree, dp_group,
-                device, dtype, optim_class, num_mbs,
+                device, dtype, optim_class, num_mbs, zero_stage,
             )
         )
 
