@@ -42,6 +42,7 @@ def piper_setup(
     naive_gradient_sync=False,
     activation_checkpointing=False,
     bucketing=False,
+    zero_stage: int = 0,
     pg=None,
     nsight=False,
 ):
@@ -65,6 +66,7 @@ def piper_setup(
     piper_metadata.use_activation_checkpointing = activation_checkpointing
     piper_metadata.bucketing = bucketing
     piper_metadata.schedule = schedule
+    piper_metadata.zero_stage = zero_stage
 
     num_mbs = schedule.num_mbs()
     num_stages = schedule.num_stages()
@@ -72,7 +74,8 @@ def piper_setup(
 
     _create_actors(
         num_devices, optim_fn, num_mbs, num_stages,
-        naive_gradient_sync, profile=nsight, stage_to_device=stage_to_device, pg=pg,
+        naive_gradient_sync, profile=nsight, stage_to_device=stage_to_device,
+        zero_stage=zero_stage, pg=pg,
     )
 
     # All dp_ranks must agree on a single master_addr: the IP of the actor with

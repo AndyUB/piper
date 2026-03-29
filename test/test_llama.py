@@ -97,6 +97,7 @@ def main(args, pg):
         naive_gradient_sync=args.naive_grad_sync,
         activation_checkpointing=args.activation_checkpointing,
         bucketing=args.bucketing,
+        zero_stage=args.zero_stage,
         model_dtype=torch.bfloat16,
         pg=pg,
         nsight=args.nsight,
@@ -170,6 +171,8 @@ def parse_args():
     parser.add_argument('--activation-checkpointing', action='store_true', default=False)
     parser.add_argument('--bucketing', action='store_true', default=False,
                         help='Split stages into per-param-bucket sub-modules for overlapped all-reduce')
+    parser.add_argument('--zero-stage', type=int, default=0, choices=[0, 1, 2, 3],
+                        help='ZeRO stage: 0=disabled, 1=optim states, 2=+gradients, 3=+parameters')
     parser.add_argument('--nsight', action='store_true', default=False,
                         help='Whether to use Nsight Systems for tracing')
     return parser.parse_args()

@@ -26,6 +26,8 @@ class TaskType(Enum):
     SEND = "send"
     RECV = "recv"
     ALL_REDUCE = "all_reduce"
+    REDUCE_SCATTER = "reduce_scatter"   # ZeRO-2/3: scatter+reduce gradients to each rank's shard
+    ALL_GATHER = "all_gather"           # ZeRO-1/2/3: gather parameter shards to restore full params
     FWD_A2A = "forward_a2a"
     BWD_A2A = "backward_a2a"
 

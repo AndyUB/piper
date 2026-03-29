@@ -47,6 +47,7 @@ def _create_actors(
     naive_gradient_sync=False,
     profile=False,
     stage_to_device=None,
+    zero_stage: int = 0,
     pg=None,
 ):
     dp_rank = int(os.environ["PIPER_DP_RANK"])
@@ -87,6 +88,7 @@ def _create_actors(
             dp_degree=dp_degree,
             pp_degree=pp_degree,
             stage_to_device=stage_to_device,
+            zero_stage=zero_stage,
         )
         piper_metadata.actors[pp_rank] = actor
         logger.debug(
@@ -113,12 +115,14 @@ class PiperActor:
         dp_degree=1,
         pp_degree=1,
         stage_to_device=None,
+        zero_stage: int = 0,
     ):
         self.logger = create_logger("piper_actor", LOG_LEVEL)
 
         self.pp_rank = pp_rank
         self.optim_class = optim_class
         self.naive_gradient_sync = naive_gradient_sync
+        self.zero_stage = zero_stage
 
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
@@ -203,6 +207,20 @@ class PiperActor:
         self.bucket_trainable_param_idxs: dict = {}  # (stage_id, bucket_id) -> list of indices into bucket_fwd_args
         # stage_id -> mb_idx -> list of (pre_detach_out, detached_input_to_next) per boundary
         self.bucket_boundaries: dict = defaultdict(dict)
+
+        # ZeRO sharding state — populated by _load_stage when zero_stage > 0.
+        # (stage_id, bucket_id) -> (shard_start, shard_size, orig_numel)
+        self.param_shard_info: dict = {}
+        # (stage_id, bucket_id) -> shard param tensor (view into flat_params)
+        self.bucket_shard_params: dict = {}
+        # (stage_id, bucket_id) -> shard optimizer
+        self.bucket_shard_optims: dict = {}
+        # (stage_id, bucket_id) -> output buffer for reduce_scatter result (ZeRO-2/3)
+        self.bucket_rs_grads: dict = {}
+        # (stage_id, bucket_id) -> CUDA event after reduce_scatter
+        self.rs_events: dict = {}
+        # (stage_id, bucket_id) -> CUDA event after all_gather; persists across iters for ZeRO-1/2
+        self.ag_events: dict = {}
 
         from .piper_utils import piper_metadata
         piper_metadata.actor_self = self
@@ -761,6 +779,21 @@ class PiperActor:
                 flat_params = torch.cat([p.detach().view(-1) for p in trainable]).contiguous()
                 flat_params.requires_grad_(False)
                 flat_grads = torch.zeros_like(flat_params)
+                orig_numel = flat_params.numel()
+
+                # ZeRO: pad flat tensors to an even multiple of dp_degree so that
+                # reduce_scatter_tensor / all_gather_into_tensor receive equal-sized chunks.
+                if self.zero_stage > 0 and self.dp_degree > 1:
+                    dp = self.dp_degree
+                    shard_size = (orig_numel + dp - 1) // dp
+                    padded_numel = shard_size * dp
+                    if padded_numel > orig_numel:
+                        p_padded = flat_params.new_zeros(padded_numel)
+                        p_padded[:orig_numel].copy_(flat_params)
+                        flat_params = p_padded
+                        flat_grads = flat_params.new_zeros(padded_numel)
+
+                # Map each param's data to its slice of flat_params (post-padding).
                 offset = 0
                 for idx, p in zip(trainable_idxs, trainable):
                     numel = p.numel()
@@ -768,15 +801,31 @@ class PiperActor:
                     realized[idx].data = flat_params[offset:offset + numel].view(p.shape)
                     realized[idx].requires_grad_(True)
                     offset += numel
+
                 self.bucket_flat_params[(stage_id, b_idx)] = flat_params
                 self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
+
+                # ZeRO: create per-shard optimizer that owns only this rank's slice.
+                if self.zero_stage > 0 and self.dp_degree > 1:
+                    shard_start = self.dp_rank * shard_size
+                    shard_param = flat_params.new_empty(shard_size)
+                    shard_param.data = flat_params[shard_start:shard_start + shard_size]
+                    shard_param.requires_grad_(True)
+                    self.bucket_shard_params[(stage_id, b_idx)] = shard_param
+                    self.bucket_shard_optims[(stage_id, b_idx)] = self.optim_class([shard_param])
+                    self.bucket_rs_grads[(stage_id, b_idx)] = flat_params.new_zeros(shard_size)
+                    self.param_shard_info[(stage_id, b_idx)] = (shard_start, shard_size, orig_numel)
             else:
                 self.bucket_flat_params[(stage_id, b_idx)] = None
                 self.bucket_flat_grads[(stage_id, b_idx)] = None
 
-            # Optimizer for this module's trainable parameters.
+            # Optimizer for this module's trainable parameters (used when zero_stage == 0).
             trainable_for_optim = [realized[i] for i in trainable_idxs]
-            optim = self.optim_class(trainable_for_optim) if trainable_for_optim else None
+            optim = (
+                self.optim_class(trainable_for_optim)
+                if trainable_for_optim and self.zero_stage == 0
+                else None
+            )
             self.bucket_optims[stage_id].append(optim)
 
             # Legacy non-DAG DDP: register per-param allreduce hooks for module 0.
@@ -898,6 +947,12 @@ class PiperActor:
         self.a2a_buffer = {}
         self.a2a_events = {}
         self.ar_events = {}
+        self.rs_events = {}
+        # ZeRO-3: ag_events are populated by ALL_GATHER root nodes at the start of this
+        # iteration.  For ZeRO-1/2 they persist from the previous iteration so that FWD
+        # can wait on the prior iteration's all_gather; don't clear them here.
+        if self.zero_stage == 3:
+            self.ag_events = {}
 
         # Point each trainable param's .grad at the appropriate slice of its
         # bucket's flat_grads tensor so backward accumulates contiguously.
@@ -924,7 +979,7 @@ class PiperActor:
             id(n): len(n.data_preds) + (1 if n.temporal_pred is not None else 0)
             for n in dag.nodes
         }
-        ready: deque = deque(n for n in dag.nodes if in_degree[id(n)] == 0)
+        ready: deque[TaskNode] = deque(n for n in dag.nodes if in_degree[id(n)] == 0)
 
         while ready:
             node = ready.popleft()
@@ -996,7 +1051,26 @@ class PiperActor:
                     torch.cuda.nvtx.range_push(f"all_reduce_s{stage_id}_b{bucket_id}")
                     self._exec_all_reduce(stage_id, bucket_id, comp_events[bwd_key])
                     torch.cuda.nvtx.range_pop()
-            
+
+                case TaskType.REDUCE_SCATTER:
+                    bucket_id = task.bucket_id
+                    bwd_node = node.data_preds[0]
+                    bwd_key = (
+                        bwd_node.task.batches[0].stage_id,
+                        bwd_node.task.batches[0].mb_idx,
+                        bwd_node.task.type,
+                        bwd_node.task.bucket_id,
+                    )
+                    torch.cuda.nvtx.range_push(f"reduce_scatter_s{stage_id}_b{bucket_id}")
+                    self._exec_reduce_scatter(stage_id, bucket_id, comp_events[bwd_key])
+                    torch.cuda.nvtx.range_pop()
+
+                case TaskType.ALL_GATHER:
+                    bucket_id = task.bucket_id
+                    torch.cuda.nvtx.range_push(f"all_gather_s{stage_id}_b{bucket_id}")
+                    self._exec_all_gather(stage_id, bucket_id)
+                    torch.cuda.nvtx.range_pop()
+
                 case TaskType.FWD:
                     bucket_id = task.bucket_id
                     recv_key = ((stage_id, bucket_id), mb_idx)
@@ -1059,6 +1133,12 @@ class PiperActor:
                 in_degree[id(succ)] -= 1
                 if in_degree[id(succ)] == 0:
                     ready.append(succ)
+
+        # ZeRO-1/2: ALL_GATHER nodes run after UPD on comm_stream.  Synchronise
+        # here so that by the time run_dag returns all params are fully gathered
+        # and the next iteration's FWD can read them without a stream wait.
+        if self.zero_stage in (1, 2) and self.ag_events:
+            torch.cuda.synchronize()
 
     def _exec_send(
         self, stage_id: int, mb_idx: int, key, peer_pp_rank: int
@@ -1157,11 +1237,21 @@ class PiperActor:
 
         Non-bucketed stages are loaded as single-bucket stages (bucket_id=0 only).
         Bucketed stages have multiple bucket_ids dispatched individually by run_dag.
+
+        For ZeRO-3, comp_stream waits for the corresponding ALL_GATHER to complete
+        before reading any parameter tensors.  For ZeRO-1/2 the all_gather from the
+        previous iteration is already complete (synchronised at the end of run_dag).
         """
         comp_stream = self.comp_stream
         bucket_fns = self.bucket_fwd_fns[stage_id]
         bucket_args = self.bucket_fwd_args[stage_id]
         n_buckets = len(bucket_fns)
+
+        # ZeRO-3: wait for the in-iteration ALL_GATHER for this (stage, bucket).
+        if self.zero_stage == 3:
+            ag_evt = self.ag_events.get((stage_id, bucket_id))
+            if ag_evt is not None:
+                comp_stream.wait_event(ag_evt)
 
         # --- First bucket of stage: load activation inputs ---
         if bucket_id == 0:
@@ -1485,6 +1575,50 @@ class PiperActor:
             evt.record(self.comm_stream)
         self.ar_events[(stage_id, bucket_id)] = evt
 
+    def _exec_reduce_scatter(self, stage_id: int, bucket_id: int, bwd_event: torch.cuda.Event) -> None:
+        """Launch a reduce-scatter for a stage/bucket's gradients (ZeRO-2/3).
+
+        Reduces flat_grads across the DP group and scatters each rank's shard
+        into ``bucket_rs_grads[(stage_id, bucket_id)]``.  Records an event in
+        ``rs_events`` so ``_update`` can wait before stepping the shard optimizer.
+        """
+        lookup_key = (stage_id, bucket_id)
+        with torch.cuda.stream(self.comm_stream):
+            self.comm_stream.wait_event(bwd_event)
+            flat_grads = self.bucket_flat_grads.get(lookup_key)
+            rs_out = self.bucket_rs_grads.get(lookup_key)
+            self._start_timing(self.comm_stream, "reduce_scatter")
+            dist.reduce_scatter_tensor(rs_out, flat_grads, group=self.dp_group)
+            self._stop_timing(self.comm_stream, "reduce_scatter")
+            evt = torch.cuda.Event()
+            evt.record(self.comm_stream)
+        self.rs_events[lookup_key] = evt
+
+    def _exec_all_gather(self, stage_id: int, bucket_id: int) -> None:
+        """Launch an all-gather to restore full flat_params from each rank's shard.
+
+        For ZeRO-1/2: called after UPD so each rank's optimizer-stepped shard is
+        broadcast back into the full flat_params buffer used by forward/backward.
+        For ZeRO-3: called before FWD to reconstruct full params from shards.
+
+        Records an event in ``ag_events`` which ``_forward_dag`` waits on before
+        executing the stage's computation.
+        """
+        lookup_key = (stage_id, bucket_id)
+        shard_info = self.param_shard_info.get(lookup_key)
+        if shard_info is None:
+            return
+        shard_start, shard_size, _orig_numel = shard_info
+        flat_params = self.bucket_flat_params[lookup_key]
+        shard_in = flat_params[shard_start:shard_start + shard_size].contiguous()
+        with torch.cuda.stream(self.comm_stream):
+            self._start_timing(self.comm_stream, "all_gather")
+            dist.all_gather_into_tensor(flat_params, shard_in, group=self.dp_group)
+            self._stop_timing(self.comm_stream, "all_gather")
+            evt = torch.cuda.Event()
+            evt.record(self.comm_stream)
+        self.ag_events[lookup_key] = evt
+
     def _backward_weight_dag(self, stage_id: int, mb_idx: int, *, loss_fn=None) -> None:
         """Backward-weight pass for DAG execution (ZeroBubble split backward).
 
@@ -1592,8 +1726,43 @@ class PiperActor:
         self.out_activation[stage_id][mb_idx] = None
 
     def _update(self, *deps):
-        if self.ar_events:
-            # DAG execution path: wait for in-flight all-reduces then step optimizers.
+        """Run the optimizer step for this iteration.
+
+        ZeRO-0: waits for in-flight all-reduces (ar_events) then steps the
+            per-bucket optimizer on the full parameter set.
+        ZeRO-1: waits for all-reduces (ar_events); each rank steps its shard
+            optimizer using the globally-averaged gradient shard.
+        ZeRO-2/3: waits for reduce-scatter (rs_events); each rank steps its
+            shard optimizer using the locally-scattered gradient shard.
+        """
+        if self.zero_stage > 0:
+            # ZeRO path: wait for gradient collectives, then step shard optimizers.
+            sync_events = self.ar_events if self.zero_stage == 1 else self.rs_events
+            self._start_timing(self.comp_stream, "backward_sync")
+            for evt in sync_events.values():
+                self.comp_stream.wait_event(evt)
+            self._stop_timing(self.comp_stream, "backward_sync")
+
+            self._start_timing(self.comp_stream, "optim_step")
+            for key, shard_optim in self.bucket_shard_optims.items():
+                if shard_optim is None:
+                    continue
+                shard_param = self.bucket_shard_params[key]
+                shard_start, shard_size, _orig_numel = self.param_shard_info[key]
+                if self.zero_stage == 1:
+                    # All-reduce: full flat_grads valid; use the shard slice as grad.
+                    flat_grads = self.bucket_flat_grads[key]
+                    shard_param.grad = flat_grads[shard_start:shard_start + shard_size]
+                else:
+                    # Reduce-scatter: shard grad is in bucket_rs_grads.
+                    shard_param.grad = self.bucket_rs_grads[key]
+                with torch.cuda.stream(self.comp_stream):
+                    shard_optim.step()
+                shard_param.grad = None
+            self._stop_timing(self.comp_stream, "optim_step")
+
+        elif self.ar_events:
+            # ZeRO-0 DAG execution path: wait for in-flight all-reduces.
             self._start_timing(self.comp_stream, "backward_sync")
             for ar_evt in self.ar_events.values():
                 self.comp_stream.wait_event(ar_evt)
@@ -1606,7 +1775,7 @@ class PiperActor:
                         optim.zero_grad(set_to_none=False)
             self._stop_timing(self.comp_stream, "optim_step")
         else:
-            # Single-device path.
+            # Single-device path (no DP, no ZeRO).
             self._start_timing(self.comp_stream, "optim_step")
             for s_id, optim_list in self.bucket_optims.items():
                 for optim in optim_list:

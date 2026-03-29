@@ -340,6 +340,7 @@ class PiperMetadata:
     schedule = None   # Schedule2D set by piper_setup; used by the piper backend
     task_dag = None   # TaskDAG built from schedule by the piper backend
     per_rank_dags = None  # Per-rank TaskDAGs built by the piper backend
+    zero_stage: int = 0  # ZeRO stage: 0=disabled, 1=shard optim states, 2=+gradients, 3=+parameters
 
 piper_metadata = PiperMetadata()
 

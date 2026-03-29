@@ -10,6 +10,7 @@ from .piper_graph_transform import (
     schedule_to_dag,
     insert_p2p_ops,
     insert_ar_ops,
+    insert_zero_ops,
     expand_bucket_tasks,
     expand_a2a_tasks,
     visualize_dag,
@@ -170,7 +171,12 @@ def piper(gm, example_inputs, **kwargs):
         if dp_degree > 1:
             per_rank_dags = insert_ar_ops(per_rank_dags)
             logger.info("Inserted ALL_REDUCE nodes for DP gradient sync")
-            # ZeRO-1/2/3: insert AG/RS into the task DAG before/after the appropriate FWD/BWD tasks.
+
+        # ZeRO-1/2/3: modify collectives and insert AG/RS nodes as required.
+        zero_stage = piper_metadata.zero_stage
+        if dp_degree > 1 and zero_stage > 0:
+            per_rank_dags = insert_zero_ops(per_rank_dags, zero_stage)
+            logger.info(f"Inserted ZeRO-{zero_stage} collective nodes")
 
 
         piper_metadata.per_rank_dags = per_rank_dags
