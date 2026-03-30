@@ -181,8 +181,22 @@ def piper(gm, example_inputs, **kwargs):
 
         piper_metadata.per_rank_dags = per_rank_dags
         actors = piper_metadata.actors
+        pp_degree = len(per_rank_dags)
+        num_mbs = piper_metadata.schedule.num_mbs()
+        sched = piper_metadata.schedule_name or "sched"
+        zero = piper_metadata.zero_stage
+        bucketed = "bucketed" if piper_metadata.bucketing else "nobucket"
+        os.makedirs("figs", exist_ok=True)
         for pp_rank, per_rank_dag in enumerate(piper_metadata.per_rank_dags):
-            visualize_dag(per_rank_dag, output_path=f"figs/rank{pp_rank}_dag")
+            dag_name = (
+                f"figs/rank{pp_rank}"
+                f"_pp{pp_degree}_dp{dp_degree}"
+                f"_mbs{num_mbs}"
+                f"_{sched}"
+                f"_zero{zero}"
+                f"_{bucketed}_dag"
+            )
+            visualize_dag(per_rank_dag, output_path=dag_name, render=piper_metadata.visualize_dag_render)
             # uncomment for debugging DAG construction:
             # print_dag_order(per_rank_dag, label=f"rank {pp_rank}")
         ray.get([

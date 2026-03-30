@@ -154,6 +154,24 @@ NO_PP_SCHEDULE = Schedule2D(
     ],
 )
 
+# 4-stage single-rank schedule: all stages on pp_rank=0.
+# Matches the default Llama forward() which has stage annotations 0–3.
+NO_PP_4STAGE_SCHEDULE = Schedule2D(
+    grid=[
+        [
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.FWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=3, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.BWD),
+            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.UPD),
+        ]
+    ],
+)
+
 
 DUALPIPEV_MB6_SCHEDULE = Schedule2D(
     grid=[

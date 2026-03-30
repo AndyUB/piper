@@ -43,6 +43,8 @@ def piper_setup(
     activation_checkpointing=False,
     bucketing=False,
     zero_stage: int = 0,
+    schedule_name: str = "",
+    visualize_dag_render: bool = True,
     pg=None,
     nsight=False,
 ):
@@ -67,6 +69,8 @@ def piper_setup(
     piper_metadata.bucketing = bucketing
     piper_metadata.schedule = schedule
     piper_metadata.zero_stage = zero_stage
+    piper_metadata.schedule_name = schedule_name
+    piper_metadata.visualize_dag_render = visualize_dag_render
 
     num_mbs = schedule.num_mbs()
     num_stages = schedule.num_stages()

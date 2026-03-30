@@ -2010,15 +2010,20 @@ def visualize_dag(
     dag: TaskDAG,
     output_path: str = "dag",
     fmt: str = "png",
+    render: bool = True,
 ) -> None:
-    """Render a :class:`TaskDAG` as a labelled image using *graphviz*.
+    """Build a *graphviz* representation of a :class:`TaskDAG` and save it.
 
     Nodes are coloured by pipeline rank.  Two edge styles:
 
     * **Dashed grey** – temporal edges (serialisation within one actor).
     * **Solid black** – data-dependency edges.
 
-    The image is saved to ``{output_path}.{fmt}``.
+    Args:
+        render: If ``True`` (default), call ``dot`` to produce a ``{output_path}.{fmt}``
+            image.  If ``False``, only the DOT source is written to
+            ``{output_path}.dot`` — useful when the graph is too large for
+            graphviz's renderer.
     If *graphviz* is not installed the function logs a warning and returns.
     """
     try:
@@ -2131,8 +2136,14 @@ def visualize_dag(
                 constraint="false" if cross_rank else "true",
             )
 
-    out = dot.render(output_path, format=fmt, cleanup=False)
-    logger.info(f"DAG visualisation saved to {out}")
+    if render:
+        out = dot.render(output_path, format=fmt, cleanup=False)
+        logger.info(f"DAG visualisation saved to {out}")
+    else:
+        dot_path = f"{output_path}.dot"
+        with open(dot_path, "w") as f:
+            f.write(dot.source)
+        logger.info(f"DAG DOT source saved to {dot_path} (render=False; run 'dot -Tpng {dot_path} -o {output_path}.png' to render)")
 
 
 def visualize_schedule(

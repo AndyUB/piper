@@ -28,6 +28,7 @@ from .schedule_helpers import (
     INTERLEAVED_1F1B_PP4_MB8_SCHEDULE,
     INTERLEAVED_GPIPE_PP2_MB4_SCHEDULE,
     NO_PP_SCHEDULE,
+    NO_PP_4STAGE_SCHEDULE,
     DUALPIPEV_MB6_SCHEDULE,
     DUALPIPEV_NOZB_MB6_SCHEDULE,
     ZEROBUBBLE_MB4_SCHEDULE,
@@ -56,6 +57,8 @@ def main(args, pg):
     match args.schedule:
         case "no-pp":
             schedule = NO_PP_SCHEDULE
+        case "no-pp-4s":
+            schedule = NO_PP_4STAGE_SCHEDULE
         case "interleaved-1f1b":
             if args.pp == 2:
                 if args.mbs == 6:
@@ -98,6 +101,8 @@ def main(args, pg):
         activation_checkpointing=args.activation_checkpointing,
         bucketing=args.bucketing,
         zero_stage=args.zero_stage,
+        schedule_name=args.schedule,
+        visualize_dag_render=not args.no_render_dag,
         model_dtype=torch.bfloat16,
         pg=pg,
         nsight=args.nsight,
@@ -126,6 +131,11 @@ def main(args, pg):
         f"rank {dp_rank} throughput= "
         f"{(args.batch_size * args.mbs * args.seq_len) / np.mean(iter_times):.3f} tokens/s"
     )
+
+    # Peak GPU memory per actor
+    mem_data = ray.get([actor.get_peak_memory.remote() for actor in actors.values()])
+    for rank, mem_gb in sorted(mem_data):
+        print(f"rank {rank} peak_memory= {mem_gb:.3f} GiB")
 
     if args.tracing:
         ray.get([actor.set_tracing.remote(True) for actor in actors.values()])
@@ -156,7 +166,7 @@ def parse_args():
     parser.add_argument(
         '--schedule',
         choices=['gpipe', '1f1b', 'interleaved-1f1b', 'interleaved-gpipe',
-                 'dualpipev-nozb', 'dualpipev', 'zerobubble', 'no-pp'],
+                 'dualpipev-nozb', 'dualpipev', 'zerobubble', 'no-pp', 'no-pp-4s'],
         default='1f1b',
     )
     parser.add_argument('--dp', type=int, default=1)
@@ -176,6 +186,8 @@ def parse_args():
                         help='ZeRO stage: 0=disabled, 1=optim states, 2=+gradients, 3=+parameters')
     parser.add_argument('--nsight', action='store_true', default=False,
                         help='Whether to use Nsight Systems for tracing')
+    parser.add_argument('--no-render-dag', action='store_true', default=False,
+                        help='Save DAG as .dot source only, skip graphviz rendering (use for large graphs)')
     return parser.parse_args()
 
 

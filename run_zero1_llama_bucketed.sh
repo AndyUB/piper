@@ -13,7 +13,7 @@ RAY_TMP="${RAY_TMP:-/tmp/ray}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
-export CUDA_VISIBLE_DEVICES="4,5,6,7"
+export CUDA_VISIBLE_DEVICES="0,2,3,4"
 export PYTHONUNBUFFERED=1
 export RAY_DEDUP_LOGS=0
 

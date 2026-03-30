@@ -341,6 +341,8 @@ class PiperMetadata:
     task_dag = None   # TaskDAG built from schedule by the piper backend
     per_rank_dags = None  # Per-rank TaskDAGs built by the piper backend
     zero_stage: int = 0  # ZeRO stage: 0=disabled, 1=shard optim states, 2=+gradients, 3=+parameters
+    schedule_name: str = ""  # Human-readable name of the schedule (e.g. "interleaved-1f1b")
+    visualize_dag_render: bool = True  # If False, save .dot source only (skip dot rendering)
 
 piper_metadata = PiperMetadata()
 

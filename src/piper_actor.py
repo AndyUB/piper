@@ -1134,11 +1134,6 @@ class PiperActor:
                 if in_degree[id(succ)] == 0:
                     ready.append(succ)
 
-        # ZeRO-1/2: ALL_GATHER nodes run after UPD on comm_stream.  Synchronise
-        # here so that by the time run_dag returns all params are fully gathered
-        # and the next iteration's FWD can read them without a stream wait.
-        if self.zero_stage in (1, 2) and self.ag_events:
-            torch.cuda.synchronize()
 
     def _exec_send(
         self, stage_id: int, mb_idx: int, key, peer_pp_rank: int
@@ -1247,8 +1242,11 @@ class PiperActor:
         bucket_args = self.bucket_fwd_args[stage_id]
         n_buckets = len(bucket_fns)
 
-        # ZeRO-3: wait for the in-iteration ALL_GATHER for this (stage, bucket).
-        if self.zero_stage == 3:
+        # ZeRO-1/2/3: wait for the ALL_GATHER event for this (stage, bucket).
+        # For ZeRO-3 this is the in-iteration AG; for ZeRO-1/2 this is the
+        # previous iteration's post-UPD AG (ag_events persists across iterations).
+        # On the first iteration ag_events is empty so the wait is skipped.
+        if self.zero_stage > 0:
             ag_evt = self.ag_events.get((stage_id, bucket_id))
             if ag_evt is not None:
                 comp_stream.wait_event(ag_evt)
@@ -1608,9 +1606,8 @@ class PiperActor:
         shard_info = self.param_shard_info.get(lookup_key)
         if shard_info is None:
             return
-        shard_start, shard_size, _orig_numel = shard_info
         flat_params = self.bucket_flat_params[lookup_key]
-        shard_in = flat_params[shard_start:shard_start + shard_size].contiguous()
+        shard_in = self.bucket_shard_params[lookup_key]
         with torch.cuda.stream(self.comm_stream):
             self._start_timing(self.comm_stream, "all_gather")
             dist.all_gather_into_tensor(flat_params, shard_in, group=self.dp_group)
