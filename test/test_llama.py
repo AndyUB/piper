@@ -144,7 +144,8 @@ def main(args, pg):
                 )
 
     os.makedirs("out", exist_ok=True)
-    timeline_filename = f"out/llama-dag-pp{args.pp}-dp{args.dp}-{args.schedule}"
+    bucketed_str = "-bucketed" if args.bucketing else ""
+    timeline_filename = f"out/llama-dag-pp{args.pp}-dp{args.dp}-{args.schedule}-zero{args.zero_stage}{bucketed_str}"
     ray.timeline(timeline_filename)
     print(f"Ray timeline saved to: {timeline_filename}")
 
