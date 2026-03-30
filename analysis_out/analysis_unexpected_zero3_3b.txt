@@ -1,0 +1,66 @@
+=== Unexpected Findings: zero3_3b ===
+
+--- worker_process_304867.sqlite ---
+[BLOCKING_COLLECTIVE] AG    s0_b2: CPU dispatch=3.1ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b7: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b11: CPU dispatch=2.8ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b12: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b13: CPU dispatch=4.5ms vs GPU kernel=0.4ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b16: CPU dispatch=2.7ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b17: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b21: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b22: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b26: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b27: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b31: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s0_b32: CPU dispatch=2.9ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b0: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b1: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b5: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b6: CPU dispatch=2.8ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b10: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b11: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b15: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b16: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b17: CPU dispatch=5.0ms vs GPU kernel=0.3ms (14x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b20: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b21: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b25: CPU dispatch=2.9ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b26: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b30: CPU dispatch=3.0ms vs GPU kernel=0.3ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] AG    s2_b31: CPU dispatch=2.8ms vs GPU kernel=0.3ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[POOR_OVERLAP] Compute covered by NCCL: 0.2% (expected >15% with bucketing). Communication and computation are mostly sequential. Check that RS is launched asynchronously during backward, and AG is dispatched before the corresponding forward.
+[DOMINANT_PHASE] 'fwd' accounts for 79.6% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] BWD   s0_b17_mb1: mean=6.3ms std=5.5ms (CV=87%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+
+--- worker_process_304871.sqlite ---
+[BLOCKING_COLLECTIVE] AG    s0_b13: CPU dispatch=4.1ms vs GPU kernel=0.4ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[DOMINANT_PHASE] 'fwd' accounts for 73.0% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] FWD   s2_b16_mb1: mean=37.0ms std=19.0ms (CV=51%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+[HIGH_VARIANCE] BWD   s0_b21_mb2: mean=76.0ms std=44.6ms (CV=59%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+
+--- worker_process_304877.sqlite ---
+[BLOCKING_COLLECTIVE] RS    s3_b33: CPU dispatch=1.4ms vs GPU kernel=0.1ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b32: CPU dispatch=1.4ms vs GPU kernel=0.1ms (12x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b31: CPU dispatch=1.0ms vs GPU kernel=0.1ms (14x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b30: CPU dispatch=1.0ms vs GPU kernel=0.1ms (14x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b29: CPU dispatch=0.8ms vs GPU kernel=0.0ms (45x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b27: CPU dispatch=0.9ms vs GPU kernel=0.1ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b25: CPU dispatch=0.9ms vs GPU kernel=0.1ms (15x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b24: CPU dispatch=0.9ms vs GPU kernel=0.1ms (13x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b22: CPU dispatch=0.9ms vs GPU kernel=0.1ms (10x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b21: CPU dispatch=0.9ms vs GPU kernel=0.1ms (14x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b20: CPU dispatch=0.8ms vs GPU kernel=0.0ms (23x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b18: CPU dispatch=0.8ms vs GPU kernel=0.0ms (18x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b15: CPU dispatch=0.9ms vs GPU kernel=0.0ms (20x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b10: CPU dispatch=0.8ms vs GPU kernel=0.0ms (25x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b9: CPU dispatch=0.8ms vs GPU kernel=0.1ms (14x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b5: CPU dispatch=0.8ms vs GPU kernel=0.0ms (72x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[BLOCKING_COLLECTIVE] RS    s3_b4: CPU dispatch=0.8ms vs GPU kernel=0.1ms (13x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[DOMINANT_PHASE] 'fwd' accounts for 79.8% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] BWD   s3_b5_mb0: mean=8.2ms std=8.0ms (CV=97%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+[HIGH_VARIANCE] FWD   s3_b4_mb1: mean=6.0ms std=5.0ms (CV=84%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+
+--- worker_process_304880.sqlite ---
+[DOMINANT_PHASE] 'fwd' accounts for 78.5% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] FWD   s3_b6_mb1: mean=39.4ms std=20.3ms (CV=51%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.

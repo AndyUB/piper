@@ -1,0 +1,1932 @@
+=== Piper NSys Analysis: zero2_3b ===
+Warmup=2  Timed=5  TraceIters=3
+
+======================================================================
+  Rank: worker_process_272410.sqlite
+======================================================================
+File: worker_process_272410.sqlite
+Warmup=2 excluded, Timed=5 analyzed, Trace=3 excluded
+Timed window: 303.102s – 320.267s  (span=17.2s,  update events: 5)
+
+  Phase Totals (timed window, % of all traced NVTX time)
+  Phase               Total   % traced   per iter
+  -------------- ----------  ---------  ---------
+  fwd               9926.3ms      76.8%    1985.3ms
+  bwd               2199.2ms      17.0%     439.8ms
+  rs                  63.6ms       0.5%      12.7ms
+  ag                 184.9ms       1.4%      37.0ms
+  update             554.5ms       4.3%     110.9ms
+
+  Per-Stage/Bucket Summary  (mean ± std aggregated over microbatches & iters)
+  Note: N = total calls (iters × microbatches).  Collectives have N = iters.
+  Operation              N  Mean/call      Std      Total
+  ------------------ ----- ---------- -------- ----------
+  FWD     s0_b0         16      0.95ms    0.35ms      15.2ms
+  FWD     s0_b1         16      7.25ms    0.58ms     115.9ms
+  FWD     s0_b2         16     27.99ms    0.79ms     447.8ms
+  FWD     s0_b3         16      2.15ms    0.19ms      34.3ms
+  FWD     s0_b4         16      2.92ms    0.19ms      46.7ms
+  FWD     s0_b5         16      2.80ms    0.21ms      44.9ms
+  FWD     s0_b6         16      7.80ms    0.47ms     124.8ms
+  FWD     s0_b7         16     27.72ms    0.91ms     443.4ms
+  FWD     s0_b8         16      2.12ms    0.18ms      33.9ms
+  FWD     s0_b9         16      2.87ms    0.19ms      45.9ms
+  FWD     s0_b10        16      2.79ms    0.19ms      44.7ms
+  FWD     s0_b11        16      7.69ms    0.59ms     123.1ms
+  FWD     s0_b12        16     27.89ms    0.75ms     446.3ms
+  FWD     s0_b13        16      2.13ms    0.16ms      34.1ms
+  FWD     s0_b14        16      3.00ms    0.33ms      48.0ms
+  FWD     s0_b15        16      2.86ms    0.23ms      45.7ms
+  FWD     s0_b16        16      7.85ms    0.55ms     125.6ms
+  FWD     s0_b17        16     27.65ms    0.82ms     442.3ms
+  FWD     s0_b18        16      2.10ms    0.15ms      33.6ms
+  FWD     s0_b19        16      2.89ms    0.20ms      46.2ms
+  FWD     s0_b20        16      2.80ms    0.19ms      44.8ms
+  FWD     s0_b21        16      7.80ms    0.59ms     124.7ms
+  FWD     s0_b22        16     28.25ms    1.61ms     452.0ms
+  FWD     s0_b23        16      2.16ms    0.17ms      34.6ms
+  FWD     s0_b24        16      2.94ms    0.17ms      47.0ms
+  FWD     s0_b25        16      2.86ms    0.21ms      45.8ms
+  FWD     s0_b26        16      7.69ms    0.44ms     123.1ms
+  FWD     s0_b27        16     27.84ms    0.93ms     445.5ms
+  FWD     s0_b28        16      2.17ms    0.18ms      34.7ms
+  FWD     s0_b29        16      2.90ms    0.21ms      46.4ms
+  FWD     s0_b30        16      2.83ms    0.20ms      45.2ms
+  FWD     s0_b31        16      7.77ms    0.59ms     124.3ms
+  FWD     s0_b32        16     29.14ms    5.23ms     466.2ms
+  FWD     s0_b33        16      2.21ms    0.50ms      35.3ms
+  FWD     s0_b34        16      3.03ms    0.57ms      48.5ms
+  FWD     s0_b35        16      3.54ms    0.32ms      56.6ms
+  FWD     s2_b0         16     10.39ms   10.72ms     166.2ms
+  FWD     s2_b1         16     27.69ms    1.15ms     443.0ms
+  FWD     s2_b2         16      2.19ms    0.20ms      35.1ms
+  FWD     s2_b3         16      3.04ms    0.23ms      48.6ms
+  FWD     s2_b4         16      2.89ms    0.24ms      46.2ms
+  FWD     s2_b5         16      7.90ms    0.61ms     126.4ms
+  FWD     s2_b6         16     28.38ms    2.39ms     454.0ms
+  FWD     s2_b7         16      2.23ms    0.24ms      35.7ms
+  FWD     s2_b8         16      3.22ms    0.92ms      51.5ms
+  FWD     s2_b9         16      3.05ms    0.68ms      48.8ms
+  FWD     s2_b10        16      8.13ms    0.79ms     130.1ms
+  FWD     s2_b11        16     27.77ms    0.96ms     444.3ms
+  FWD     s2_b12        16      2.24ms    0.18ms      35.9ms
+  FWD     s2_b13        16      3.04ms    0.23ms      48.6ms
+  FWD     s2_b14        16      3.12ms    0.70ms      49.9ms
+  FWD     s2_b15        16      8.26ms    0.66ms     132.1ms
+  FWD     s2_b16        16     28.19ms    1.09ms     451.1ms
+  FWD     s2_b17        16      2.24ms    0.18ms      35.9ms
+  FWD     s2_b18        16      3.02ms    0.19ms      48.3ms
+  FWD     s2_b19        16      3.17ms    1.11ms      50.7ms
+  FWD     s2_b20        16      8.06ms    0.61ms     129.0ms
+  FWD     s2_b21        16     27.88ms    1.06ms     446.0ms
+  FWD     s2_b22        16      2.19ms    0.19ms      35.0ms
+  FWD     s2_b23        16      3.09ms    0.35ms      49.4ms
+  FWD     s2_b24        16      2.87ms    0.24ms      45.9ms
+  FWD     s2_b25        16      7.87ms    0.64ms     125.9ms
+  FWD     s2_b26        16     27.83ms    0.94ms     445.3ms
+  FWD     s2_b27        16      2.20ms    0.26ms      35.2ms
+  FWD     s2_b28        16      2.98ms    0.21ms      47.6ms
+  FWD     s2_b29        16      2.91ms    0.20ms      46.5ms
+  FWD     s2_b30        16      8.04ms    0.66ms     128.6ms
+  FWD     s2_b31        16     28.22ms    1.84ms     451.5ms
+  FWD     s2_b32        16      2.20ms    0.12ms      35.2ms
+  FWD     s2_b33        16      3.01ms    0.15ms      48.1ms
+  FWD     s2_b34        16      3.59ms    0.24ms      57.4ms
+  BWD     s0_b0         16      0.73ms    0.14ms      11.7ms
+  BWD     s0_b1         16      1.58ms    0.13ms      25.3ms
+  BWD     s0_b2         16      2.71ms    0.18ms      43.3ms
+  BWD     s0_b3         16      1.34ms    0.18ms      21.5ms
+  BWD     s0_b4         16      1.35ms    0.11ms      21.5ms
+  BWD     s0_b5         16      1.39ms    0.08ms      22.3ms
+  BWD     s0_b6         16      1.64ms    0.12ms      26.2ms
+  BWD     s0_b7         16      2.72ms    0.21ms      43.5ms
+  BWD     s0_b8         16      1.33ms    0.17ms      21.3ms
+  BWD     s0_b9         16      1.33ms    0.11ms      21.3ms
+  BWD     s0_b10        16      1.42ms    0.11ms      22.8ms
+  BWD     s0_b11        16      1.64ms    0.13ms      26.2ms
+  BWD     s0_b12        16      2.73ms    0.22ms      43.8ms
+  BWD     s0_b13        16      1.31ms    0.09ms      21.0ms
+  BWD     s0_b14        16      1.35ms    0.10ms      21.6ms
+  BWD     s0_b15        16      1.40ms    0.09ms      22.4ms
+  BWD     s0_b16        16      1.64ms    0.13ms      26.2ms
+  BWD     s0_b17        16      2.78ms    0.21ms      44.6ms
+  BWD     s0_b18        16      1.34ms    0.12ms      21.5ms
+  BWD     s0_b19        16      1.37ms    0.11ms      21.9ms
+  BWD     s0_b20        16      1.49ms    0.19ms      23.8ms
+  BWD     s0_b21        16     18.63ms   43.44ms     298.0ms
+  BWD     s0_b22        16      2.89ms    0.41ms      46.2ms
+  BWD     s0_b23        16      1.34ms    0.11ms      21.4ms
+  BWD     s0_b24        16      1.37ms    0.11ms      22.0ms
+  BWD     s0_b25        16      1.41ms    0.09ms      22.6ms
+  BWD     s0_b26        16      1.66ms    0.14ms      26.6ms
+  BWD     s0_b27        16      2.78ms    0.26ms      44.5ms
+  BWD     s0_b28        16      1.39ms    0.10ms      22.2ms
+  BWD     s0_b29        16      1.41ms    0.09ms      22.6ms
+  BWD     s0_b30        16      1.44ms    0.14ms      23.0ms
+  BWD     s0_b31        16      1.75ms    0.25ms      28.0ms
+  BWD     s0_b32        16      2.97ms    0.41ms      47.5ms
+  BWD     s0_b33        16      1.39ms    0.12ms      22.2ms
+  BWD     s0_b34        16      1.56ms    0.27ms      25.0ms
+  BWD     s0_b35        16      1.03ms    1.08ms      16.5ms
+  BWD     s2_b0         16      1.62ms    0.16ms      25.9ms
+  BWD     s2_b1         16      2.79ms    0.26ms      44.7ms
+  BWD     s2_b2         16      1.49ms    0.27ms      23.8ms
+  BWD     s2_b3         16      1.59ms    0.63ms      25.5ms
+  BWD     s2_b4         16      1.44ms    0.10ms      23.1ms
+  BWD     s2_b5         16      1.67ms    0.18ms      26.7ms
+  BWD     s2_b6         16      2.75ms    0.29ms      43.9ms
+  BWD     s2_b7         16      1.39ms    0.11ms      22.3ms
+  BWD     s2_b8         16      1.36ms    0.08ms      21.7ms
+  BWD     s2_b9         16      1.45ms    0.11ms      23.1ms
+  BWD     s2_b10        16      1.74ms    0.44ms      27.8ms
+  BWD     s2_b11        16      2.67ms    0.31ms      42.7ms
+  BWD     s2_b12        16      1.37ms    0.10ms      21.9ms
+  BWD     s2_b13        16      1.40ms    0.11ms      22.4ms
+  BWD     s2_b14        16      1.42ms    0.10ms      22.8ms
+  BWD     s2_b15        16      1.60ms    0.12ms      25.6ms
+  BWD     s2_b16        16      2.68ms    0.25ms      42.8ms
+  BWD     s2_b17        16      1.34ms    0.10ms      21.5ms
+  BWD     s2_b18        16      1.36ms    0.09ms      21.7ms
+  BWD     s2_b19        16      1.44ms    0.08ms      23.0ms
+  BWD     s2_b20        16      1.62ms    0.19ms      25.9ms
+  BWD     s2_b21        16      2.68ms    0.23ms      43.0ms
+  BWD     s2_b22        16      1.40ms    0.12ms      22.3ms
+  BWD     s2_b23        16      1.37ms    0.07ms      21.9ms
+  BWD     s2_b24        16      1.43ms    0.12ms      22.8ms
+  BWD     s2_b25        16      1.67ms    0.18ms      26.7ms
+  BWD     s2_b26        16      2.75ms    0.38ms      44.0ms
+  BWD     s2_b27        16      1.36ms    0.09ms      21.8ms
+  BWD     s2_b28        16      1.37ms    0.10ms      21.9ms
+  BWD     s2_b29        16      1.43ms    0.16ms      22.9ms
+  BWD     s2_b30        16      1.75ms    0.51ms      28.0ms
+  BWD     s2_b31        16      2.82ms    0.26ms      45.1ms
+  BWD     s2_b32        16      1.35ms    0.08ms      21.6ms
+  BWD     s2_b33        16      1.50ms    0.13ms      24.0ms
+  BWD     s2_b34        16      0.79ms    0.34ms      12.6ms
+  RS      s0_b0          4      0.16ms    0.02ms       0.6ms
+  RS      s0_b1          4      0.20ms    0.03ms       0.8ms
+  RS      s0_b2          4      0.21ms    0.02ms       0.8ms
+  RS      s0_b3          4      0.22ms    0.03ms       0.9ms
+  RS      s0_b4          4      0.20ms    0.01ms       0.8ms
+  RS      s0_b5          4      0.21ms    0.01ms       0.8ms
+  RS      s0_b6          4      0.21ms    0.01ms       0.9ms
+  RS      s0_b7          4      0.20ms    0.01ms       0.8ms
+  RS      s0_b8          4      0.21ms    0.01ms       0.8ms
+  RS      s0_b9          4      0.21ms    0.02ms       0.9ms
+  RS      s0_b10         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b11         4      0.22ms    0.02ms       0.9ms
+  RS      s0_b12         4      0.21ms    0.01ms       0.8ms
+  RS      s0_b13         4      0.23ms    0.02ms       0.9ms
+  RS      s0_b14         4      0.20ms    0.01ms       0.8ms
+  RS      s0_b15         4      0.20ms    0.01ms       0.8ms
+  RS      s0_b16         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b17         4      0.21ms    0.01ms       0.8ms
+  RS      s0_b18         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b19         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b20         4      0.20ms    0.02ms       0.8ms
+  RS      s0_b21         4      0.21ms    0.01ms       0.8ms
+  RS      s0_b22         4      0.21ms    0.01ms       0.9ms
+  RS      s0_b23         4      0.22ms    0.02ms       0.9ms
+  RS      s0_b24         4      0.20ms    0.02ms       0.8ms
+  RS      s0_b25         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b26         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b27         4      0.22ms    0.00ms       0.9ms
+  RS      s0_b28         4      0.26ms    0.03ms       1.0ms
+  RS      s0_b29         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b30         4      0.23ms    0.03ms       0.9ms
+  RS      s0_b31         4      0.22ms    0.02ms       0.9ms
+  RS      s0_b32         4      0.20ms    0.01ms       0.8ms
+  RS      s0_b33         4      0.25ms    0.06ms       1.0ms
+  RS      s0_b34         4      0.21ms    0.02ms       0.8ms
+  RS      s0_b35         4      0.27ms    0.01ms       1.1ms
+  RS      s2_b0          4      0.18ms    0.02ms       0.7ms
+  RS      s2_b1          4      0.22ms    0.01ms       0.9ms
+  RS      s2_b2          4      0.22ms    0.03ms       0.9ms
+  RS      s2_b3          4      0.23ms    0.03ms       0.9ms
+  RS      s2_b4          4      0.22ms    0.02ms       0.9ms
+  RS      s2_b5          4      0.22ms    0.02ms       0.9ms
+  RS      s2_b6          4      0.22ms    0.01ms       0.9ms
+  RS      s2_b7          4      0.22ms    0.03ms       0.9ms
+  RS      s2_b8          4      0.22ms    0.03ms       0.9ms
+  RS      s2_b9          4      0.21ms    0.02ms       0.9ms
+  RS      s2_b10         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b11         4      0.22ms    0.03ms       0.9ms
+  RS      s2_b12         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b13         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b14         4      0.21ms    0.01ms       0.8ms
+  RS      s2_b15         4      0.21ms    0.02ms       0.8ms
+  RS      s2_b16         4      0.23ms    0.01ms       0.9ms
+  RS      s2_b17         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b18         4      0.23ms    0.05ms       0.9ms
+  RS      s2_b19         4      0.22ms    0.03ms       0.9ms
+  RS      s2_b20         4      0.23ms    0.03ms       0.9ms
+  RS      s2_b21         4      0.22ms    0.03ms       0.9ms
+  RS      s2_b22         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b23         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b24         4      0.21ms    0.02ms       0.9ms
+  RS      s2_b25         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b26         4      0.24ms    0.04ms       1.0ms
+  RS      s2_b27         4      0.23ms    0.03ms       0.9ms
+  RS      s2_b28         4      0.42ms    0.37ms       1.7ms
+  RS      s2_b29         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b30         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b31         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b32         4      0.24ms    0.02ms       1.0ms
+  RS      s2_b33         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b34         4      0.45ms    0.04ms       1.8ms
+  AG      s0_b0          4      1.35ms    0.07ms       5.4ms
+  AG      s0_b1          4      0.68ms    0.01ms       2.7ms
+  AG      s0_b2          4      0.66ms    0.02ms       2.6ms
+  AG      s0_b3          4      0.65ms    0.02ms       2.6ms
+  AG      s0_b4          4      0.69ms    0.06ms       2.8ms
+  AG      s0_b5          4      0.70ms    0.07ms       2.8ms
+  AG      s0_b6          4      0.66ms    0.05ms       2.6ms
+  AG      s0_b7          4      0.66ms    0.03ms       2.6ms
+  AG      s0_b8          4      0.67ms    0.03ms       2.7ms
+  AG      s0_b9          4      0.65ms    0.01ms       2.6ms
+  AG      s0_b10         4      0.64ms    0.01ms       2.5ms
+  AG      s0_b11         4      0.64ms    0.02ms       2.5ms
+  AG      s0_b12         4      0.64ms    0.01ms       2.6ms
+  AG      s0_b13         4      0.63ms    0.01ms       2.5ms
+  AG      s0_b14         4      0.68ms    0.06ms       2.7ms
+  AG      s0_b15         4      0.65ms    0.05ms       2.6ms
+  AG      s0_b16         4      0.64ms    0.05ms       2.6ms
+  AG      s0_b17         4      0.63ms    0.01ms       2.5ms
+  AG      s0_b18         4      0.65ms    0.02ms       2.6ms
+  AG      s0_b19         4      0.61ms    0.02ms       2.4ms
+  AG      s0_b20         4      0.81ms    0.37ms       3.3ms
+  AG      s0_b21         4      0.64ms    0.04ms       2.6ms
+  AG      s0_b22         4      0.65ms    0.05ms       2.6ms
+  AG      s0_b23         4      0.63ms    0.02ms       2.5ms
+  AG      s0_b24         4      0.64ms    0.04ms       2.6ms
+  AG      s0_b25         4      0.65ms    0.04ms       2.6ms
+  AG      s0_b26         4      0.61ms    0.01ms       2.4ms
+  AG      s0_b27         4      0.63ms    0.05ms       2.5ms
+  AG      s0_b28         4      0.62ms    0.01ms       2.5ms
+  AG      s0_b29         4      0.62ms    0.03ms       2.5ms
+  AG      s0_b30         4      0.66ms    0.03ms       2.6ms
+  AG      s0_b31         4      0.69ms    0.04ms       2.7ms
+  AG      s0_b32         4      0.66ms    0.03ms       2.7ms
+  AG      s0_b33         4      0.66ms    0.04ms       2.6ms
+  AG      s0_b34         4      0.64ms    0.02ms       2.6ms
+  AG      s0_b35         4      0.63ms    0.02ms       2.5ms
+  AG      s2_b0          4      0.66ms    0.03ms       2.7ms
+  AG      s2_b1          4      0.66ms    0.04ms       2.6ms
+  AG      s2_b2          4      0.67ms    0.03ms       2.7ms
+  AG      s2_b3          4      0.63ms    0.02ms       2.5ms
+  AG      s2_b4          4      0.63ms    0.02ms       2.5ms
+  AG      s2_b5          4      0.61ms    0.02ms       2.4ms
+  AG      s2_b6          4      0.63ms    0.04ms       2.5ms
+  AG      s2_b7          4      0.62ms    0.03ms       2.5ms
+  AG      s2_b8          4      0.59ms    0.02ms       2.4ms
+  AG      s2_b9          4      0.63ms    0.04ms       2.5ms
+  AG      s2_b10         4      0.61ms    0.02ms       2.4ms
+  AG      s2_b11         4      0.62ms    0.01ms       2.5ms
+  AG      s2_b12         4      0.63ms    0.02ms       2.5ms
+  AG      s2_b13         4      0.61ms    0.03ms       2.4ms
+  AG      s2_b14         4      0.61ms    0.02ms       2.5ms
+  AG      s2_b15         4      0.63ms    0.05ms       2.5ms
+  AG      s2_b16         4      0.60ms    0.03ms       2.4ms
+  AG      s2_b17         4      0.64ms    0.04ms       2.6ms
+  AG      s2_b18         4      0.65ms    0.04ms       2.6ms
+  AG      s2_b19         4      0.63ms    0.02ms       2.5ms
+  AG      s2_b20         4      0.63ms    0.03ms       2.5ms
+  AG      s2_b21         4      0.83ms    0.39ms       3.3ms
+  AG      s2_b22         4      0.65ms    0.05ms       2.6ms
+  AG      s2_b23         4      0.62ms    0.05ms       2.5ms
+  AG      s2_b24         4      0.62ms    0.02ms       2.5ms
+  AG      s2_b25         4      0.63ms    0.02ms       2.5ms
+  AG      s2_b26         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b27         4      0.60ms    0.02ms       2.4ms
+  AG      s2_b28         4      0.61ms    0.03ms       2.4ms
+  AG      s2_b29         4      0.62ms    0.05ms       2.5ms
+  AG      s2_b30         4      0.60ms    0.02ms       2.4ms
+  AG      s2_b31         4      0.61ms    0.02ms       2.4ms
+  AG      s2_b32         4      0.62ms    0.02ms       2.5ms
+  AG      s2_b33         4      0.58ms    0.03ms       2.3ms
+  AG      s2_b34         4      0.63ms    0.04ms       2.5ms
+  UPDATE                 5    110.89ms   91.85ms     554.5ms
+
+  High-Variance Per-Microbatch Operations  (CV > 40%, std > 3ms)
+    FWD   s2_b0_mb3                mean= 17.97ms std= 19.51ms  CV=109%
+    BWD   s0_b21_mb2               mean= 69.44ms std= 64.07ms  CV=92%
+
+  Collective: CPU Dispatch Time vs GPU Kernel Time
+  Op               CPU total   CPU mean   GPU total  Inflation
+  -------------- ----------- ---------- ----------- ----------
+  RS    s0_b0           0.6ms      0.16ms        0.5ms       1.2x
+  RS    s0_b1           0.8ms      0.20ms        0.6ms       1.3x
+  RS    s0_b2           0.8ms      0.21ms        0.6ms       1.4x
+  RS    s0_b3           0.9ms      0.22ms        0.6ms       1.4x
+  RS    s0_b4           0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b5           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b6           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s0_b7           0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b8           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b9           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s0_b10          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b11          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b12          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b13          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s0_b14          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b15          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b16          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b17          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b18          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b19          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b20          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b21          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b22          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s0_b23          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b24          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b25          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b26          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b27          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b28          1.0ms      0.26ms        1.0ms       1.0x
+  RS    s0_b29          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b30          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s0_b31          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s0_b32          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s0_b33          1.0ms      0.25ms        1.0ms       1.0x
+  RS    s0_b34          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s0_b35          1.1ms      0.27ms        1.2ms       0.9x
+  RS    s2_b0           0.7ms      0.18ms        0.7ms       1.1x
+  RS    s2_b1           0.9ms      0.22ms        0.8ms       1.1x
+  RS    s2_b2           0.9ms      0.22ms        0.7ms       1.2x
+  RS    s2_b3           0.9ms      0.23ms        0.6ms       1.4x
+  RS    s2_b4           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b5           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b6           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b7           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b8           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b9           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b10          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b11          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b12          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b13          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b14          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b15          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b16          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b17          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b18          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b19          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b20          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b21          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b22          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b23          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b24          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b25          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b26          1.0ms      0.24ms        1.0ms       1.0x
+  RS    s2_b27          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b28          1.7ms      0.42ms        1.7ms       1.0x
+  RS    s2_b29          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b30          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b31          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b32          1.0ms      0.24ms        1.0ms       1.0x
+  RS    s2_b33          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b34          1.8ms      0.45ms        1.8ms       1.0x
+  AG    s0_b0           5.4ms      1.35ms        0.6ms       9.1x
+  AG    s0_b1           2.7ms      0.68ms        2.7ms       1.0x
+  AG    s0_b2           2.6ms      0.66ms        2.6ms       1.0x
+  AG    s0_b3           2.6ms      0.65ms        0.5ms       5.1x
+  AG    s0_b4           2.8ms      0.69ms        0.5ms       5.4x
+  AG    s0_b5           2.8ms      0.70ms        0.5ms       5.7x
+  AG    s0_b6           2.6ms      0.66ms        0.5ms       5.2x
+  AG    s0_b7           2.6ms      0.66ms        0.5ms       5.6x
+  AG    s0_b8           2.7ms      0.67ms        0.5ms       5.1x
+  AG    s0_b9           2.6ms      0.65ms        0.7ms       3.6x
+  AG    s0_b10          2.5ms      0.64ms        0.7ms       3.4x
+  AG    s0_b11          2.5ms      0.64ms        0.8ms       3.1x
+  AG    s0_b12          2.6ms      0.64ms        0.7ms       3.6x
+  AG    s0_b13          2.5ms      0.63ms        0.8ms       2.9x
+  AG    s0_b14          2.7ms      0.68ms        1.0ms       2.7x
+  AG    s0_b15          2.6ms      0.65ms        1.0ms       2.6x
+  AG    s0_b16          2.6ms      0.64ms        1.0ms       2.6x
+  AG    s0_b17          2.5ms      0.63ms        0.8ms       3.1x
+  AG    s0_b18          2.6ms      0.65ms        0.9ms       2.9x
+  AG    s0_b19          2.4ms      0.61ms        0.9ms       2.7x
+  AG    s0_b20          3.3ms      0.81ms        1.1ms       3.1x
+  AG    s0_b21          2.6ms      0.64ms        0.9ms       2.8x
+  AG    s0_b22          2.6ms      0.65ms        0.7ms       3.8x
+  AG    s0_b23          2.5ms      0.63ms        0.6ms       4.3x
+  AG    s0_b24          2.6ms      0.64ms        0.7ms       3.9x
+  AG    s0_b25          2.6ms      0.65ms        0.6ms       4.3x
+  AG    s0_b26          2.4ms      0.61ms        0.5ms       4.6x
+  AG    s0_b27          2.5ms      0.63ms        0.4ms       5.7x
+  AG    s0_b28          2.5ms      0.62ms        0.5ms       5.1x
+  AG    s0_b29          2.5ms      0.62ms        0.6ms       4.4x
+  AG    s0_b30          2.6ms      0.66ms        0.5ms       4.9x
+  AG    s0_b31          2.7ms      0.69ms        0.5ms       5.3x
+  AG    s0_b32          2.7ms      0.66ms        0.4ms       7.3x
+  AG    s0_b33          2.6ms      0.66ms        0.4ms       5.9x
+  AG    s0_b34          2.6ms      0.64ms        0.6ms       4.3x
+  AG    s0_b35          2.5ms      0.63ms        0.6ms       4.0x
+  AG    s2_b0           2.7ms      0.66ms        0.6ms       4.2x
+  AG    s2_b1           2.6ms      0.66ms        0.5ms       5.0x
+  AG    s2_b2           2.7ms      0.67ms        0.6ms       4.6x
+  AG    s2_b3           2.5ms      0.63ms        0.6ms       4.3x
+  AG    s2_b4           2.5ms      0.63ms        0.6ms       4.2x
+  AG    s2_b5           2.4ms      0.61ms        0.7ms       3.5x
+  AG    s2_b6           2.5ms      0.63ms        0.6ms       4.0x
+  AG    s2_b7           2.5ms      0.62ms        0.6ms       4.5x
+  AG    s2_b8           2.4ms      0.59ms        0.6ms       3.7x
+  AG    s2_b9           2.5ms      0.63ms        0.7ms       3.6x
+  AG    s2_b10          2.4ms      0.61ms        0.7ms       3.7x
+  AG    s2_b11          2.5ms      0.62ms        0.5ms       4.6x
+  AG    s2_b12          2.5ms      0.63ms        0.5ms       4.8x
+  AG    s2_b13          2.4ms      0.61ms        0.7ms       3.4x
+  AG    s2_b14          2.5ms      0.61ms        0.9ms       2.6x
+  AG    s2_b15          2.5ms      0.63ms        0.9ms       2.7x
+  AG    s2_b16          2.4ms      0.60ms        0.8ms       3.1x
+  AG    s2_b17          2.6ms      0.64ms        0.9ms       2.9x
+  AG    s2_b18          2.6ms      0.65ms        0.9ms       2.8x
+  AG    s2_b19          2.5ms      0.63ms        0.9ms       2.8x
+  AG    s2_b20          2.5ms      0.63ms        0.9ms       2.8x
+  AG    s2_b21          3.3ms      0.83ms        0.8ms       4.2x
+  AG    s2_b22          2.6ms      0.65ms        0.9ms       2.9x
+  AG    s2_b23          2.5ms      0.62ms        1.0ms       2.6x
+  AG    s2_b24          2.5ms      0.62ms        1.1ms       2.3x
+  AG    s2_b25          2.5ms      0.63ms        1.1ms       2.3x
+  AG    s2_b26          2.5ms      0.62ms        1.0ms       2.5x
+  AG    s2_b27          2.4ms      0.60ms        1.0ms       2.4x
+  AG    s2_b28          2.4ms      0.61ms        1.2ms       2.0x
+  AG    s2_b29          2.5ms      0.62ms        1.2ms       2.1x
+  AG    s2_b30          2.4ms      0.60ms        1.2ms       2.0x
+  AG    s2_b31          2.4ms      0.61ms        1.1ms       2.1x
+  AG    s2_b32          2.5ms      0.62ms        1.2ms       2.1x
+  AG    s2_b33          2.3ms      0.58ms        1.3ms       1.8x
+  AG    s2_b34          2.5ms      0.63ms        1.5ms       1.7x
+
+  GPU Time & Overlap
+    Compute kernels :   1548.4 ms  (52.4%)
+    NCCL kernels    :   1405.6 ms  (47.6%)
+    Compute covered by NCCL (CPU dispatch): 8.0%
+    NCCL   covered by compute (CPU dispatch): 70.2%
+
+  Top 15 GPU Kernels (timed window only)
+  Kernel                                                Calls      Total      Mean
+  ---------------------------------------------------- ------ ---------- ---------
+  ncclDevKernel_SendRecv                                   96    1148.7ms   11.966ms
+  vectorized_elementwise_kernel                         13142     296.4ms    0.023ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_NNT              1617     270.4ms    0.167ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT              1568     232.7ms    0.148ms
+  elementwise_kernel                                     5222     207.0ms    0.040ms
+  nvjet_tst_128x256_64x4_2x1_v_bz_coopA_NTN               693     201.3ms    0.291ms
+  ncclDevKernel_ReduceScatter_Sum_bf16_RING_LL            354     193.1ms    0.545ms
+  unrolled_elementwise_kernel                            2051      75.6ms    0.037ms
+  multi_tensor_apply_kernel                              2800      64.7ms    0.023ms
+  ncclDevKernel_AllGather_RING_LL                         284      63.7ms    0.224ms
+  reduce_kernel                                          1834      56.6ms    0.031ms
+  nvjet_tst_192x192_64x3_1x2_h_bz_coopB_NTN               462      54.8ms    0.119ms
+  nvjet_tst_192x128_64x5_1x2_h_bz_coopB_NTT               462      19.3ms    0.042ms
+  softmax_warp_backward                                   231      16.6ms    0.072ms
+  softmax_warp_forward                                    224      11.1ms    0.049ms
+
+======================================================================
+  Rank: worker_process_272414.sqlite
+======================================================================
+File: worker_process_272414.sqlite
+Warmup=2 excluded, Timed=5 analyzed, Trace=3 excluded
+Timed window: 305.710s – 322.636s  (span=16.9s,  update events: 5)
+
+  Phase Totals (timed window, % of all traced NVTX time)
+  Phase               Total   % traced   per iter
+  -------------- ----------  ---------  ---------
+  fwd               9487.1ms      74.8%    1897.4ms
+  bwd               2283.5ms      18.0%     456.7ms
+  rs                  67.2ms       0.5%      13.4ms
+  ag                 184.1ms       1.5%      36.8ms
+  update             669.7ms       5.3%     133.9ms
+
+  Per-Stage/Bucket Summary  (mean ± std aggregated over microbatches & iters)
+  Note: N = total calls (iters × microbatches).  Collectives have N = iters.
+  Operation              N  Mean/call      Std      Total
+  ------------------ ----- ---------- -------- ----------
+  FWD     s0_b0         16      0.89ms    0.30ms      14.3ms
+  FWD     s0_b1         16      6.99ms    0.56ms     111.9ms
+  FWD     s0_b2         16     26.80ms    1.17ms     428.7ms
+  FWD     s0_b3         16      2.04ms    0.20ms      32.7ms
+  FWD     s0_b4         16      2.90ms    0.32ms      46.4ms
+  FWD     s0_b5         16      2.68ms    0.22ms      42.9ms
+  FWD     s0_b6         16      7.42ms    0.51ms     118.8ms
+  FWD     s0_b7         16     26.99ms    1.33ms     431.8ms
+  FWD     s0_b8         16      2.06ms    0.18ms      33.0ms
+  FWD     s0_b9         16      2.83ms    0.19ms      45.2ms
+  FWD     s0_b10        16      2.73ms    0.20ms      43.7ms
+  FWD     s0_b11        16      7.50ms    0.53ms     120.0ms
+  FWD     s0_b12        16     26.92ms    1.11ms     430.7ms
+  FWD     s0_b13        16      2.04ms    0.17ms      32.6ms
+  FWD     s0_b14        16      2.94ms    0.31ms      47.0ms
+  FWD     s0_b15        16      2.80ms    0.29ms      44.8ms
+  FWD     s0_b16        16      7.62ms    0.37ms     122.0ms
+  FWD     s0_b17        16     26.68ms    0.92ms     426.9ms
+  FWD     s0_b18        16      2.02ms    0.19ms      32.3ms
+  FWD     s0_b19        16      2.82ms    0.20ms      45.1ms
+  FWD     s0_b20        16      2.73ms    0.20ms      43.7ms
+  FWD     s0_b21        16      7.49ms    0.55ms     119.8ms
+  FWD     s0_b22        16     26.58ms    1.60ms     425.3ms
+  FWD     s0_b23        16      2.02ms    0.18ms      32.3ms
+  FWD     s0_b24        16      2.77ms    0.22ms      44.4ms
+  FWD     s0_b25        16      2.67ms    0.23ms      42.7ms
+  FWD     s0_b26        16      7.42ms    0.67ms     118.7ms
+  FWD     s0_b27        16     26.77ms    1.58ms     428.3ms
+  FWD     s0_b28        16      2.07ms    0.17ms      33.2ms
+  FWD     s0_b29        16      2.82ms    0.22ms      45.1ms
+  FWD     s0_b30        16      2.72ms    0.22ms      43.6ms
+  FWD     s0_b31        16      7.46ms    0.61ms     119.4ms
+  FWD     s0_b32        16     28.78ms    8.45ms     460.4ms
+  FWD     s0_b33        16      2.05ms    0.22ms      32.8ms
+  FWD     s0_b34        16      2.81ms    0.19ms      44.9ms
+  FWD     s0_b35        16      3.41ms    0.23ms      54.5ms
+  FWD     s2_b0         16      7.14ms    0.50ms     114.2ms
+  FWD     s2_b1         16     26.54ms    0.81ms     424.7ms
+  FWD     s2_b2         16      2.14ms    0.23ms      34.2ms
+  FWD     s2_b3         16      2.83ms    0.20ms      45.3ms
+  FWD     s2_b4         16      2.78ms    0.23ms      44.5ms
+  FWD     s2_b5         16      7.56ms    0.53ms     120.9ms
+  FWD     s2_b6         16     26.68ms    1.47ms     426.8ms
+  FWD     s2_b7         16      2.10ms    0.24ms      33.6ms
+  FWD     s2_b8         16      2.80ms    0.23ms      44.9ms
+  FWD     s2_b9         16      2.79ms    0.26ms      44.6ms
+  FWD     s2_b10        16      7.48ms    0.64ms     119.6ms
+  FWD     s2_b11        16     26.82ms    2.13ms     429.1ms
+  FWD     s2_b12        16      2.26ms    0.68ms      36.2ms
+  FWD     s2_b13        16      2.94ms    0.44ms      47.1ms
+  FWD     s2_b14        16      2.90ms    0.58ms      46.5ms
+  FWD     s2_b15        16      7.88ms    0.74ms     126.2ms
+  FWD     s2_b16        16     26.85ms    1.22ms     429.5ms
+  FWD     s2_b17        16      2.15ms    0.23ms      34.3ms
+  FWD     s2_b18        16      2.91ms    0.22ms      46.5ms
+  FWD     s2_b19        16      2.76ms    0.20ms      44.1ms
+  FWD     s2_b20        16      7.71ms    0.51ms     123.3ms
+  FWD     s2_b21        16     26.64ms    0.82ms     426.2ms
+  FWD     s2_b22        16      2.13ms    0.20ms      34.0ms
+  FWD     s2_b23        16      2.93ms    0.24ms      46.9ms
+  FWD     s2_b24        16      2.81ms    0.26ms      44.9ms
+  FWD     s2_b25        16      7.85ms    0.64ms     125.6ms
+  FWD     s2_b26        16     26.90ms    0.96ms     430.3ms
+  FWD     s2_b27        16      2.11ms    0.20ms      33.7ms
+  FWD     s2_b28        16      2.92ms    0.17ms      46.8ms
+  FWD     s2_b29        16      2.76ms    0.19ms      44.2ms
+  FWD     s2_b30        16      7.69ms    0.61ms     123.0ms
+  FWD     s2_b31        16     27.49ms    2.39ms     439.9ms
+  FWD     s2_b32        16      2.10ms    0.19ms      33.6ms
+  FWD     s2_b33        16      2.88ms    0.22ms      46.2ms
+  FWD     s2_b34        16      3.48ms    0.26ms      55.6ms
+  BWD     s0_b0         16      0.89ms    0.16ms      14.3ms
+  BWD     s0_b1         16      1.84ms    0.14ms      29.5ms
+  BWD     s0_b2         16      3.18ms    0.28ms      50.9ms
+  BWD     s0_b3         16      1.39ms    0.07ms      22.3ms
+  BWD     s0_b4         16      1.46ms    0.09ms      23.3ms
+  BWD     s0_b5         16      1.51ms    0.08ms      24.1ms
+  BWD     s0_b6         16      2.04ms    0.49ms      32.7ms
+  BWD     s0_b7         16      3.23ms    0.31ms      51.7ms
+  BWD     s0_b8         16      1.42ms    0.10ms      22.7ms
+  BWD     s0_b9         16      1.44ms    0.11ms      23.1ms
+  BWD     s0_b10        16      1.51ms    0.10ms      24.1ms
+  BWD     s0_b11        16      1.95ms    0.24ms      31.3ms
+  BWD     s0_b12        16      3.27ms    0.40ms      52.3ms
+  BWD     s0_b13        16      1.45ms    0.12ms      23.2ms
+  BWD     s0_b14        16      1.50ms    0.10ms      24.0ms
+  BWD     s0_b15        16      1.51ms    0.10ms      24.2ms
+  BWD     s0_b16        16      1.96ms    0.21ms      31.3ms
+  BWD     s0_b17        16      3.30ms    0.37ms      52.9ms
+  BWD     s0_b18        16      1.43ms    0.07ms      22.9ms
+  BWD     s0_b19        16      1.46ms    0.07ms      23.3ms
+  BWD     s0_b20        16      1.60ms    0.22ms      25.5ms
+  BWD     s0_b21        16      4.20ms    8.13ms      67.3ms
+  BWD     s0_b22        16      3.35ms    0.41ms      53.6ms
+  BWD     s0_b23        16      1.40ms    0.08ms      22.4ms
+  BWD     s0_b24        16      1.52ms    0.10ms      24.4ms
+  BWD     s0_b25        16      1.54ms    0.14ms      24.6ms
+  BWD     s0_b26        16      1.97ms    0.25ms      31.5ms
+  BWD     s0_b27        16      3.34ms    0.57ms      53.5ms
+  BWD     s0_b28        16      1.45ms    0.15ms      23.2ms
+  BWD     s0_b29        16      1.51ms    0.16ms      24.1ms
+  BWD     s0_b30        16      1.60ms    0.26ms      25.6ms
+  BWD     s0_b31        16      2.29ms    0.98ms      36.6ms
+  BWD     s0_b32        16      3.47ms    0.39ms      55.5ms
+  BWD     s0_b33        16      1.50ms    0.09ms      24.0ms
+  BWD     s0_b34        16      1.65ms    0.26ms      26.4ms
+  BWD     s0_b35        16      1.06ms    0.42ms      17.0ms
+  BWD     s2_b0         16      1.82ms    0.11ms      29.0ms
+  BWD     s2_b1         16      3.10ms    0.27ms      49.6ms
+  BWD     s2_b2         16      1.43ms    0.12ms      22.9ms
+  BWD     s2_b3         16      1.51ms    0.23ms      24.1ms
+  BWD     s2_b4         16      1.51ms    0.09ms      24.1ms
+  BWD     s2_b5         16      1.83ms    0.14ms      29.3ms
+  BWD     s2_b6         16      3.01ms    0.12ms      48.1ms
+  BWD     s2_b7         16      1.43ms    0.11ms      22.8ms
+  BWD     s2_b8         16      1.46ms    0.07ms      23.4ms
+  BWD     s2_b9         16      1.51ms    0.08ms      24.2ms
+  BWD     s2_b10        16      1.80ms    0.08ms      28.8ms
+  BWD     s2_b11        16      3.01ms    0.12ms      48.2ms
+  BWD     s2_b12        16      1.40ms    0.06ms      22.4ms
+  BWD     s2_b13        16      1.47ms    0.08ms      23.5ms
+  BWD     s2_b14        16      1.49ms    0.07ms      23.9ms
+  BWD     s2_b15        16      1.82ms    0.09ms      29.1ms
+  BWD     s2_b16        16      3.02ms    0.18ms      48.4ms
+  BWD     s2_b17        16      1.47ms    0.22ms      23.5ms
+  BWD     s2_b18        16      4.35ms   11.15ms      69.6ms
+  BWD     s2_b19        16      1.57ms    0.20ms      25.1ms
+  BWD     s2_b20        16      1.85ms    0.16ms      29.6ms
+  BWD     s2_b21        16      6.14ms   11.98ms      98.3ms
+  BWD     s2_b22        16      1.44ms    0.10ms      23.1ms
+  BWD     s2_b23        16      1.46ms    0.08ms      23.4ms
+  BWD     s2_b24        16      1.50ms    0.09ms      23.9ms
+  BWD     s2_b25        16      1.85ms    0.11ms      29.5ms
+  BWD     s2_b26        16      3.05ms    0.20ms      48.8ms
+  BWD     s2_b27        16      1.41ms    0.07ms      22.6ms
+  BWD     s2_b28        16      1.47ms    0.08ms      23.6ms
+  BWD     s2_b29        16      1.58ms    0.22ms      25.3ms
+  BWD     s2_b30        16      2.10ms    0.91ms      33.5ms
+  BWD     s2_b31        16      3.44ms    0.58ms      55.0ms
+  BWD     s2_b32        16      1.47ms    0.10ms      23.5ms
+  BWD     s2_b33        16      1.62ms    0.13ms      26.0ms
+  BWD     s2_b34        16      1.15ms    0.58ms      18.4ms
+  RS      s0_b0          4      0.18ms    0.03ms       0.7ms
+  RS      s0_b1          4      0.29ms    0.17ms       1.2ms
+  RS      s0_b2          4      0.23ms    0.01ms       0.9ms
+  RS      s0_b3          4      0.24ms    0.02ms       0.9ms
+  RS      s0_b4          4      0.23ms    0.01ms       0.9ms
+  RS      s0_b5          4      0.21ms    0.01ms       0.8ms
+  RS      s0_b6          4      0.22ms    0.01ms       0.9ms
+  RS      s0_b7          4      0.22ms    0.01ms       0.9ms
+  RS      s0_b8          4      0.23ms    0.02ms       0.9ms
+  RS      s0_b9          4      0.23ms    0.02ms       0.9ms
+  RS      s0_b10         4      0.24ms    0.02ms       0.9ms
+  RS      s0_b11         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b12         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b13         4      0.22ms    0.02ms       0.9ms
+  RS      s0_b14         4      0.23ms    0.02ms       0.9ms
+  RS      s0_b15         4      0.23ms    0.03ms       0.9ms
+  RS      s0_b16         4      0.21ms    0.01ms       0.8ms
+  RS      s0_b17         4      0.22ms    0.02ms       0.9ms
+  RS      s0_b18         4      0.24ms    0.01ms       1.0ms
+  RS      s0_b19         4      0.21ms    0.01ms       0.8ms
+  RS      s0_b20         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b21         4      0.23ms    0.01ms       0.9ms
+  RS      s0_b22         4      0.23ms    0.01ms       0.9ms
+  RS      s0_b23         4      0.24ms    0.02ms       1.0ms
+  RS      s0_b24         4      0.22ms    0.01ms       0.9ms
+  RS      s0_b25         4      0.23ms    0.03ms       0.9ms
+  RS      s0_b26         4      0.24ms    0.03ms       0.9ms
+  RS      s0_b27         4      0.24ms    0.03ms       1.0ms
+  RS      s0_b28         4      0.33ms    0.08ms       1.3ms
+  RS      s0_b29         4      0.53ms    0.55ms       2.1ms
+  RS      s0_b30         4      0.24ms    0.03ms       1.0ms
+  RS      s0_b31         4      0.24ms    0.03ms       1.0ms
+  RS      s0_b32         4      0.32ms    0.16ms       1.3ms
+  RS      s0_b33         4      0.24ms    0.02ms       0.9ms
+  RS      s0_b34         4      0.25ms    0.03ms       1.0ms
+  RS      s0_b35         4      0.34ms    0.08ms       1.4ms
+  RS      s2_b0          4      0.17ms    0.01ms       0.7ms
+  RS      s2_b1          4      0.24ms    0.03ms       1.0ms
+  RS      s2_b2          4      0.21ms    0.01ms       0.8ms
+  RS      s2_b3          4      0.22ms    0.01ms       0.9ms
+  RS      s2_b4          4      0.22ms    0.01ms       0.9ms
+  RS      s2_b5          4      0.22ms    0.01ms       0.9ms
+  RS      s2_b6          4      0.21ms    0.01ms       0.9ms
+  RS      s2_b7          4      0.22ms    0.02ms       0.9ms
+  RS      s2_b8          4      0.20ms    0.01ms       0.8ms
+  RS      s2_b9          4      0.21ms    0.01ms       0.8ms
+  RS      s2_b10         4      0.21ms    0.01ms       0.8ms
+  RS      s2_b11         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b12         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b13         4      0.21ms    0.02ms       0.9ms
+  RS      s2_b14         4      0.23ms    0.00ms       0.9ms
+  RS      s2_b15         4      0.21ms    0.01ms       0.9ms
+  RS      s2_b16         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b17         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b18         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b19         4      0.27ms    0.09ms       1.1ms
+  RS      s2_b20         4      0.26ms    0.09ms       1.0ms
+  RS      s2_b21         4      0.24ms    0.03ms       1.0ms
+  RS      s2_b22         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b23         4      0.21ms    0.01ms       0.8ms
+  RS      s2_b24         4      0.21ms    0.01ms       0.9ms
+  RS      s2_b25         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b26         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b27         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b28         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b29         4      0.22ms    0.02ms       0.9ms
+  RS      s2_b30         4      0.22ms    0.01ms       0.9ms
+  RS      s2_b31         4      0.24ms    0.03ms       1.0ms
+  RS      s2_b32         4      0.23ms    0.01ms       0.9ms
+  RS      s2_b33         4      0.23ms    0.02ms       0.9ms
+  RS      s2_b34         4      0.42ms    0.06ms       1.7ms
+  AG      s0_b0          4      1.18ms    0.20ms       4.7ms
+  AG      s0_b1          4      0.66ms    0.02ms       2.7ms
+  AG      s0_b2          4      0.64ms    0.03ms       2.6ms
+  AG      s0_b3          4      0.64ms    0.03ms       2.5ms
+  AG      s0_b4          4      0.65ms    0.04ms       2.6ms
+  AG      s0_b5          4      0.68ms    0.05ms       2.7ms
+  AG      s0_b6          4      0.66ms    0.04ms       2.6ms
+  AG      s0_b7          4      0.62ms    0.03ms       2.5ms
+  AG      s0_b8          4      0.66ms    0.06ms       2.6ms
+  AG      s0_b9          4      0.63ms    0.03ms       2.5ms
+  AG      s0_b10         4      0.67ms    0.07ms       2.7ms
+  AG      s0_b11         4      0.66ms    0.05ms       2.7ms
+  AG      s0_b12         4      0.65ms    0.04ms       2.6ms
+  AG      s0_b13         4      0.66ms    0.02ms       2.6ms
+  AG      s0_b14         4      0.67ms    0.07ms       2.7ms
+  AG      s0_b15         4      0.75ms    0.15ms       3.0ms
+  AG      s0_b16         4      0.65ms    0.02ms       2.6ms
+  AG      s0_b17         4      0.65ms    0.04ms       2.6ms
+  AG      s0_b18         4      0.60ms    0.03ms       2.4ms
+  AG      s0_b19         4      0.59ms    0.04ms       2.4ms
+  AG      s0_b20         4      0.61ms    0.02ms       2.4ms
+  AG      s0_b21         4      0.61ms    0.04ms       2.4ms
+  AG      s0_b22         4      0.61ms    0.02ms       2.5ms
+  AG      s0_b23         4      0.64ms    0.03ms       2.5ms
+  AG      s0_b24         4      0.62ms    0.03ms       2.5ms
+  AG      s0_b25         4      0.63ms    0.03ms       2.5ms
+  AG      s0_b26         4      0.64ms    0.02ms       2.5ms
+  AG      s0_b27         4      0.63ms    0.02ms       2.5ms
+  AG      s0_b28         4      0.62ms    0.03ms       2.5ms
+  AG      s0_b29         4      0.62ms    0.05ms       2.5ms
+  AG      s0_b30         4      0.63ms    0.03ms       2.5ms
+  AG      s0_b31         4      0.67ms    0.05ms       2.7ms
+  AG      s0_b32         4      0.66ms    0.04ms       2.6ms
+  AG      s0_b33         4      0.64ms    0.03ms       2.6ms
+  AG      s0_b34         4      0.62ms    0.01ms       2.5ms
+  AG      s0_b35         4      0.61ms    0.03ms       2.4ms
+  AG      s2_b0          4      0.66ms    0.06ms       2.6ms
+  AG      s2_b1          4      0.65ms    0.04ms       2.6ms
+  AG      s2_b2          4      0.63ms    0.06ms       2.5ms
+  AG      s2_b3          4      0.63ms    0.02ms       2.5ms
+  AG      s2_b4          4      0.64ms    0.06ms       2.5ms
+  AG      s2_b5          4      0.62ms    0.03ms       2.5ms
+  AG      s2_b6          4      0.62ms    0.01ms       2.5ms
+  AG      s2_b7          4      0.62ms    0.03ms       2.5ms
+  AG      s2_b8          4      0.61ms    0.02ms       2.4ms
+  AG      s2_b9          4      0.59ms    0.02ms       2.4ms
+  AG      s2_b10         4      0.60ms    0.03ms       2.4ms
+  AG      s2_b11         4      0.62ms    0.02ms       2.5ms
+  AG      s2_b12         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b13         4      0.91ms    0.55ms       3.6ms
+  AG      s2_b14         4      0.91ms    0.48ms       3.6ms
+  AG      s2_b15         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b16         4      0.62ms    0.02ms       2.5ms
+  AG      s2_b17         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b18         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b19         4      0.64ms    0.05ms       2.6ms
+  AG      s2_b20         4      0.64ms    0.04ms       2.6ms
+  AG      s2_b21         4      0.63ms    0.01ms       2.5ms
+  AG      s2_b22         4      0.63ms    0.01ms       2.5ms
+  AG      s2_b23         4      0.62ms    0.02ms       2.5ms
+  AG      s2_b24         4      0.65ms    0.03ms       2.6ms
+  AG      s2_b25         4      0.63ms    0.01ms       2.5ms
+  AG      s2_b26         4      0.66ms    0.03ms       2.6ms
+  AG      s2_b27         4      0.63ms    0.03ms       2.5ms
+  AG      s2_b28         4      0.61ms    0.01ms       2.4ms
+  AG      s2_b29         4      0.61ms    0.03ms       2.4ms
+  AG      s2_b30         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b31         4      0.63ms    0.04ms       2.5ms
+  AG      s2_b32         4      0.62ms    0.03ms       2.5ms
+  AG      s2_b33         4      0.61ms    0.01ms       2.4ms
+  AG      s2_b34         4      0.59ms    0.04ms       2.3ms
+  UPDATE                 5    133.95ms   58.49ms     669.7ms
+
+  High-Variance Per-Microbatch Operations  (CV > 40%, std > 3ms)
+    FWD   s0_b32_mb0               mean= 36.11ms std= 14.55ms  CV=40%
+    BWD   s2_b21_mb0               mean= 15.35ms std= 21.47ms  CV=140%
+    BWD   s2_b18_mb3               mean= 13.04ms std= 19.92ms  CV=153%
+    BWD   s0_b21_mb2               mean= 11.14ms std= 14.14ms  CV=127%
+
+  Collective: CPU Dispatch Time vs GPU Kernel Time
+  Op               CPU total   CPU mean   GPU total  Inflation
+  -------------- ----------- ---------- ----------- ----------
+  RS    s0_b0           0.7ms      0.18ms        0.7ms       1.0x
+  RS    s0_b1           1.2ms      0.29ms        1.2ms       1.0x
+  RS    s0_b2           0.9ms      0.23ms        0.9ms       1.0x
+  RS    s0_b3           0.9ms      0.24ms        0.9ms       1.0x
+  RS    s0_b4           0.9ms      0.23ms        0.9ms       1.0x
+  RS    s0_b5           0.8ms      0.21ms        0.9ms       1.0x
+  RS    s0_b6           0.9ms      0.22ms        1.3ms       0.7x
+  RS    s0_b7           0.9ms      0.22ms        1.4ms       0.7x
+  RS    s0_b8           0.9ms      0.23ms        1.4ms       0.7x
+  RS    s0_b9           0.9ms      0.23ms        1.4ms       0.7x
+  RS    s0_b10          0.9ms      0.24ms        1.6ms       0.6x
+  RS    s0_b11          0.9ms      0.22ms        1.4ms       0.7x
+  RS    s0_b12          0.9ms      0.22ms        1.5ms       0.6x
+  RS    s0_b13          0.9ms      0.22ms        1.6ms       0.6x
+  RS    s0_b14          0.9ms      0.23ms        1.6ms       0.6x
+  RS    s0_b15          0.9ms      0.23ms        1.6ms       0.6x
+  RS    s0_b16          0.8ms      0.21ms        1.5ms       0.6x
+  RS    s0_b17          0.9ms      0.22ms        1.4ms       0.6x
+  RS    s0_b18          1.0ms      0.24ms        1.7ms       0.6x
+  RS    s0_b19          0.8ms      0.21ms        1.5ms       0.6x
+  RS    s0_b20          0.9ms      0.22ms        1.5ms       0.6x
+  RS    s0_b21          0.9ms      0.23ms        1.6ms       0.6x
+  RS    s0_b22          0.9ms      0.23ms        1.6ms       0.6x
+  RS    s0_b23          1.0ms      0.24ms        1.7ms       0.6x
+  RS    s0_b24          0.9ms      0.22ms        1.5ms       0.6x
+  RS    s0_b25          0.9ms      0.23ms        1.6ms       0.6x
+  RS    s0_b26          0.9ms      0.24ms        1.6ms       0.6x
+  RS    s0_b27          1.0ms      0.24ms        1.7ms       0.6x
+  RS    s0_b28          1.3ms      0.33ms        2.4ms       0.6x
+  RS    s0_b29          2.1ms      0.53ms        4.1ms       0.5x
+  RS    s0_b30          1.0ms      0.24ms        1.7ms       0.6x
+  RS    s0_b31          1.0ms      0.24ms        1.7ms       0.6x
+  RS    s0_b32          1.3ms      0.32ms        2.4ms       0.5x
+  RS    s0_b33          0.9ms      0.24ms        1.7ms       0.6x
+  RS    s0_b34          1.0ms      0.25ms        1.7ms       0.6x
+  RS    s0_b35          1.4ms      0.34ms        2.5ms       0.5x
+  RS    s2_b0           0.7ms      0.17ms        0.7ms       1.0x
+  RS    s2_b1           1.0ms      0.24ms        1.0ms       1.0x
+  RS    s2_b2           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b3           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b4           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b5           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b6           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b7           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b8           0.8ms      0.20ms        0.8ms       1.0x
+  RS    s2_b9           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b10          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b11          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b12          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b13          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b14          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b15          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b16          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b17          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b18          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b19          1.1ms      0.27ms        1.1ms       1.0x
+  RS    s2_b20          1.0ms      0.26ms        1.0ms       1.0x
+  RS    s2_b21          1.0ms      0.24ms        1.0ms       1.0x
+  RS    s2_b22          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b23          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s2_b24          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s2_b25          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b26          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b27          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b28          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b29          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b30          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s2_b31          1.0ms      0.24ms        1.0ms       1.0x
+  RS    s2_b32          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b33          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s2_b34          1.7ms      0.42ms        1.7ms       1.0x
+  AG    s0_b0           4.7ms      1.18ms        0.5ms       8.7x
+  AG    s0_b1           2.7ms      0.66ms        2.7ms       1.0x
+  AG    s0_b2           2.6ms      0.64ms        2.5ms       1.0x
+  AG    s0_b3           2.5ms      0.64ms        1.1ms       2.2x
+  AG    s0_b4           2.6ms      0.65ms        1.2ms       2.1x
+  AG    s0_b5           2.7ms      0.68ms        1.4ms       2.0x
+  AG    s0_b6           2.6ms      0.66ms        1.2ms       2.2x
+  AG    s0_b7           2.5ms      0.62ms        1.2ms       2.1x
+  AG    s0_b8           2.6ms      0.66ms        1.3ms       2.0x
+  AG    s0_b9           2.5ms      0.63ms        1.4ms       1.9x
+  AG    s0_b10          2.7ms      0.67ms        1.5ms       1.7x
+  AG    s0_b11          2.7ms      0.66ms        1.5ms       1.8x
+  AG    s0_b12          2.6ms      0.65ms        1.4ms       1.8x
+  AG    s0_b13          2.6ms      0.66ms        1.5ms       1.8x
+  AG    s0_b14          2.7ms      0.67ms        1.6ms       1.7x
+  AG    s0_b15          3.0ms      0.75ms        1.9ms       1.5x
+  AG    s0_b16          2.6ms      0.65ms        1.2ms       2.2x
+  AG    s0_b17          2.6ms      0.65ms        0.8ms       3.1x
+  AG    s0_b18          2.4ms      0.60ms        0.8ms       2.9x
+  AG    s0_b19          2.4ms      0.59ms        0.9ms       2.6x
+  AG    s0_b20          2.4ms      0.61ms        1.0ms       2.5x
+  AG    s0_b21          2.4ms      0.61ms        1.0ms       2.6x
+  AG    s0_b22          2.5ms      0.61ms        1.4ms       1.8x
+  AG    s0_b23          2.5ms      0.64ms        1.5ms       1.7x
+  AG    s0_b24          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s0_b25          2.5ms      0.63ms        1.5ms       1.7x
+  AG    s0_b26          2.5ms      0.64ms        1.5ms       1.7x
+  AG    s0_b27          2.5ms      0.63ms        1.4ms       1.8x
+  AG    s0_b28          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s0_b29          2.5ms      0.62ms        1.4ms       1.7x
+  AG    s0_b30          2.5ms      0.63ms        1.4ms       1.8x
+  AG    s0_b31          2.7ms      0.67ms        1.4ms       1.9x
+  AG    s0_b32          2.6ms      0.66ms        1.4ms       1.9x
+  AG    s0_b33          2.6ms      0.64ms        1.4ms       1.8x
+  AG    s0_b34          2.5ms      0.62ms        1.5ms       1.7x
+  AG    s0_b35          2.4ms      0.61ms        1.4ms       1.7x
+  AG    s2_b0           2.6ms      0.66ms        1.5ms       1.7x
+  AG    s2_b1           2.6ms      0.65ms        1.4ms       1.9x
+  AG    s2_b2           2.5ms      0.63ms        1.4ms       1.8x
+  AG    s2_b3           2.5ms      0.63ms        1.4ms       1.7x
+  AG    s2_b4           2.5ms      0.64ms        1.4ms       1.8x
+  AG    s2_b5           2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b6           2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b7           2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b8           2.4ms      0.61ms        1.4ms       1.8x
+  AG    s2_b9           2.4ms      0.59ms        1.4ms       1.7x
+  AG    s2_b10          2.4ms      0.60ms        1.3ms       1.8x
+  AG    s2_b11          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b12          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b13          3.6ms      0.91ms        1.4ms       2.6x
+  AG    s2_b14          3.6ms      0.91ms        2.5ms       1.4x
+  AG    s2_b15          2.5ms      0.62ms        1.3ms       1.9x
+  AG    s2_b16          2.5ms      0.62ms        1.2ms       2.1x
+  AG    s2_b17          2.5ms      0.62ms        1.2ms       2.1x
+  AG    s2_b18          2.5ms      0.62ms        1.2ms       2.0x
+  AG    s2_b19          2.6ms      0.64ms        1.3ms       1.9x
+  AG    s2_b20          2.6ms      0.64ms        1.3ms       1.9x
+  AG    s2_b21          2.5ms      0.63ms        1.2ms       2.2x
+  AG    s2_b22          2.5ms      0.63ms        1.2ms       2.1x
+  AG    s2_b23          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b24          2.6ms      0.65ms        1.6ms       1.7x
+  AG    s2_b25          2.5ms      0.63ms        1.4ms       1.8x
+  AG    s2_b26          2.6ms      0.66ms        1.5ms       1.8x
+  AG    s2_b27          2.5ms      0.63ms        1.4ms       1.8x
+  AG    s2_b28          2.4ms      0.61ms        1.4ms       1.7x
+  AG    s2_b29          2.4ms      0.61ms        1.4ms       1.7x
+  AG    s2_b30          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b31          2.5ms      0.63ms        1.4ms       1.8x
+  AG    s2_b32          2.5ms      0.62ms        1.4ms       1.8x
+  AG    s2_b33          2.4ms      0.61ms        1.4ms       1.7x
+  AG    s2_b34          2.3ms      0.59ms        1.4ms       1.7x
+
+  GPU Time & Overlap
+    Compute kernels :   1573.0 ms  (43.4%)
+    NCCL kernels    :   2049.0 ms  (56.6%)
+    Compute covered by NCCL (CPU dispatch): 7.8%
+    NCCL   covered by compute (CPU dispatch): 54.2%
+
+  Top 15 GPU Kernels (timed window only)
+  Kernel                                                Calls      Total      Mean
+  ---------------------------------------------------- ------ ---------- ---------
+  ncclDevKernel_ReduceScatter_Sum_bf16_RING_LL            320    1125.4ms    3.517ms
+  ncclDevKernel_SendRecv                                   96     818.8ms    8.529ms
+  vectorized_elementwise_kernel                         13142     297.3ms    0.023ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_NNT              1617     281.2ms    0.174ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT              1568     232.0ms    0.148ms
+  elementwise_kernel                                     5222     209.7ms    0.040ms
+  nvjet_tst_128x256_64x4_2x1_v_bz_coopA_NTN               693     203.5ms    0.294ms
+  ncclDevKernel_AllGather_RING_LL                         284     104.9ms    0.369ms
+  unrolled_elementwise_kernel                            2051      78.2ms    0.038ms
+  multi_tensor_apply_kernel                              2800      64.7ms    0.023ms
+  nvjet_tst_192x192_64x3_1x2_h_bz_coopB_NTN               462      58.8ms    0.127ms
+  reduce_kernel                                          1834      56.9ms    0.031ms
+  nvjet_tst_192x128_64x5_1x2_h_bz_coopB_NTT               462      20.7ms    0.045ms
+  softmax_warp_backward                                   231      16.6ms    0.072ms
+  softmax_warp_forward                                    224      11.1ms    0.049ms
+
+======================================================================
+  Rank: worker_process_272420.sqlite
+======================================================================
+File: worker_process_272420.sqlite
+Warmup=2 excluded, Timed=5 analyzed, Trace=3 excluded
+Timed window: 303.355s – 320.240s  (span=16.9s,  update events: 5)
+
+  Phase Totals (timed window, % of all traced NVTX time)
+  Phase               Total   % traced   per iter
+  -------------- ----------  ---------  ---------
+  fwd               9745.5ms      77.9%    1949.1ms
+  bwd               1928.8ms      15.4%     385.8ms
+  rs                  63.8ms       0.5%      12.8ms
+  ag                 181.9ms       1.5%      36.4ms
+  update             593.7ms       4.7%     118.7ms
+
+  Per-Stage/Bucket Summary  (mean ± std aggregated over microbatches & iters)
+  Note: N = total calls (iters × microbatches).  Collectives have N = iters.
+  Operation              N  Mean/call      Std      Total
+  ------------------ ----- ---------- -------- ----------
+  FWD     s1_b0         16      6.94ms    0.64ms     111.1ms
+  FWD     s1_b1         16     27.14ms    1.16ms     434.2ms
+  FWD     s1_b2         16      2.05ms    0.20ms      32.7ms
+  FWD     s1_b3         16      2.87ms    0.23ms      46.0ms
+  FWD     s1_b4         16      2.73ms    0.24ms      43.6ms
+  FWD     s1_b5         16      7.47ms    0.54ms     119.6ms
+  FWD     s1_b6         16     26.75ms    1.08ms     428.0ms
+  FWD     s1_b7         16      2.05ms    0.21ms      32.8ms
+  FWD     s1_b8         16      2.85ms    0.19ms      45.6ms
+  FWD     s1_b9         16      2.70ms    0.19ms      43.2ms
+  FWD     s1_b10        16      7.54ms    0.54ms     120.6ms
+  FWD     s1_b11        16     26.82ms    1.00ms     429.0ms
+  FWD     s1_b12        16      2.07ms    0.20ms      33.2ms
+  FWD     s1_b13        16      2.91ms    0.32ms      46.6ms
+  FWD     s1_b14        16      2.78ms    0.34ms      44.5ms
+  FWD     s1_b15        16      7.95ms    0.74ms     127.3ms
+  FWD     s1_b16        16     26.97ms    0.97ms     431.6ms
+  FWD     s1_b17        16      2.06ms    0.17ms      32.9ms
+  FWD     s1_b18        16      2.86ms    0.19ms      45.8ms
+  FWD     s1_b19        16      2.72ms    0.24ms      43.5ms
+  FWD     s1_b20        16      7.56ms    0.49ms     121.0ms
+  FWD     s1_b21        16     26.64ms    0.98ms     426.2ms
+  FWD     s1_b22        16      2.02ms    0.14ms      32.4ms
+  FWD     s1_b23        16      2.82ms    0.19ms      45.2ms
+  FWD     s1_b24        16      2.70ms    0.25ms      43.2ms
+  FWD     s1_b25        16      7.39ms    0.63ms     118.2ms
+  FWD     s1_b26        16     26.89ms    1.40ms     430.2ms
+  FWD     s1_b27        16      2.26ms    0.46ms      36.1ms
+  FWD     s1_b28        16      2.83ms    0.19ms      45.3ms
+  FWD     s1_b29        16      2.72ms    0.20ms      43.5ms
+  FWD     s1_b30        16      7.56ms    0.71ms     120.9ms
+  FWD     s1_b31        16     27.88ms    5.07ms     446.0ms
+  FWD     s1_b32        16      2.29ms    0.73ms      36.7ms
+  FWD     s1_b33        16      3.32ms    1.71ms      53.1ms
+  FWD     s1_b34        16      3.43ms    0.22ms      54.8ms
+  FWD     s3_b0         16      7.58ms    0.32ms     121.2ms
+  FWD     s3_b1         16     26.94ms    0.88ms     431.1ms
+  FWD     s3_b2         16      2.25ms    0.10ms      36.0ms
+  FWD     s3_b3         16      3.03ms    0.15ms      48.5ms
+  FWD     s3_b4         16      2.89ms    0.13ms      46.2ms
+  FWD     s3_b5         16      8.10ms    0.28ms     129.5ms
+  FWD     s3_b6         16     27.28ms    0.77ms     436.4ms
+  FWD     s3_b7         16      2.26ms    0.09ms      36.2ms
+  FWD     s3_b8         16      3.06ms    0.13ms      49.0ms
+  FWD     s3_b9         16      2.91ms    0.12ms      46.6ms
+  FWD     s3_b10        16      8.14ms    0.27ms     130.2ms
+  FWD     s3_b11        16     27.45ms    0.88ms     439.2ms
+  FWD     s3_b12        16      2.26ms    0.14ms      36.2ms
+  FWD     s3_b13        16      3.06ms    0.14ms      48.9ms
+  FWD     s3_b14        16      3.49ms    1.09ms      55.8ms
+  FWD     s3_b15        16      8.15ms    0.30ms     130.4ms
+  FWD     s3_b16        16     27.28ms    1.03ms     436.4ms
+  FWD     s3_b17        16      2.24ms    0.08ms      35.8ms
+  FWD     s3_b18        16      3.06ms    0.16ms      49.0ms
+  FWD     s3_b19        16      2.95ms    0.12ms      47.2ms
+  FWD     s3_b20        16      8.31ms    0.77ms     133.0ms
+  FWD     s3_b21        16     27.19ms    0.77ms     435.0ms
+  FWD     s3_b22        16      2.33ms    0.13ms      37.3ms
+  FWD     s3_b23        16      3.04ms    0.11ms      48.6ms
+  FWD     s3_b24        16      2.99ms    0.25ms      47.9ms
+  FWD     s3_b25        16      8.16ms    0.19ms     130.6ms
+  FWD     s3_b26        16     27.37ms    0.83ms     437.9ms
+  FWD     s3_b27        16      2.29ms    0.09ms      36.7ms
+  FWD     s3_b28        16      3.00ms    0.13ms      47.9ms
+  FWD     s3_b29        16      2.93ms    0.17ms      46.9ms
+  FWD     s3_b30        16      8.10ms    0.31ms     129.7ms
+  FWD     s3_b31        16     26.99ms    0.77ms     431.8ms
+  FWD     s3_b32        16      2.26ms    0.09ms      36.1ms
+  FWD     s3_b33        16      3.06ms    0.12ms      49.0ms
+  FWD     s3_b34        16      2.91ms    0.15ms      46.5ms
+  FWD     s3_b35        16      4.60ms    0.15ms      73.6ms
+  FWD     s3_b36        16      2.65ms    0.09ms      42.4ms
+  BWD     s1_b0         16      1.57ms    0.08ms      25.1ms
+  BWD     s1_b1         16      2.73ms    0.26ms      43.6ms
+  BWD     s1_b2         16      1.49ms    0.45ms      23.9ms
+  BWD     s1_b3         16      1.39ms    0.25ms      22.3ms
+  BWD     s1_b4         16      1.42ms    0.20ms      22.8ms
+  BWD     s1_b5         16      1.67ms    0.23ms      26.7ms
+  BWD     s1_b6         16      2.70ms    0.19ms      43.2ms
+  BWD     s1_b7         16      1.33ms    0.11ms      21.2ms
+  BWD     s1_b8         16      1.34ms    0.08ms      21.5ms
+  BWD     s1_b9         16      1.38ms    0.11ms      22.0ms
+  BWD     s1_b10        16      1.62ms    0.12ms      26.0ms
+  BWD     s1_b11        16      2.69ms    0.20ms      43.0ms
+  BWD     s1_b12        16      1.37ms    0.21ms      21.9ms
+  BWD     s1_b13        16      1.45ms    0.41ms      23.3ms
+  BWD     s1_b14        16      1.45ms    0.32ms      23.2ms
+  BWD     s1_b15        16      1.65ms    0.20ms      26.3ms
+  BWD     s1_b16        16      2.70ms    0.23ms      43.2ms
+  BWD     s1_b17        16      1.34ms    0.17ms      21.5ms
+  BWD     s1_b18        16      1.36ms    0.17ms      21.8ms
+  BWD     s1_b19        16      1.52ms    0.47ms      24.4ms
+  BWD     s1_b20        16      1.62ms    0.17ms      26.0ms
+  BWD     s1_b21        16      2.72ms    0.31ms      43.5ms
+  BWD     s1_b22        16      1.33ms    0.11ms      21.2ms
+  BWD     s1_b23        16      1.40ms    0.41ms      22.4ms
+  BWD     s1_b24        16      1.35ms    0.11ms      21.7ms
+  BWD     s1_b25        16      1.63ms    0.13ms      26.1ms
+  BWD     s1_b26        16      2.67ms    0.22ms      42.7ms
+  BWD     s1_b27        16      1.35ms    0.11ms      21.5ms
+  BWD     s1_b28        16      1.34ms    0.07ms      21.5ms
+  BWD     s1_b29        16      1.38ms    0.08ms      22.0ms
+  BWD     s1_b30        16      1.63ms    0.15ms      26.1ms
+  BWD     s1_b31        16      2.83ms    0.35ms      45.3ms
+  BWD     s1_b32        16      1.33ms    0.08ms      21.3ms
+  BWD     s1_b33        16      1.47ms    0.12ms      23.5ms
+  BWD     s1_b34        16      0.75ms    0.25ms      12.1ms
+  BWD     s3_b0         16      1.52ms    0.07ms      24.3ms
+  BWD     s3_b1         16      2.54ms    0.08ms      40.7ms
+  BWD     s3_b2         16      1.30ms    0.09ms      20.8ms
+  BWD     s3_b3         16      1.30ms    0.03ms      20.8ms
+  BWD     s3_b4         16      1.34ms    0.05ms      21.4ms
+  BWD     s3_b5         16      1.55ms    0.06ms      24.8ms
+  BWD     s3_b6         16      2.56ms    0.10ms      40.9ms
+  BWD     s3_b7         16      1.30ms    0.05ms      20.9ms
+  BWD     s3_b8         16      1.33ms    0.07ms      21.3ms
+  BWD     s3_b9         16      1.37ms    0.09ms      21.9ms
+  BWD     s3_b10        16      1.56ms    0.07ms      25.0ms
+  BWD     s3_b11        16      2.58ms    0.12ms      41.3ms
+  BWD     s3_b12        16      1.30ms    0.07ms      20.8ms
+  BWD     s3_b13        16      1.33ms    0.09ms      21.2ms
+  BWD     s3_b14        16      1.32ms    0.05ms      21.1ms
+  BWD     s3_b15        16      1.54ms    0.07ms      24.6ms
+  BWD     s3_b16        16      2.56ms    0.09ms      41.0ms
+  BWD     s3_b17        16      1.32ms    0.07ms      21.1ms
+  BWD     s3_b18        16      1.34ms    0.12ms      21.5ms
+  BWD     s3_b19        16      1.40ms    0.24ms      22.5ms
+  BWD     s3_b20        16      1.52ms    0.05ms      24.2ms
+  BWD     s3_b21        16      2.53ms    0.12ms      40.5ms
+  BWD     s3_b22        16      1.30ms    0.08ms      20.7ms
+  BWD     s3_b23        16      1.34ms    0.06ms      21.5ms
+  BWD     s3_b24        16      1.34ms    0.07ms      21.4ms
+  BWD     s3_b25        16      1.56ms    0.07ms      24.9ms
+  BWD     s3_b26        16      2.61ms    0.19ms      41.7ms
+  BWD     s3_b27        16      1.33ms    0.12ms      21.3ms
+  BWD     s3_b28        16      1.33ms    0.06ms      21.3ms
+  BWD     s3_b29        16      1.36ms    0.09ms      21.8ms
+  BWD     s3_b30        16      1.58ms    0.14ms      25.2ms
+  BWD     s3_b31        16      2.68ms    0.31ms      42.9ms
+  BWD     s3_b32        16      1.33ms    0.09ms      21.2ms
+  BWD     s3_b33        16      1.33ms    0.06ms      21.4ms
+  BWD     s3_b34        16      1.42ms    0.08ms      22.7ms
+  BWD     s3_b35        16      0.78ms    0.10ms      12.4ms
+  BWD     s3_b36        16      3.87ms    0.36ms      61.9ms
+  RS      s1_b0          4      0.18ms    0.03ms       0.7ms
+  RS      s1_b1          4      0.24ms    0.03ms       1.0ms
+  RS      s1_b2          4      0.22ms    0.02ms       0.9ms
+  RS      s1_b3          4      0.20ms    0.01ms       0.8ms
+  RS      s1_b4          4      0.21ms    0.01ms       0.8ms
+  RS      s1_b5          4      0.22ms    0.02ms       0.9ms
+  RS      s1_b6          4      0.21ms    0.02ms       0.9ms
+  RS      s1_b7          4      0.21ms    0.01ms       0.8ms
+  RS      s1_b8          4      0.22ms    0.02ms       0.9ms
+  RS      s1_b9          4      0.22ms    0.03ms       0.9ms
+  RS      s1_b10         4      0.19ms    0.01ms       0.8ms
+  RS      s1_b11         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b12         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b13         4      0.21ms    0.02ms       0.9ms
+  RS      s1_b14         4      0.23ms    0.01ms       0.9ms
+  RS      s1_b15         4      0.22ms    0.03ms       0.9ms
+  RS      s1_b16         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b17         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b18         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b19         4      0.24ms    0.02ms       0.9ms
+  RS      s1_b20         4      0.27ms    0.12ms       1.1ms
+  RS      s1_b21         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b22         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b23         4      0.20ms    0.02ms       0.8ms
+  RS      s1_b24         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b25         4      0.21ms    0.02ms       0.8ms
+  RS      s1_b26         4      0.21ms    0.02ms       0.8ms
+  RS      s1_b27         4      0.23ms    0.01ms       0.9ms
+  RS      s1_b28         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b29         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b30         4      0.23ms    0.03ms       0.9ms
+  RS      s1_b31         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b32         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b33         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b34         4      0.25ms    0.02ms       1.0ms
+  RS      s3_b0          4      0.17ms    0.01ms       0.7ms
+  RS      s3_b1          4      0.21ms    0.03ms       0.9ms
+  RS      s3_b2          4      0.22ms    0.01ms       0.9ms
+  RS      s3_b3          4      0.22ms    0.01ms       0.9ms
+  RS      s3_b4          4      0.21ms    0.01ms       0.9ms
+  RS      s3_b5          4      0.23ms    0.03ms       0.9ms
+  RS      s3_b6          4      0.19ms    0.01ms       0.8ms
+  RS      s3_b7          4      0.22ms    0.01ms       0.9ms
+  RS      s3_b8          4      0.22ms    0.00ms       0.9ms
+  RS      s3_b9          4      0.21ms    0.02ms       0.8ms
+  RS      s3_b10         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b11         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b12         4      0.21ms    0.01ms       0.9ms
+  RS      s3_b13         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b14         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b15         4      0.21ms    0.02ms       0.9ms
+  RS      s3_b16         4      0.23ms    0.03ms       0.9ms
+  RS      s3_b17         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b18         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b19         4      0.21ms    0.02ms       0.8ms
+  RS      s3_b20         4      0.22ms    0.04ms       0.9ms
+  RS      s3_b21         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b22         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b23         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b24         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b25         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b26         4      0.21ms    0.02ms       0.8ms
+  RS      s3_b27         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b28         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b29         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b30         4      0.23ms    0.03ms       0.9ms
+  RS      s3_b31         4      0.24ms    0.01ms       1.0ms
+  RS      s3_b32         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b33         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b34         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b35         4      0.21ms    0.02ms       0.9ms
+  RS      s3_b36         4      0.47ms    0.05ms       1.9ms
+  AG      s1_b0          4      1.27ms    0.15ms       5.1ms
+  AG      s1_b1          4      0.66ms    0.06ms       2.6ms
+  AG      s1_b2          4      0.61ms    0.03ms       2.4ms
+  AG      s1_b3          4      0.59ms    0.03ms       2.3ms
+  AG      s1_b4          4      0.58ms    0.05ms       2.3ms
+  AG      s1_b5          4      0.60ms    0.03ms       2.4ms
+  AG      s1_b6          4      0.57ms    0.04ms       2.3ms
+  AG      s1_b7          4      0.59ms    0.04ms       2.3ms
+  AG      s1_b8          4      0.57ms    0.04ms       2.3ms
+  AG      s1_b9          4      0.58ms    0.05ms       2.3ms
+  AG      s1_b10         4      0.57ms    0.03ms       2.3ms
+  AG      s1_b11         4      0.59ms    0.07ms       2.4ms
+  AG      s1_b12         4      0.58ms    0.05ms       2.3ms
+  AG      s1_b13         4      0.55ms    0.04ms       2.2ms
+  AG      s1_b14         4      0.58ms    0.04ms       2.3ms
+  AG      s1_b15         4      0.57ms    0.04ms       2.3ms
+  AG      s1_b16         4      0.55ms    0.03ms       2.2ms
+  AG      s1_b17         4      0.58ms    0.06ms       2.3ms
+  AG      s1_b18         4      0.60ms    0.02ms       2.4ms
+  AG      s1_b19         4      0.58ms    0.03ms       2.3ms
+  AG      s1_b20         4      0.58ms    0.05ms       2.3ms
+  AG      s1_b21         4      0.58ms    0.05ms       2.3ms
+  AG      s1_b22         4      0.59ms    0.06ms       2.3ms
+  AG      s1_b23         4      0.61ms    0.06ms       2.4ms
+  AG      s1_b24         4      0.59ms    0.06ms       2.3ms
+  AG      s1_b25         4      0.60ms    0.05ms       2.4ms
+  AG      s1_b26         4      0.63ms    0.06ms       2.5ms
+  AG      s1_b27         4      0.60ms    0.01ms       2.4ms
+  AG      s1_b28         4      0.61ms    0.01ms       2.4ms
+  AG      s1_b29         4      0.60ms    0.01ms       2.4ms
+  AG      s1_b30         4      0.62ms    0.04ms       2.5ms
+  AG      s1_b31         4      0.59ms    0.04ms       2.4ms
+  AG      s1_b32         4      0.60ms    0.04ms       2.4ms
+  AG      s1_b33         4      0.58ms    0.02ms       2.3ms
+  AG      s1_b34         4      0.62ms    0.01ms       2.5ms
+  AG      s3_b0          4      0.66ms    0.07ms       2.7ms
+  AG      s3_b1          4      0.65ms    0.02ms       2.6ms
+  AG      s3_b2          4      0.61ms    0.03ms       2.4ms
+  AG      s3_b3          4      0.60ms    0.01ms       2.4ms
+  AG      s3_b4          4      0.63ms    0.04ms       2.5ms
+  AG      s3_b5          4      0.63ms    0.03ms       2.5ms
+  AG      s3_b6          4      0.64ms    0.04ms       2.6ms
+  AG      s3_b7          4      0.64ms    0.05ms       2.5ms
+  AG      s3_b8          4      0.62ms    0.03ms       2.5ms
+  AG      s3_b9          4      0.65ms    0.01ms       2.6ms
+  AG      s3_b10         4      0.61ms    0.05ms       2.4ms
+  AG      s3_b11         4      0.60ms    0.01ms       2.4ms
+  AG      s3_b12         4      1.03ms    0.74ms       4.1ms
+  AG      s3_b13         4      0.71ms    0.17ms       2.8ms
+  AG      s3_b14         4      0.60ms    0.04ms       2.4ms
+  AG      s3_b15         4      0.61ms    0.02ms       2.4ms
+  AG      s3_b16         4      0.62ms    0.02ms       2.5ms
+  AG      s3_b17         4      0.62ms    0.02ms       2.5ms
+  AG      s3_b18         4      0.63ms    0.01ms       2.5ms
+  AG      s3_b19         4      0.62ms    0.03ms       2.5ms
+  AG      s3_b20         4      0.63ms    0.03ms       2.5ms
+  AG      s3_b21         4      0.71ms    0.16ms       2.8ms
+  AG      s3_b22         4      0.60ms    0.03ms       2.4ms
+  AG      s3_b23         4      0.64ms    0.06ms       2.5ms
+  AG      s3_b24         4      0.62ms    0.01ms       2.5ms
+  AG      s3_b25         4      0.65ms    0.04ms       2.6ms
+  AG      s3_b26         4      0.63ms    0.04ms       2.5ms
+  AG      s3_b27         4      0.67ms    0.02ms       2.7ms
+  AG      s3_b28         4      0.67ms    0.03ms       2.7ms
+  AG      s3_b29         4      0.70ms    0.07ms       2.8ms
+  AG      s3_b30         4      0.67ms    0.06ms       2.7ms
+  AG      s3_b31         4      0.66ms    0.06ms       2.7ms
+  AG      s3_b32         4      0.65ms    0.04ms       2.6ms
+  AG      s3_b33         4      0.66ms    0.05ms       2.6ms
+  AG      s3_b34         4      0.67ms    0.03ms       2.7ms
+  AG      s3_b35         4      0.64ms    0.05ms       2.6ms
+  AG      s3_b36         4      0.64ms    0.03ms       2.6ms
+  UPDATE                 5    118.74ms   63.91ms     593.7ms
+
+  Collective: CPU Dispatch Time vs GPU Kernel Time
+  Op               CPU total   CPU mean   GPU total  Inflation
+  -------------- ----------- ---------- ----------- ----------
+  RS    s1_b0           0.7ms      0.18ms        1.0ms       0.7x
+  RS    s1_b1           1.0ms      0.24ms        0.9ms       1.0x
+  RS    s1_b2           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b3           0.8ms      0.20ms        0.8ms       1.0x
+  RS    s1_b4           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b5           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b6           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s1_b7           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b8           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b9           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b10          0.8ms      0.19ms        0.8ms       1.0x
+  RS    s1_b11          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b12          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b13          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s1_b14          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s1_b15          0.9ms      0.22ms        0.8ms       1.1x
+  RS    s1_b16          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b17          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b18          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b19          0.9ms      0.24ms        0.9ms       1.0x
+  RS    s1_b20          1.1ms      0.27ms        1.1ms       1.0x
+  RS    s1_b21          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b22          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b23          0.8ms      0.20ms        0.8ms       1.0x
+  RS    s1_b24          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b25          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b26          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b27          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s1_b28          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b29          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b30          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s1_b31          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s1_b32          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b33          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s1_b34          1.0ms      0.25ms        1.0ms       1.0x
+  RS    s3_b0           0.7ms      0.17ms        0.9ms       0.7x
+  RS    s3_b1           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s3_b2           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b3           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b4           0.9ms      0.21ms        0.9ms       1.0x
+  RS    s3_b5           0.9ms      0.23ms        0.9ms       1.0x
+  RS    s3_b6           0.8ms      0.19ms        0.8ms       1.0x
+  RS    s3_b7           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b8           0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b9           0.8ms      0.21ms        0.8ms       1.0x
+  RS    s3_b10          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b11          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b12          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s3_b13          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b14          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s3_b15          0.9ms      0.21ms        0.9ms       1.0x
+  RS    s3_b16          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s3_b17          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b18          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s3_b19          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s3_b20          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b21          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b22          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s3_b23          0.8ms      0.21ms        0.8ms       1.0x
+  RS    s3_b24          0.9ms      0.23ms        0.9ms       1.0x
+  RS    s3_b25          0.9ms      0.22ms        0.9ms       1.0x
+  RS    s3_b26          0.8ms      0.21ms        0.8ms       1.1x
+  RS    s3_b27          0.9ms      0.22ms        0.2ms       4.2x
+  RS    s3_b28          0.9ms      0.23ms        0.0ms          ∞
+  RS    s3_b29          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b30          0.9ms      0.23ms        0.0ms          ∞
+  RS    s3_b31          1.0ms      0.24ms        0.0ms          ∞
+  RS    s3_b32          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b33          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b34          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b35          0.9ms      0.21ms        0.0ms          ∞
+  RS    s3_b36          1.9ms      0.47ms        0.0ms          ∞
+  AG    s1_b0           5.1ms      1.27ms        0.6ms       9.2x
+  AG    s1_b1           2.6ms      0.66ms        2.0ms       1.3x
+  AG    s1_b2           2.4ms      0.61ms        1.9ms       1.3x
+  AG    s1_b3           2.3ms      0.59ms        1.8ms       1.3x
+  AG    s1_b4           2.3ms      0.58ms        1.8ms       1.3x
+  AG    s1_b5           2.4ms      0.60ms        1.8ms       1.3x
+  AG    s1_b6           2.3ms      0.57ms        1.7ms       1.3x
+  AG    s1_b7           2.3ms      0.59ms        1.8ms       1.3x
+  AG    s1_b8           2.3ms      0.57ms        1.7ms       1.3x
+  AG    s1_b9           2.3ms      0.58ms        1.8ms       1.3x
+  AG    s1_b10          2.3ms      0.57ms        1.8ms       1.3x
+  AG    s1_b11          2.4ms      0.59ms        1.7ms       1.4x
+  AG    s1_b12          2.3ms      0.58ms        1.7ms       1.3x
+  AG    s1_b13          2.2ms      0.55ms        1.7ms       1.3x
+  AG    s1_b14          2.3ms      0.58ms        1.8ms       1.3x
+  AG    s1_b15          2.3ms      0.57ms        1.8ms       1.3x
+  AG    s1_b16          2.2ms      0.55ms        1.7ms       1.3x
+  AG    s1_b17          2.3ms      0.58ms        1.7ms       1.3x
+  AG    s1_b18          2.4ms      0.60ms        1.8ms       1.3x
+  AG    s1_b19          2.3ms      0.58ms        1.8ms       1.3x
+  AG    s1_b20          2.3ms      0.58ms        1.8ms       1.3x
+  AG    s1_b21          2.3ms      0.58ms        1.7ms       1.3x
+  AG    s1_b22          2.3ms      0.59ms        1.7ms       1.3x
+  AG    s1_b23          2.4ms      0.61ms        1.8ms       1.3x
+  AG    s1_b24          2.3ms      0.59ms        1.8ms       1.3x
+  AG    s1_b25          2.4ms      0.60ms        1.8ms       1.3x
+  AG    s1_b26          2.5ms      0.63ms        1.9ms       1.3x
+  AG    s1_b27          2.4ms      0.60ms        1.9ms       1.3x
+  AG    s1_b28          2.4ms      0.61ms        1.9ms       1.3x
+  AG    s1_b29          2.4ms      0.60ms        1.9ms       1.3x
+  AG    s1_b30          2.5ms      0.62ms        2.0ms       1.2x
+  AG    s1_b31          2.4ms      0.59ms        1.9ms       1.3x
+  AG    s1_b32          2.4ms      0.60ms        1.9ms       1.3x
+  AG    s1_b33          2.3ms      0.58ms        1.9ms       1.3x
+  AG    s1_b34          2.5ms      0.62ms        1.9ms       1.3x
+  AG    s3_b0           2.7ms      0.66ms        2.0ms       1.4x
+  AG    s3_b1           2.6ms      0.65ms        2.0ms       1.3x
+  AG    s3_b2           2.4ms      0.61ms        1.9ms       1.3x
+  AG    s3_b3           2.4ms      0.60ms        1.9ms       1.3x
+  AG    s3_b4           2.5ms      0.63ms        2.0ms       1.2x
+  AG    s3_b5           2.5ms      0.63ms        1.9ms       1.3x
+  AG    s3_b6           2.6ms      0.64ms        2.0ms       1.3x
+  AG    s3_b7           2.5ms      0.64ms        1.9ms       1.3x
+  AG    s3_b8           2.5ms      0.62ms        1.9ms       1.3x
+  AG    s3_b9           2.6ms      0.65ms        2.0ms       1.3x
+  AG    s3_b10          2.4ms      0.61ms        1.9ms       1.3x
+  AG    s3_b11          2.4ms      0.60ms        1.9ms       1.3x
+  AG    s3_b12          4.1ms      1.03ms        3.6ms       1.1x
+  AG    s3_b13          2.8ms      0.71ms        2.4ms       1.2x
+  AG    s3_b14          2.4ms      0.60ms        1.9ms       1.2x
+  AG    s3_b15          2.4ms      0.61ms        2.0ms       1.2x
+  AG    s3_b16          2.5ms      0.62ms        1.9ms       1.3x
+  AG    s3_b17          2.5ms      0.62ms        1.9ms       1.3x
+  AG    s3_b18          2.5ms      0.63ms        2.0ms       1.3x
+  AG    s3_b19          2.5ms      0.62ms        2.0ms       1.3x
+  AG    s3_b20          2.5ms      0.63ms        1.9ms       1.3x
+  AG    s3_b21          2.8ms      0.71ms        2.3ms       1.3x
+  AG    s3_b22          2.4ms      0.60ms        1.9ms       1.3x
+  AG    s3_b23          2.5ms      0.64ms        2.1ms       1.2x
+  AG    s3_b24          2.5ms      0.62ms        2.0ms       1.3x
+  AG    s3_b25          2.6ms      0.65ms        2.0ms       1.3x
+  AG    s3_b26          2.5ms      0.63ms        2.0ms       1.3x
+  AG    s3_b27          2.7ms      0.67ms        2.1ms       1.3x
+  AG    s3_b28          2.7ms      0.67ms        2.1ms       1.3x
+  AG    s3_b29          2.8ms      0.70ms        2.2ms       1.3x
+  AG    s3_b30          2.7ms      0.67ms        2.1ms       1.3x
+  AG    s3_b31          2.7ms      0.66ms        2.1ms       1.3x
+  AG    s3_b32          2.6ms      0.65ms        2.1ms       1.3x
+  AG    s3_b33          2.6ms      0.66ms        2.0ms       1.3x
+  AG    s3_b34          2.7ms      0.67ms        2.1ms       1.3x
+  AG    s3_b35          2.6ms      0.64ms        2.0ms       1.3x
+  AG    s3_b36          2.6ms      0.64ms        2.0ms       1.3x
+
+  GPU Time & Overlap
+    Compute kernels :   1936.4 ms  (16.7%)
+    NCCL kernels    :   9643.1 ms  (83.3%)
+    Compute covered by NCCL (CPU dispatch): 64.2%
+    NCCL   covered by compute (CPU dispatch): 89.8%
+
+  Top 15 GPU Kernels (timed window only)
+  Kernel                                                Calls      Total      Mean
+  ---------------------------------------------------- ------ ---------- ---------
+  ncclDevKernel_SendRecv                                   96    8232.4ms   85.754ms
+  ncclDevKernel_ReduceScatter_Sum_bf16_RING_LL            288    1210.6ms    4.203ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_NNT              1584     338.5ms    0.214ms
+  vectorized_elementwise_kernel                         13184     324.9ms    0.025ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT              1568     244.3ms    0.156ms
+  elementwise_kernel                                     5248     234.6ms    0.045ms
+  ncclDevKernel_AllGather_RING_LL                         288     200.1ms    0.695ms
+  nvjet_tst_128x256_64x4_2x1_v_bz_coopA_NTN               672     193.3ms    0.288ms
+  nvjet_tst_192x192_64x3_1x2_h_bz_coopB_NTN               464     121.0ms    0.261ms
+  unrolled_elementwise_kernel                            2064     101.5ms    0.049ms
+  reduce_kernel                                          1856      64.3ms    0.035ms
+  multi_tensor_apply_kernel                              2835      62.8ms    0.022ms
+  cunn_SpatialSoftMaxForward                               16      62.8ms    3.922ms
+  nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT                16      62.2ms    3.885ms
+  cunn_SpatialSoftMaxBackward                              16      41.8ms    2.613ms
+
+======================================================================
+  Rank: worker_process_272425.sqlite
+======================================================================
+File: worker_process_272425.sqlite
+Warmup=2 excluded, Timed=5 analyzed, Trace=3 excluded
+Timed window: 302.400s – 319.527s  (span=17.1s,  update events: 5)
+
+  Phase Totals (timed window, % of all traced NVTX time)
+  Phase               Total   % traced   per iter
+  -------------- ----------  ---------  ---------
+  fwd              10172.5ms      79.5%    2034.5ms
+  bwd               2010.3ms      15.7%     402.1ms
+  rs                  62.7ms       0.5%      12.5ms
+  ag                 189.1ms       1.5%      37.8ms
+  update             355.4ms       2.8%      71.1ms
+
+  Per-Stage/Bucket Summary  (mean ± std aggregated over microbatches & iters)
+  Note: N = total calls (iters × microbatches).  Collectives have N = iters.
+  Operation              N  Mean/call      Std      Total
+  ------------------ ----- ---------- -------- ----------
+  FWD     s1_b0         16      7.40ms    0.57ms     118.4ms
+  FWD     s1_b1         16     28.42ms    0.90ms     454.7ms
+  FWD     s1_b2         16      2.17ms    0.16ms      34.7ms
+  FWD     s1_b3         16      2.99ms    0.18ms      47.8ms
+  FWD     s1_b4         16      2.85ms    0.16ms      45.6ms
+  FWD     s1_b5         16      7.99ms    0.47ms     127.9ms
+  FWD     s1_b6         16     28.02ms    0.78ms     448.3ms
+  FWD     s1_b7         16      2.10ms    0.17ms      33.6ms
+  FWD     s1_b8         16      2.96ms    0.19ms      47.3ms
+  FWD     s1_b9         16      2.78ms    0.21ms      44.5ms
+  FWD     s1_b10        16      7.78ms    0.60ms     124.5ms
+  FWD     s1_b11        16     27.93ms    1.03ms     446.8ms
+  FWD     s1_b12        16      2.18ms    0.18ms      34.8ms
+  FWD     s1_b13        16      3.02ms    0.27ms      48.3ms
+  FWD     s1_b14        16      2.86ms    0.25ms      45.7ms
+  FWD     s1_b15        16      8.18ms    0.64ms     130.9ms
+  FWD     s1_b16        16     27.75ms    1.02ms     444.0ms
+  FWD     s1_b17        16      2.12ms    0.14ms      33.9ms
+  FWD     s1_b18        16      2.96ms    0.17ms      47.4ms
+  FWD     s1_b19        16      2.82ms    0.19ms      45.1ms
+  FWD     s1_b20        16      7.77ms    0.52ms     124.3ms
+  FWD     s1_b21        16     27.88ms    0.78ms     446.0ms
+  FWD     s1_b22        16      2.16ms    0.16ms      34.5ms
+  FWD     s1_b23        16      2.96ms    0.14ms      47.3ms
+  FWD     s1_b24        16      2.83ms    0.17ms      45.3ms
+  FWD     s1_b25        16      7.92ms    0.57ms     126.7ms
+  FWD     s1_b26        16     28.31ms    0.99ms     453.0ms
+  FWD     s1_b27        16      2.32ms    0.32ms      37.1ms
+  FWD     s1_b28        16      2.97ms    0.21ms      47.5ms
+  FWD     s1_b29        16      2.85ms    0.21ms      45.6ms
+  FWD     s1_b30        16      8.19ms    1.38ms     131.0ms
+  FWD     s1_b31        16     30.01ms    6.23ms     480.2ms
+  FWD     s1_b32        16      2.14ms    0.19ms      34.3ms
+  FWD     s1_b33        16      2.95ms    0.22ms      47.3ms
+  FWD     s1_b34        16      3.63ms    0.20ms      58.1ms
+  FWD     s3_b0         16      8.06ms    0.26ms     129.0ms
+  FWD     s3_b1         16     29.18ms    1.13ms     466.9ms
+  FWD     s3_b2         16      2.45ms    0.28ms      39.1ms
+  FWD     s3_b3         16      3.23ms    0.14ms      51.6ms
+  FWD     s3_b4         16      3.12ms    0.11ms      49.9ms
+  FWD     s3_b5         16      8.58ms    0.22ms     137.3ms
+  FWD     s3_b6         16     28.51ms    0.60ms     456.1ms
+  FWD     s3_b7         16      2.39ms    0.10ms      38.2ms
+  FWD     s3_b8         16      3.18ms    0.10ms      50.9ms
+  FWD     s3_b9         16      3.07ms    0.13ms      49.2ms
+  FWD     s3_b10        16      8.72ms    0.51ms     139.5ms
+  FWD     s3_b11        16     28.49ms    0.80ms     455.9ms
+  FWD     s3_b12        16      2.35ms    0.08ms      37.6ms
+  FWD     s3_b13        16      3.15ms    0.13ms      50.3ms
+  FWD     s3_b14        16      3.50ms    0.53ms      56.0ms
+  FWD     s3_b15        16      8.64ms    0.39ms     138.2ms
+  FWD     s3_b16        16     28.48ms    0.96ms     455.7ms
+  FWD     s3_b17        16      2.35ms    0.13ms      37.6ms
+  FWD     s3_b18        16      3.10ms    0.18ms      49.6ms
+  FWD     s3_b19        16      3.01ms    0.11ms      48.1ms
+  FWD     s3_b20        16      8.48ms    0.47ms     135.7ms
+  FWD     s3_b21        16     28.17ms    1.25ms     450.7ms
+  FWD     s3_b22        16      2.37ms    0.14ms      38.0ms
+  FWD     s3_b23        16      3.18ms    0.16ms      50.9ms
+  FWD     s3_b24        16      3.04ms    0.14ms      48.7ms
+  FWD     s3_b25        16      8.45ms    0.42ms     135.2ms
+  FWD     s3_b26        16     28.01ms    1.83ms     448.1ms
+  FWD     s3_b27        16      2.32ms    0.16ms      37.1ms
+  FWD     s3_b28        16      3.15ms    0.23ms      50.4ms
+  FWD     s3_b29        16      3.02ms    0.17ms      48.3ms
+  FWD     s3_b30        16      8.38ms    0.49ms     134.1ms
+  FWD     s3_b31        16     27.77ms    1.46ms     444.3ms
+  FWD     s3_b32        16      2.27ms    0.13ms      36.4ms
+  FWD     s3_b33        16      3.08ms    0.17ms      49.2ms
+  FWD     s3_b34        16      2.98ms    0.15ms      47.7ms
+  FWD     s3_b35        16      4.70ms    0.29ms      75.3ms
+  FWD     s3_b36        16      2.70ms    0.20ms      43.2ms
+  BWD     s1_b0         16      1.64ms    0.06ms      26.2ms
+  BWD     s1_b1         16      2.80ms    0.14ms      44.8ms
+  BWD     s1_b2         16      1.32ms    0.09ms      21.1ms
+  BWD     s1_b3         16      1.35ms    0.06ms      21.6ms
+  BWD     s1_b4         16      1.40ms    0.10ms      22.4ms
+  BWD     s1_b5         16      1.67ms    0.07ms      26.7ms
+  BWD     s1_b6         16      2.77ms    0.14ms      44.3ms
+  BWD     s1_b7         16      1.32ms    0.09ms      21.1ms
+  BWD     s1_b8         16      1.33ms    0.08ms      21.3ms
+  BWD     s1_b9         16      1.37ms    0.08ms      22.0ms
+  BWD     s1_b10        16      1.65ms    0.11ms      26.3ms
+  BWD     s1_b11        16      2.78ms    0.15ms      44.5ms
+  BWD     s1_b12        16      1.32ms    0.07ms      21.2ms
+  BWD     s1_b13        16      1.36ms    0.09ms      21.7ms
+  BWD     s1_b14        16      1.51ms    0.38ms      24.2ms
+  BWD     s1_b15        16      1.78ms    0.51ms      28.5ms
+  BWD     s1_b16        16      2.85ms    0.31ms      45.6ms
+  BWD     s1_b17        16      1.41ms    0.25ms      22.5ms
+  BWD     s1_b18        16      1.41ms    0.26ms      22.5ms
+  BWD     s1_b19        16      1.47ms    0.30ms      23.6ms
+  BWD     s1_b20        16      1.74ms    0.35ms      27.8ms
+  BWD     s1_b21        16      2.83ms    0.28ms      45.2ms
+  BWD     s1_b22        16      1.35ms    0.09ms      21.7ms
+  BWD     s1_b23        16      1.38ms    0.07ms      22.0ms
+  BWD     s1_b24        16      1.37ms    0.08ms      22.0ms
+  BWD     s1_b25        16      1.65ms    0.07ms      26.3ms
+  BWD     s1_b26        16      2.83ms    0.16ms      45.2ms
+  BWD     s1_b27        16      1.36ms    0.17ms      21.7ms
+  BWD     s1_b28        16      1.35ms    0.06ms      21.6ms
+  BWD     s1_b29        16      1.40ms    0.08ms      22.4ms
+  BWD     s1_b30        16      1.71ms    0.08ms      27.3ms
+  BWD     s1_b31        16      3.00ms    0.27ms      48.0ms
+  BWD     s1_b32        16      1.38ms    0.11ms      22.1ms
+  BWD     s1_b33        16      1.49ms    0.12ms      23.8ms
+  BWD     s1_b34        16      0.80ms    0.28ms      12.7ms
+  BWD     s3_b0         16      1.67ms    0.08ms      26.6ms
+  BWD     s3_b1         16      2.80ms    0.19ms      44.9ms
+  BWD     s3_b2         16      1.39ms    0.13ms      22.3ms
+  BWD     s3_b3         16      1.40ms    0.12ms      22.3ms
+  BWD     s3_b4         16      1.43ms    0.13ms      22.9ms
+  BWD     s3_b5         16      1.69ms    0.13ms      27.1ms
+  BWD     s3_b6         16      2.81ms    0.23ms      45.0ms
+  BWD     s3_b7         16      1.39ms    0.16ms      22.3ms
+  BWD     s3_b8         16      1.37ms    0.08ms      21.9ms
+  BWD     s3_b9         16      1.41ms    0.08ms      22.5ms
+  BWD     s3_b10        16      1.71ms    0.10ms      27.3ms
+  BWD     s3_b11        16      2.76ms    0.17ms      44.2ms
+  BWD     s3_b12        16      1.36ms    0.10ms      21.7ms
+  BWD     s3_b13        16      1.41ms    0.10ms      22.6ms
+  BWD     s3_b14        16      1.45ms    0.10ms      23.2ms
+  BWD     s3_b15        16      1.65ms    0.10ms      26.4ms
+  BWD     s3_b16        16      2.72ms    0.17ms      43.6ms
+  BWD     s3_b17        16      1.37ms    0.05ms      21.9ms
+  BWD     s3_b18        16      1.37ms    0.07ms      21.9ms
+  BWD     s3_b19        16      1.42ms    0.08ms      22.8ms
+  BWD     s3_b20        16      1.65ms    0.11ms      26.4ms
+  BWD     s3_b21        16      2.76ms    0.22ms      44.1ms
+  BWD     s3_b22        16      1.40ms    0.27ms      22.3ms
+  BWD     s3_b23        16      1.38ms    0.06ms      22.1ms
+  BWD     s3_b24        16      1.43ms    0.08ms      22.9ms
+  BWD     s3_b25        16      1.63ms    0.08ms      26.0ms
+  BWD     s3_b26        16      2.71ms    0.14ms      43.3ms
+  BWD     s3_b27        16      1.36ms    0.07ms      21.8ms
+  BWD     s3_b28        16      1.37ms    0.05ms      21.9ms
+  BWD     s3_b29        16      1.42ms    0.08ms      22.7ms
+  BWD     s3_b30        16      1.69ms    0.12ms      27.1ms
+  BWD     s3_b31        16      2.90ms    0.19ms      46.3ms
+  BWD     s3_b32        16      1.37ms    0.07ms      21.9ms
+  BWD     s3_b33        16      1.45ms    0.22ms      23.2ms
+  BWD     s3_b34        16      1.49ms    0.12ms      23.8ms
+  BWD     s3_b35        16      0.84ms    0.07ms      13.4ms
+  BWD     s3_b36        16      4.08ms    0.35ms      65.3ms
+  RS      s1_b0          4      0.17ms    0.01ms       0.7ms
+  RS      s1_b1          4      0.20ms    0.01ms       0.8ms
+  RS      s1_b2          4      0.21ms    0.01ms       0.8ms
+  RS      s1_b3          4      0.20ms    0.02ms       0.8ms
+  RS      s1_b4          4      0.21ms    0.00ms       0.8ms
+  RS      s1_b5          4      0.21ms    0.02ms       0.8ms
+  RS      s1_b6          4      0.21ms    0.01ms       0.8ms
+  RS      s1_b7          4      0.22ms    0.00ms       0.9ms
+  RS      s1_b8          4      0.21ms    0.01ms       0.8ms
+  RS      s1_b9          4      0.20ms    0.01ms       0.8ms
+  RS      s1_b10         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b11         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b12         4      0.24ms    0.03ms       0.9ms
+  RS      s1_b13         4      0.21ms    0.00ms       0.8ms
+  RS      s1_b14         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b15         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b16         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b17         4      0.23ms    0.02ms       0.9ms
+  RS      s1_b18         4      0.21ms    0.01ms       0.9ms
+  RS      s1_b19         4      0.23ms    0.03ms       0.9ms
+  RS      s1_b20         4      0.24ms    0.02ms       1.0ms
+  RS      s1_b21         4      0.21ms    0.01ms       0.9ms
+  RS      s1_b22         4      0.22ms    0.02ms       0.9ms
+  RS      s1_b23         4      0.21ms    0.01ms       0.9ms
+  RS      s1_b24         4      0.21ms    0.02ms       0.8ms
+  RS      s1_b25         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b26         4      0.21ms    0.02ms       0.9ms
+  RS      s1_b27         4      0.23ms    0.01ms       0.9ms
+  RS      s1_b28         4      0.21ms    0.01ms       0.8ms
+  RS      s1_b29         4      0.21ms    0.01ms       0.9ms
+  RS      s1_b30         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b31         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b32         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b33         4      0.22ms    0.01ms       0.9ms
+  RS      s1_b34         4      0.25ms    0.01ms       1.0ms
+  RS      s3_b0          4      0.18ms    0.01ms       0.7ms
+  RS      s3_b1          4      0.20ms    0.01ms       0.8ms
+  RS      s3_b2          4      0.21ms    0.01ms       0.8ms
+  RS      s3_b3          4      0.23ms    0.01ms       0.9ms
+  RS      s3_b4          4      0.20ms    0.01ms       0.8ms
+  RS      s3_b5          4      0.20ms    0.00ms       0.8ms
+  RS      s3_b6          4      0.21ms    0.02ms       0.8ms
+  RS      s3_b7          4      0.22ms    0.00ms       0.9ms
+  RS      s3_b8          4      0.21ms    0.01ms       0.8ms
+  RS      s3_b9          4      0.19ms    0.01ms       0.8ms
+  RS      s3_b10         4      0.23ms    0.03ms       0.9ms
+  RS      s3_b11         4      0.20ms    0.01ms       0.8ms
+  RS      s3_b12         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b13         4      0.20ms    0.02ms       0.8ms
+  RS      s3_b14         4      0.20ms    0.01ms       0.8ms
+  RS      s3_b15         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b16         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b17         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b18         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b19         4      0.21ms    0.02ms       0.8ms
+  RS      s3_b20         4      0.21ms    0.00ms       0.8ms
+  RS      s3_b21         4      0.23ms    0.02ms       0.9ms
+  RS      s3_b22         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b23         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b24         4      0.22ms    0.00ms       0.9ms
+  RS      s3_b25         4      0.21ms    0.00ms       0.8ms
+  RS      s3_b26         4      0.21ms    0.01ms       0.8ms
+  RS      s3_b27         4      0.24ms    0.01ms       0.9ms
+  RS      s3_b28         4      0.21ms    0.00ms       0.8ms
+  RS      s3_b29         4      0.20ms    0.01ms       0.8ms
+  RS      s3_b30         4      0.22ms    0.00ms       0.9ms
+  RS      s3_b31         4      0.23ms    0.01ms       0.9ms
+  RS      s3_b32         4      0.21ms    0.01ms       0.9ms
+  RS      s3_b33         4      0.22ms    0.00ms       0.9ms
+  RS      s3_b34         4      0.22ms    0.02ms       0.9ms
+  RS      s3_b35         4      0.22ms    0.01ms       0.9ms
+  RS      s3_b36         4      0.54ms    0.02ms       2.2ms
+  AG      s1_b0          4      1.09ms    0.14ms       4.4ms
+  AG      s1_b1          4      0.66ms    0.02ms       2.6ms
+  AG      s1_b2          4      0.63ms    0.03ms       2.5ms
+  AG      s1_b3          4      0.64ms    0.03ms       2.5ms
+  AG      s1_b4          4      0.66ms    0.03ms       2.6ms
+  AG      s1_b5          4      0.61ms    0.03ms       2.4ms
+  AG      s1_b6          4      0.62ms    0.03ms       2.5ms
+  AG      s1_b7          4      0.62ms    0.05ms       2.5ms
+  AG      s1_b8          4      0.63ms    0.02ms       2.5ms
+  AG      s1_b9          4      0.64ms    0.05ms       2.6ms
+  AG      s1_b10         4      0.61ms    0.04ms       2.4ms
+  AG      s1_b11         4      0.59ms    0.01ms       2.3ms
+  AG      s1_b12         4      0.62ms    0.03ms       2.5ms
+  AG      s1_b13         4      0.63ms    0.04ms       2.5ms
+  AG      s1_b14         4      0.64ms    0.03ms       2.5ms
+  AG      s1_b15         4      0.64ms    0.06ms       2.5ms
+  AG      s1_b16         4      0.68ms    0.04ms       2.7ms
+  AG      s1_b17         4      0.63ms    0.03ms       2.5ms
+  AG      s1_b18         4      0.61ms    0.03ms       2.4ms
+  AG      s1_b19         4      0.61ms    0.02ms       2.4ms
+  AG      s1_b20         4      0.62ms    0.03ms       2.5ms
+  AG      s1_b21         4      0.65ms    0.03ms       2.6ms
+  AG      s1_b22         4      0.61ms    0.06ms       2.4ms
+  AG      s1_b23         4      0.61ms    0.05ms       2.5ms
+  AG      s1_b24         4      0.62ms    0.02ms       2.5ms
+  AG      s1_b25         4      0.63ms    0.04ms       2.5ms
+  AG      s1_b26         4      0.61ms    0.02ms       2.4ms
+  AG      s1_b27         4      0.62ms    0.02ms       2.5ms
+  AG      s1_b28         4      0.66ms    0.04ms       2.6ms
+  AG      s1_b29         4      0.66ms    0.06ms       2.6ms
+  AG      s1_b30         4      0.63ms    0.02ms       2.5ms
+  AG      s1_b31         4      0.66ms    0.04ms       2.6ms
+  AG      s1_b32         4      0.66ms    0.02ms       2.7ms
+  AG      s1_b33         4      0.66ms    0.03ms       2.6ms
+  AG      s1_b34         4      0.67ms    0.03ms       2.7ms
+  AG      s3_b0          4      0.67ms    0.05ms       2.7ms
+  AG      s3_b1          4      0.68ms    0.06ms       2.7ms
+  AG      s3_b2          4      0.67ms    0.04ms       2.7ms
+  AG      s3_b3          4      0.64ms    0.03ms       2.6ms
+  AG      s3_b4          4      0.65ms    0.03ms       2.6ms
+  AG      s3_b5          4      0.69ms    0.04ms       2.8ms
+  AG      s3_b6          4      0.82ms    0.30ms       3.3ms
+  AG      s3_b7          4      0.66ms    0.05ms       2.6ms
+  AG      s3_b8          4      0.63ms    0.01ms       2.5ms
+  AG      s3_b9          4      0.63ms    0.03ms       2.5ms
+  AG      s3_b10         4      0.66ms    0.02ms       2.6ms
+  AG      s3_b11         4      0.64ms    0.01ms       2.6ms
+  AG      s3_b12         4      0.64ms    0.02ms       2.5ms
+  AG      s3_b13         4      0.65ms    0.04ms       2.6ms
+  AG      s3_b14         4      0.67ms    0.03ms       2.7ms
+  AG      s3_b15         4      0.68ms    0.03ms       2.7ms
+  AG      s3_b16         4      0.64ms    0.03ms       2.6ms
+  AG      s3_b17         4      0.66ms    0.04ms       2.6ms
+  AG      s3_b18         4      0.67ms    0.05ms       2.7ms
+  AG      s3_b19         4      0.64ms    0.04ms       2.6ms
+  AG      s3_b20         4      0.63ms    0.04ms       2.5ms
+  AG      s3_b21         4      0.66ms    0.04ms       2.6ms
+  AG      s3_b22         4      0.64ms    0.02ms       2.6ms
+  AG      s3_b23         4      0.65ms    0.04ms       2.6ms
+  AG      s3_b24         4      0.68ms    0.04ms       2.7ms
+  AG      s3_b25         4      0.68ms    0.01ms       2.7ms
+  AG      s3_b26         4      0.68ms    0.03ms       2.7ms
+  AG      s3_b27         4      0.66ms    0.01ms       2.6ms
+  AG      s3_b28         4      0.69ms    0.04ms       2.7ms
+  AG      s3_b29         4      0.66ms    0.04ms       2.7ms
+  AG      s3_b30         4      0.69ms    0.02ms       2.7ms
+  AG      s3_b31         4      0.69ms    0.04ms       2.8ms
+  AG      s3_b32         4      0.67ms    0.03ms       2.7ms
+  AG      s3_b33         4      0.68ms    0.04ms       2.7ms
+  AG      s3_b34         4      0.68ms    0.03ms       2.7ms
+  AG      s3_b35         4      0.70ms    0.16ms       2.8ms
+  AG      s3_b36         4      0.64ms    0.04ms       2.6ms
+  UPDATE                 5     71.09ms   84.20ms     355.4ms
+
+  Collective: CPU Dispatch Time vs GPU Kernel Time
+  Op               CPU total   CPU mean   GPU total  Inflation
+  -------------- ----------- ---------- ----------- ----------
+  RS    s1_b0           0.7ms      0.17ms        0.5ms       1.2x
+  RS    s1_b1           0.8ms      0.20ms        0.2ms       3.2x
+  RS    s1_b2           0.8ms      0.21ms        0.2ms       3.4x
+  RS    s1_b3           0.8ms      0.20ms        0.1ms       5.7x
+  RS    s1_b4           0.8ms      0.21ms        0.3ms       3.2x
+  RS    s1_b5           0.8ms      0.21ms        0.0ms      18.2x
+  RS    s1_b6           0.8ms      0.21ms        0.3ms       3.3x
+  RS    s1_b7           0.9ms      0.22ms        0.3ms       2.9x
+  RS    s1_b8           0.8ms      0.21ms        0.1ms       6.6x
+  RS    s1_b9           0.8ms      0.20ms        0.2ms       5.2x
+  RS    s1_b10          0.8ms      0.21ms        0.1ms      10.0x
+  RS    s1_b11          0.8ms      0.21ms        0.2ms       3.5x
+  RS    s1_b12          0.9ms      0.24ms        0.3ms       3.5x
+  RS    s1_b13          0.8ms      0.21ms        0.1ms       6.0x
+  RS    s1_b14          0.9ms      0.22ms        0.2ms       4.7x
+  RS    s1_b15          0.8ms      0.21ms        0.1ms       8.4x
+  RS    s1_b16          0.9ms      0.22ms        0.3ms       3.2x
+  RS    s1_b17          0.9ms      0.23ms        0.3ms       2.9x
+  RS    s1_b18          0.9ms      0.21ms        0.1ms       6.5x
+  RS    s1_b19          0.9ms      0.23ms        0.1ms       6.1x
+  RS    s1_b20          1.0ms      0.24ms        0.2ms       5.9x
+  RS    s1_b21          0.9ms      0.21ms        0.3ms       3.0x
+  RS    s1_b22          0.9ms      0.22ms        0.3ms       3.3x
+  RS    s1_b23          0.9ms      0.21ms        0.1ms      10.3x
+  RS    s1_b24          0.8ms      0.21ms        0.2ms       3.9x
+  RS    s1_b25          0.9ms      0.22ms        0.1ms      14.9x
+  RS    s1_b26          0.9ms      0.21ms        0.3ms       3.4x
+  RS    s1_b27          0.9ms      0.23ms        0.3ms       3.3x
+  RS    s1_b28          0.8ms      0.21ms        0.1ms       8.0x
+  RS    s1_b29          0.9ms      0.21ms        0.2ms       5.2x
+  RS    s1_b30          0.9ms      0.22ms        0.2ms       5.7x
+  RS    s1_b31          0.9ms      0.22ms        0.3ms       3.3x
+  RS    s1_b32          0.9ms      0.22ms        0.3ms       3.2x
+  RS    s1_b33          0.9ms      0.22ms        0.2ms       5.7x
+  RS    s1_b34          1.0ms      0.25ms        0.3ms       3.6x
+  RS    s3_b0           0.7ms      0.18ms        0.5ms       1.3x
+  RS    s3_b1           0.8ms      0.20ms        0.2ms       3.5x
+  RS    s3_b2           0.8ms      0.21ms        0.3ms       3.4x
+  RS    s3_b3           0.9ms      0.23ms        0.2ms       5.0x
+  RS    s3_b4           0.8ms      0.20ms        0.2ms       4.5x
+  RS    s3_b5           0.8ms      0.20ms        0.0ms      97.0x
+  RS    s3_b6           0.8ms      0.21ms        0.3ms       3.3x
+  RS    s3_b7           0.9ms      0.22ms        0.3ms       2.8x
+  RS    s3_b8           0.8ms      0.21ms        0.2ms       3.9x
+  RS    s3_b9           0.8ms      0.19ms        0.0ms      19.7x
+  RS    s3_b10          0.9ms      0.23ms        0.1ms       8.8x
+  RS    s3_b11          0.8ms      0.20ms        0.2ms       3.3x
+  RS    s3_b12          0.8ms      0.21ms        0.2ms       3.4x
+  RS    s3_b13          0.8ms      0.20ms        0.1ms       7.9x
+  RS    s3_b14          0.8ms      0.20ms        0.2ms       4.8x
+  RS    s3_b15          0.8ms      0.21ms        0.1ms      13.6x
+  RS    s3_b16          0.8ms      0.21ms        0.2ms       3.4x
+  RS    s3_b17          0.9ms      0.23ms        0.3ms       3.3x
+  RS    s3_b18          0.8ms      0.21ms        0.1ms      11.3x
+  RS    s3_b19          0.8ms      0.21ms        0.1ms      14.0x
+  RS    s3_b20          0.8ms      0.21ms        0.1ms      13.7x
+  RS    s3_b21          0.9ms      0.23ms        0.0ms      22.0x
+  RS    s3_b22          0.9ms      0.22ms        0.2ms       5.5x
+  RS    s3_b23          0.9ms      0.23ms        0.0ms      19.6x
+  RS    s3_b24          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b25          0.8ms      0.21ms        0.1ms      15.6x
+  RS    s3_b26          0.8ms      0.21ms        0.5ms       1.6x
+  RS    s3_b27          0.9ms      0.24ms        0.4ms       2.1x
+  RS    s3_b28          0.8ms      0.21ms        0.0ms          ∞
+  RS    s3_b29          0.8ms      0.20ms        0.0ms          ∞
+  RS    s3_b30          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b31          0.9ms      0.23ms        0.0ms          ∞
+  RS    s3_b32          0.9ms      0.21ms        0.0ms          ∞
+  RS    s3_b33          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b34          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b35          0.9ms      0.22ms        0.0ms          ∞
+  RS    s3_b36          2.2ms      0.54ms        0.0ms          ∞
+  AG    s1_b0           4.4ms      1.09ms        0.4ms      12.0x
+  AG    s1_b1           2.6ms      0.66ms        0.8ms       3.2x
+  AG    s1_b2           2.5ms      0.63ms        0.8ms       3.1x
+  AG    s1_b3           2.5ms      0.64ms        0.9ms       2.8x
+  AG    s1_b4           2.6ms      0.66ms        0.9ms       2.8x
+  AG    s1_b5           2.4ms      0.61ms        0.8ms       3.0x
+  AG    s1_b6           2.5ms      0.62ms        0.8ms       3.1x
+  AG    s1_b7           2.5ms      0.62ms        0.8ms       3.2x
+  AG    s1_b8           2.5ms      0.63ms        0.9ms       2.7x
+  AG    s1_b9           2.6ms      0.64ms        0.9ms       3.0x
+  AG    s1_b10          2.4ms      0.61ms        0.8ms       2.9x
+  AG    s1_b11          2.3ms      0.59ms        0.8ms       3.1x
+  AG    s1_b12          2.5ms      0.62ms        0.8ms       3.1x
+  AG    s1_b13          2.5ms      0.63ms        0.9ms       2.9x
+  AG    s1_b14          2.5ms      0.64ms        0.9ms       2.9x
+  AG    s1_b15          2.5ms      0.64ms        0.8ms       3.0x
+  AG    s1_b16          2.7ms      0.68ms        0.9ms       3.2x
+  AG    s1_b17          2.5ms      0.63ms        0.8ms       3.1x
+  AG    s1_b18          2.4ms      0.61ms        0.8ms       2.9x
+  AG    s1_b19          2.4ms      0.61ms        0.9ms       2.8x
+  AG    s1_b20          2.5ms      0.62ms        0.9ms       2.9x
+  AG    s1_b21          2.6ms      0.65ms        0.8ms       3.3x
+  AG    s1_b22          2.4ms      0.61ms        0.8ms       3.3x
+  AG    s1_b23          2.5ms      0.61ms        0.9ms       2.8x
+  AG    s1_b24          2.5ms      0.62ms        1.0ms       2.6x
+  AG    s1_b25          2.5ms      0.63ms        0.9ms       2.9x
+  AG    s1_b26          2.4ms      0.61ms        0.8ms       3.0x
+  AG    s1_b27          2.5ms      0.62ms        0.8ms       3.1x
+  AG    s1_b28          2.6ms      0.66ms        1.0ms       2.7x
+  AG    s1_b29          2.6ms      0.66ms        0.9ms       2.9x
+  AG    s1_b30          2.5ms      0.63ms        0.8ms       3.1x
+  AG    s1_b31          2.6ms      0.66ms        0.8ms       3.2x
+  AG    s1_b32          2.7ms      0.66ms        0.9ms       2.9x
+  AG    s1_b33          2.6ms      0.66ms        0.9ms       2.9x
+  AG    s1_b34          2.7ms      0.67ms        0.9ms       2.9x
+  AG    s3_b0           2.7ms      0.67ms        1.0ms       2.8x
+  AG    s3_b1           2.7ms      0.68ms        0.8ms       3.2x
+  AG    s3_b2           2.7ms      0.67ms        0.8ms       3.2x
+  AG    s3_b3           2.6ms      0.64ms        0.9ms       2.9x
+  AG    s3_b4           2.6ms      0.65ms        0.9ms       2.9x
+  AG    s3_b5           2.8ms      0.69ms        0.9ms       3.1x
+  AG    s3_b6           3.3ms      0.82ms        0.8ms       4.1x
+  AG    s3_b7           2.6ms      0.66ms        0.8ms       3.2x
+  AG    s3_b8           2.5ms      0.63ms        0.9ms       2.8x
+  AG    s3_b9           2.5ms      0.63ms        0.9ms       2.8x
+  AG    s3_b10          2.6ms      0.66ms        0.9ms       2.9x
+  AG    s3_b11          2.6ms      0.64ms        0.9ms       3.0x
+  AG    s3_b12          2.5ms      0.64ms        0.9ms       2.9x
+  AG    s3_b13          2.6ms      0.65ms        1.0ms       2.6x
+  AG    s3_b14          2.7ms      0.67ms        1.0ms       2.6x
+  AG    s3_b15          2.7ms      0.68ms        0.9ms       2.9x
+  AG    s3_b16          2.6ms      0.64ms        0.9ms       2.9x
+  AG    s3_b17          2.6ms      0.66ms        0.9ms       3.0x
+  AG    s3_b18          2.7ms      0.67ms        0.9ms       2.8x
+  AG    s3_b19          2.6ms      0.64ms        0.9ms       2.8x
+  AG    s3_b20          2.5ms      0.63ms        0.9ms       2.8x
+  AG    s3_b21          2.6ms      0.66ms        0.9ms       3.0x
+  AG    s3_b22          2.6ms      0.64ms        0.9ms       2.9x
+  AG    s3_b23          2.6ms      0.65ms        1.0ms       2.7x
+  AG    s3_b24          2.7ms      0.68ms        1.0ms       2.8x
+  AG    s3_b25          2.7ms      0.68ms        1.0ms       2.8x
+  AG    s3_b26          2.7ms      0.68ms        0.8ms       3.2x
+  AG    s3_b27          2.6ms      0.66ms        0.9ms       3.0x
+  AG    s3_b28          2.7ms      0.69ms        1.0ms       2.7x
+  AG    s3_b29          2.7ms      0.66ms        1.0ms       2.6x
+  AG    s3_b30          2.7ms      0.69ms        0.9ms       2.9x
+  AG    s3_b31          2.8ms      0.69ms        0.9ms       3.2x
+  AG    s3_b32          2.7ms      0.67ms        0.9ms       2.9x
+  AG    s3_b33          2.7ms      0.68ms        1.0ms       2.7x
+  AG    s3_b34          2.7ms      0.68ms        1.0ms       2.6x
+  AG    s3_b35          2.8ms      0.70ms        0.6ms       4.5x
+  AG    s3_b36          2.6ms      0.64ms        0.8ms       3.1x
+
+  GPU Time & Overlap
+    Compute kernels :   1846.5 ms  (18.9%)
+    NCCL kernels    :   7937.2 ms  (81.1%)
+    Compute covered by NCCL (CPU dispatch): 54.2%
+    NCCL   covered by compute (CPU dispatch): 95.2%
+
+  Top 15 GPU Kernels (timed window only)
+  Kernel                                                Calls      Total      Mean
+  ---------------------------------------------------- ------ ---------- ---------
+  ncclDevKernel_SendRecv                                   96    7638.3ms   79.566ms
+  vectorized_elementwise_kernel                         13184     325.7ms    0.025ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_NNT              1584     295.9ms    0.187ms
+  nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT              1568     238.8ms    0.152ms
+  elementwise_kernel                                     5248     230.6ms    0.044ms
+  ncclDevKernel_ReduceScatter_Sum_bf16_RING_LL            359     213.0ms    0.593ms
+  nvjet_tst_128x256_64x4_2x1_v_bz_coopA_NTN               672     177.9ms    0.265ms
+  nvjet_tst_192x192_64x3_1x2_h_bz_coopB_NTN               464     106.9ms    0.230ms
+  unrolled_elementwise_kernel                            2064      98.6ms    0.048ms
+  ncclDevKernel_AllGather_RING_LL                         288      85.9ms    0.298ms
+  reduce_kernel                                          1856      64.0ms    0.034ms
+  cunn_SpatialSoftMaxForward                               16      62.7ms    3.919ms
+  multi_tensor_apply_kernel                              2835      62.5ms    0.022ms
+  nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT                16      62.0ms    3.878ms
+  cunn_SpatialSoftMaxBackward                              16      41.8ms    2.613ms

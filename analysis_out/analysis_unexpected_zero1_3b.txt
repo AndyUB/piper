@@ -1,0 +1,18 @@
+=== Unexpected Findings: zero1_3b ===
+
+--- worker_process_256148.sqlite ---
+[POOR_OVERLAP] Compute covered by NCCL: 6.9% (expected >15% with bucketing). Communication and computation are mostly sequential. Check that RS is launched asynchronously during backward, and AG is dispatched before the corresponding forward.
+[DOMINANT_PHASE] 'fwd' accounts for 78.3% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] BWD   s0_b21_mb2: mean=26.9ms std=16.0ms (CV=59%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+
+--- worker_process_256152.sqlite ---
+[DOMINANT_PHASE] 'fwd' accounts for 80.2% of all traced NVTX time. This phase is the primary bottleneck.
+
+--- worker_process_256158.sqlite ---
+[POOR_OVERLAP] Compute covered by NCCL: 8.5% (expected >15% with bucketing). Communication and computation are mostly sequential. Check that RS is launched asynchronously during backward, and AG is dispatched before the corresponding forward.
+[DOMINANT_PHASE] 'fwd' accounts for 77.3% of all traced NVTX time. This phase is the primary bottleneck.
+[HIGH_VARIANCE] BWD   s0_b21_mb2: mean=80.9ms std=52.5ms (CV=65%). High variability may indicate pipeline bubbles, load imbalance, or contention with async communication.
+
+--- worker_process_256163.sqlite ---
+[BLOCKING_COLLECTIVE] AG    s1_b0: CPU dispatch=4.0ms vs GPU kernel=0.4ms (11x inflation). Collective is blocking the CPU thread — verify async_op=True and that no synchronization occurs inside the NVTX range.
+[DOMINANT_PHASE] 'fwd' accounts for 80.7% of all traced NVTX time. This phase is the primary bottleneck.
