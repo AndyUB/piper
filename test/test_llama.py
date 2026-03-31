@@ -103,6 +103,7 @@ def main(args, pg):
         zero_stage=args.zero_stage,
         schedule_name=args.schedule,
         visualize_dag_render=not args.no_render_dag,
+        no_nvtx=args.no_nvtx,
         model_dtype=torch.bfloat16,
         pg=pg,
         nsight=args.nsight,
@@ -116,13 +117,19 @@ def main(args, pg):
     actors = piper_metadata.actors
 
     print(f"Running {args.iters} timed iterations...")
+    # Reset peak memory stats before the timed block so reported peaks reflect only
+    # steady-state training, not model loading / warmup allocations.
+    ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
     iter_times = []
-    for _ in range(args.iters):
+    for i, _ in enumerate(range(args.iters)):
         start = time.perf_counter()
         piper_exec_dag(loss_fn)
         end = time.perf_counter()
         iter_times.append(end - start)
-        time.sleep(1)
+        # Collect memory breakdown after the first timed iteration while the
+        # allocator is at steady state (params + grads + optimizer states all live).
+        if i == 0:
+            mem_breakdown = ray.get([actor.get_memory_breakdown.remote() for actor in actors.values()])
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     print(
@@ -136,6 +143,18 @@ def main(args, pg):
     mem_data = ray.get([actor.get_peak_memory.remote() for actor in actors.values()])
     for rank, mem_gb in sorted(mem_data):
         print(f"rank {rank} peak_memory= {mem_gb:.3f} GiB")
+
+    # Fine-grained memory breakdown (measured after first timed iter)
+    print("Memory breakdown (after 1st timed iter):")
+    for rank, bd in sorted(mem_breakdown):
+        print(
+            f"  rank {rank}  allocated={bd['allocated_gb']:.3f} GiB  "
+            f"reserved={bd['reserved_gb']:.3f} GiB  "
+            f"params={bd['params_gb']:.3f} GiB  "
+            f"grads={bd['grads_gb']:.3f} GiB  "
+            f"shard={bd['shard_gb']:.3f} GiB  "
+            f"other(acts+optim)={bd['other_gb']:.3f} GiB"
+        )
 
     if args.tracing:
         ray.get([actor.set_tracing.remote(True) for actor in actors.values()])
@@ -155,7 +174,8 @@ def main(args, pg):
 
     os.makedirs("out", exist_ok=True)
     bucketed_str = "-bucketed" if args.bucketing else ""
-    timeline_filename = f"out/llama-dag-pp{args.pp}-dp{args.dp}-{args.schedule}-zero{args.zero_stage}{bucketed_str}"
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    timeline_filename = f"out/llama-dag-pp{args.pp}-dp{args.dp}-{args.schedule}-zero{args.zero_stage}{bucketed_str}-{ts}"
     ray.timeline(timeline_filename)
     print(f"Ray timeline saved to: {timeline_filename}")
 
@@ -188,6 +208,9 @@ def parse_args():
                         help='Whether to use Nsight Systems for tracing')
     parser.add_argument('--no-render-dag', action='store_true', default=False,
                         help='Save DAG as .dot source only, skip graphviz rendering (use for large graphs)')
+    parser.add_argument('--no-nvtx', action='store_true', default=False,
+                        help='Disable NVTX range annotations (note: NVTX is CPU-only and does NOT cause GPU sync; '
+                             'the 10x CPU overhead seen in nsys is NCCL per-call overhead, not NVTX)')
     return parser.parse_args()
 
 

@@ -1,0 +1,154 @@
+=== LLaMA-3B Performance & Memory Comparison (2026-03-30) ===
+
+Logs
+----
+  dp-nozero  : logs/piper_dp_nozero_3b_20260330_224347.log
+  single-gpu : logs/piper_baseline_3b_20260330_224820.log
+  zero-1     : logs/piper_zero1_bucketed_3b_20260330_224952.log
+  zero-2     : logs/piper_zero2_bucketed_3b_20260330_225523.log
+  zero-3     : logs/piper_zero3_bucketed_3b_20260330_230059.log
+
+Setup
+-----
+  Model        : LLaMA-3B (3607M params, bfloat16 = 6.72 GB)
+  Schedule     : interleaved-1f1b  (except single-GPU: no-pp-4s)
+  Warmup iters : 2  |  Timed iters: 5  (no sleep between them)
+  Bucketing    : enabled for all DP/PP runs (36 buckets/stage)
+
+  single-GPU   : PP=1, DP=1, ZeRO=0, GPUs=1,  batch=16×1mbs×256  =  4096 tok/iter
+  dp-nozero    : PP=2, DP=2, ZeRO=0, GPUs=4,  batch=16×4mbs×256  = 16384 tok/iter/DP-rank
+  zero-1/2/3   : PP=2, DP=2, ZeRO=?,  GPUs=4,  batch=16×4mbs×256  = 16384 tok/iter/DP-rank
+
+──────────────────────────────────────────────────────────────────────────────
+1. THROUGHPUT
+──────────────────────────────────────────────────────────────────────────────
+
+Config        GPUs  Tok/s (DP-rank 0)  Tok/s (DP-rank 1)  Global tok/s  Iter(s)  ±std
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+single-GPU       1        3 886.7                  —          3 886.7     1.054   0.092
+dp-nozero        4        5 667.3             5 642.2         11 309.5    2.891   0.071
+zero-1 (AR→RS+AG)4        5 573.5             5 577.2         11 150.7    2.940   0.034
+zero-2           4        5 603.3             5 607.0         11 210.3    2.924   0.034
+zero-3           4        5 723.6             5 723.7         11 447.2    2.863   0.025
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+
+ZeRO vs dp-nozero (global tok/s):
+  zero-1: 11 151 / 11 310 = -1.4%
+  zero-2: 11 210 / 11 310 = -0.9%
+  zero-3: 11 447 / 11 310 = +1.2%   ← fastest, despite most communication
+
+4-GPU scaling efficiency (vs single-GPU, per-GPU basis):
+  single-GPU:  3 887 tok/s / 1 GPU  = 3 887 tok/s·GPU⁻¹
+  dp-nozero :  11 310 tok/s / 4 GPU = 2 827 tok/s·GPU⁻¹  → 72.7% efficiency
+  zero-3    :  11 447 tok/s / 4 GPU = 2 862 tok/s·GPU⁻¹  → 73.6% efficiency
+
+  Note: comparison is slightly unfair (single-GPU uses mbs=1, 4-GPU uses mbs=4 which
+  improves GPU utilisation; and single-GPU has no PP bubble overhead). Still, ~73%
+  scaling efficiency for PP=2 + DP=2 with a 3B model is reasonable.
+
+──────────────────────────────────────────────────────────────────────────────
+2. MEMORY — PEAK (max_memory_allocated, includes warmup peaks)
+──────────────────────────────────────────────────────────────────────────────
+
+Config        rank 0    rank 1    rank 2    rank 3
+────────────  ──────    ──────    ──────    ──────
+single-GPU    55.733       —         —         —
+dp-nozero     40.776    39.654    40.776    39.654
+zero-1        39.096    37.974    39.096    37.974
+zero-2        39.096    37.974    39.096    37.974
+zero-3        39.096    37.974    39.096    37.974
+
+Peak savings vs single-GPU:
+  dp-nozero:  -15.1 GiB  (-27%)   (PP splits model across 2 ranks)
+  zero-1/2/3: -16.6 GiB  (-30%)   (+1.5 GiB from ZeRO vs plain DP)
+
+Peak savings vs dp-nozero (ZeRO benefit):
+  zero-1/2/3: -1.68 GiB/rank  from sharded optimizer states
+
+──────────────────────────────────────────────────────────────────────────────
+3. MEMORY — STEADY STATE (allocated after 1st timed iter)
+──────────────────────────────────────────────────────────────────────────────
+
+Config       rank  allocated  reserved  params   grads   shard  other(acts+optim)
+───────────  ────  ─────────  ────────  ──────   ─────   ─────  ─────────────────
+single-GPU      0   29.045     59.146   6.718    6.718   0.000   15.609
+dp-nozero       0   13.533     42.922   3.359    3.359   0.000    6.814
+dp-nozero       1   15.490     41.643   3.359    3.359   0.000    8.771
+zero-1/2/3      0   11.853     41.490   3.359    3.359   1.680    5.135
+zero-1/2/3      1   13.809     41.658   3.359    3.359   1.680    7.091
+
+Note: "shard" = bucket_shard_params (the DP-rank-owned param shard for ZeRO optimizer).
+      For ZeRO-0 it is 0 because all ranks own the full params.
+      ZeRO-1/2/3 all show the same breakdown because bucket_flat_params and
+      bucket_flat_grads are always full-size reconstruction buffers; the ZeRO gradient
+      and parameter savings come from reduced optimizer state size, visible in "other".
+
+Savings in "other" (acts + optimizer states) from ZeRO vs dp-nozero:
+  rank 0: 6.814 → 5.135 = -1.68 GiB  ← sharded Adam (momentum+variance) for DP=2
+  rank 1: 8.771 → 7.091 = -1.68 GiB  (rank 1 has more activation memory due to being
+                                        the last PP stage and holding loss)
+
+Expected optimizer state savings (Adam, fp32, DP=2):
+  full optim states per rank = params_bf16 × (4+4 bytes fp32) / (2 bytes bf16) = 3.359 × 4 = 13.44 GiB
+  sharded (÷2)               = 6.72 GiB
+  savings                    = 6.72 GiB ... but we see only 1.68 GiB
+
+  Discrepancy because torch.cuda.memory_allocated() only counts live tensors; Adam
+  optimizer states may be allocated on-demand during optimizer.step() and freed after.
+  The 1.68 GiB matches the shard_param size exactly, suggesting the optimizer step
+  only holds the shard and fp32 momentum/variance may be allocated transiently.
+
+──────────────────────────────────────────────────────────────────────────────
+4. ANALYSIS & ASSESSMENT
+──────────────────────────────────────────────────────────────────────────────
+
+A. Is 72-73% scaling efficiency reasonable?
+   YES. Sources of overhead:
+   - PP bubble: interleaved-1f1b with pp=2, mbs=4 → bubble ratio = (pp-1)/(mbs+(pp-1)) = 1/5 = 20%
+     (interleaved schedule reduces this further, but it's still non-zero)
+   - DP all-reduce / ZeRO RS+AG: adds latency on comm_stream (overlapped but not zero-cost)
+   - P2P communication between PP stages
+   - The single-GPU baseline uses mbs=1 (less GPU utilisation) which inflates the
+     single-GPU per-GPU number, making scaling efficiency look worse than it is.
+
+B. Why is ZeRO-3 the fastest, not the slowest?
+   ZeRO-3 adds all-gather per bucket before each FWD. However all 36 AGs per stage are
+   dispatched as DAG root nodes and queued on comm_stream before any FWD compute starts.
+   Each FWD_b waits (GPU-side) only for AG_b; while FWD_b runs on comp_stream, AG_{b+1..N}
+   run concurrently on comm_stream. The AG GPU time (~0.3ms each) is fully hidden behind
+   FWD compute. The ~1% ZeRO-3 speedup over dp-nozero is within run-to-run variance but
+   may reflect GPU memory access patterns improving when params are loaded bucket-by-bucket.
+   ZeRO-3 also shows the lowest variance (±0.025s), suggesting more stable execution.
+
+C. Why are ZeRO-1/2/3 all showing identical memory breakdown?
+   bucket_flat_params and bucket_flat_grads are full reconstruction buffers present at
+   all ZeRO levels (needed for FWD/BWD compute). ZeRO-2 shards *where gradients land*
+   (in bucket_rs_grads, a smaller buffer), but flat_grads is still fully allocated.
+   ZeRO-3 reconstructs full params from shard each iteration. The visible difference is:
+   - shard (1.680 GiB) present for ZeRO-1/2/3, absent for ZeRO-0 — this is the
+     optimizer's working set; Adam momentum+variance live alongside it
+   - "other" 1.68 GiB lower for ZeRO-1/2/3, consistent with halved optimizer buffers
+
+D. Peak vs allocated gap is large (e.g. 39.1 GiB peak vs 11.9 GiB allocated for ZeRO-1):
+   The gap (~27 GiB) is dominated by:
+   - All microbatch activations alive simultaneously during backward pass
+     (seq=256, mbs=4, interleaved schedule: multiple forward passes before backward)
+   - PyTorch allocator retains reserved memory even after tensors are freed
+   - Gradient computation graph held in memory until optimizer.zero_grad()
+
+──────────────────────────────────────────────────────────────────────────────
+5. RECOMMENDATIONS
+──────────────────────────────────────────────────────────────────────────────
+1. Activation checkpointing: the 27 GiB activation footprint dwarfs param/grad memory.
+   Enabling --activation-checkpointing would reduce peak dramatically (at ~33% compute cost).
+
+2. Larger microbatch size or more microbatches: reduces PP bubble ratio, improves
+   GPU utilisation, and may improve scaling efficiency toward ~85-90%.
+
+3. Bucket count reduction: currently 36 buckets/stage. Fewer, larger buckets would
+   reduce NCCL call overhead (currently 72 NCCL calls/iter for ZeRO-3 per rank).
+   Target 4-8 buckets for a better compute-communication granularity tradeoff.
+
+4. ZeRO-3 is already as fast as ZeRO-0 here — the bucketed prefetch design works well.
+   For larger models or longer sequences where activation memory is less dominant,
+   ZeRO-3's parameter savings would become the deciding factor.

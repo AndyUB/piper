@@ -45,6 +45,7 @@ def piper_setup(
     zero_stage: int = 0,
     schedule_name: str = "",
     visualize_dag_render: bool = True,
+    no_nvtx: bool = False,
     pg=None,
     nsight=False,
 ):
@@ -79,7 +80,7 @@ def piper_setup(
     _create_actors(
         num_devices, optim_fn, num_mbs, num_stages,
         naive_gradient_sync, profile=nsight, stage_to_device=stage_to_device,
-        zero_stage=zero_stage, pg=pg,
+        zero_stage=zero_stage, no_nvtx=no_nvtx, pg=pg,
     )
 
     # All dp_ranks must agree on a single master_addr: the IP of the actor with

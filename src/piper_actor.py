@@ -48,6 +48,7 @@ def _create_actors(
     profile=False,
     stage_to_device=None,
     zero_stage: int = 0,
+    no_nvtx: bool = False,
     pg=None,
 ):
     dp_rank = int(os.environ["PIPER_DP_RANK"])
@@ -89,6 +90,7 @@ def _create_actors(
             pp_degree=pp_degree,
             stage_to_device=stage_to_device,
             zero_stage=zero_stage,
+            no_nvtx=no_nvtx,
         )
         piper_metadata.actors[pp_rank] = actor
         logger.debug(
@@ -116,6 +118,7 @@ class PiperActor:
         pp_degree=1,
         stage_to_device=None,
         zero_stage: int = 0,
+        no_nvtx: bool = False,
     ):
         self.logger = create_logger("piper_actor", LOG_LEVEL)
 
@@ -123,6 +126,7 @@ class PiperActor:
         self.optim_class = optim_class
         self.naive_gradient_sync = naive_gradient_sync
         self.zero_stage = zero_stage
+        self.no_nvtx = no_nvtx
 
         self.dp_rank = dp_rank
         self.dp_degree = dp_degree
@@ -286,6 +290,39 @@ class PiperActor:
 
     def get_peak_memory(self):
         return self.global_rank, torch.cuda.max_memory_allocated() / (1024**3)
+
+    def get_memory_breakdown(self):
+        """Return a breakdown of current GPU memory usage by category."""
+        torch.cuda.synchronize()
+        allocated_gb = torch.cuda.memory_allocated() / (1024**3)
+        reserved_gb = torch.cuda.memory_reserved() / (1024**3)
+        peak_gb = torch.cuda.max_memory_allocated() / (1024**3)
+        # Full flat param buffers (reconstructed for FWD/BWD)
+        params_bytes = sum(t.nbytes for t in self.bucket_flat_params.values())
+        # Gradient flat buffers
+        grads_bytes = sum(t.nbytes for t in self.bucket_flat_grads.values())
+        # Owned shard (smaller for ZeRO-1/2/3, same as params for ZeRO-0)
+        shard_bytes = sum(t.nbytes for t in self.bucket_shard_params.values())
+        params_gb = params_bytes / (1024**3)
+        grads_gb = grads_bytes / (1024**3)
+        shard_gb = shard_bytes / (1024**3)
+        return self.global_rank, {
+            "allocated_gb": allocated_gb,
+            "reserved_gb": reserved_gb,
+            "peak_gb": peak_gb,
+            "params_gb": params_gb,
+            "grads_gb": grads_gb,
+            "shard_gb": shard_gb,
+            "other_gb": max(0.0, allocated_gb - params_gb - grads_gb),
+        }
+
+    def _nvtx_push(self, label: str) -> None:
+        if not self.no_nvtx:
+            torch.cuda.nvtx.range_push(label)
+
+    def _nvtx_pop(self) -> None:
+        if not self.no_nvtx:
+            torch.cuda.nvtx.range_pop()
 
     def load_input(self, inputs):
         self.inputs = [inp.to(self.device) for inp in inputs]
@@ -1013,12 +1050,12 @@ class PiperActor:
 
                 case TaskType.FWD_A2A:
                     bucket_id = task.bucket_id
-                    torch.cuda.nvtx.range_push(f"fwd_a2a_s{stage_id}_b{bucket_id}_mb{mb_idx}")
+                    self._nvtx_push(f"fwd_a2a_s{stage_id}_b{bucket_id}_mb{mb_idx}")
                     self.a2a_stream.wait_event(
                         comp_events[(stage_id, mb_idx, TaskType.FWD, bucket_id)]
                     )
                     self._exec_fwd_a2a(stage_id, bucket_id, mb_idx)
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
                     a2a_evt = torch.cuda.Event()
                     a2a_evt.record(self.a2a_stream)
                     self.a2a_events[(stage_id, mb_idx, TaskType.FWD_A2A, bucket_id)] = a2a_evt
@@ -1026,14 +1063,14 @@ class PiperActor:
 
                 case TaskType.BWD_A2A:
                     bucket_id = task.bucket_id
-                    torch.cuda.nvtx.range_push(f"bwd_a2a_s{stage_id}_b{bucket_id}_mb{mb_idx}")
+                    self._nvtx_push(f"bwd_a2a_s{stage_id}_b{bucket_id}_mb{mb_idx}")
                     bwd_evt = (
                         comp_events.get((stage_id, mb_idx, TaskType.BWD, bucket_id + 1))
                         or comp_events.get((stage_id, mb_idx, TaskType.BWD_I, bucket_id + 1))
                     )
                     self.a2a_stream.wait_event(bwd_evt)
                     self._exec_bwd_a2a(stage_id, bucket_id, mb_idx)
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
                     a2a_evt = torch.cuda.Event()
                     a2a_evt.record(self.a2a_stream)
                     self.a2a_events[(stage_id, mb_idx, TaskType.BWD_A2A, bucket_id)] = a2a_evt
@@ -1048,9 +1085,9 @@ class PiperActor:
                         bwd_node.task.type,
                         bwd_node.task.bucket_id,
                     )
-                    torch.cuda.nvtx.range_push(f"all_reduce_s{stage_id}_b{bucket_id}")
+                    self._nvtx_push(f"all_reduce_s{stage_id}_b{bucket_id}")
                     self._exec_all_reduce(stage_id, bucket_id, comp_events[bwd_key])
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
 
                 case TaskType.REDUCE_SCATTER:
                     bucket_id = task.bucket_id
@@ -1061,26 +1098,26 @@ class PiperActor:
                         bwd_node.task.type,
                         bwd_node.task.bucket_id,
                     )
-                    torch.cuda.nvtx.range_push(f"reduce_scatter_s{stage_id}_b{bucket_id}")
+                    self._nvtx_push(f"reduce_scatter_s{stage_id}_b{bucket_id}")
                     self._exec_reduce_scatter(stage_id, bucket_id, comp_events[bwd_key])
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
 
                 case TaskType.ALL_GATHER:
                     bucket_id = task.bucket_id
-                    torch.cuda.nvtx.range_push(f"all_gather_s{stage_id}_b{bucket_id}")
+                    self._nvtx_push(f"all_gather_s{stage_id}_b{bucket_id}")
                     self._exec_all_gather(stage_id, bucket_id)
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
 
                 case TaskType.FWD:
                     bucket_id = task.bucket_id
                     recv_key = ((stage_id, bucket_id), mb_idx)
                     if recv_key in self.recv_events:
                         self.comp_stream.wait_event(self.recv_events.pop(recv_key))
-                    torch.cuda.nvtx.range_push(f"forward_s{stage_id}_b{bucket_id}_mb{mb_idx}")
+                    self._nvtx_push(f"forward_s{stage_id}_b{bucket_id}_mb{mb_idx}")
                     self._start_timing(self.comp_stream, f"forward")
                     self._forward_dag(stage_id, bucket_id, mb_idx)
                     self._stop_timing(self.comp_stream, f"forward")
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
                     evt = torch.cuda.Event()
                     evt.record(self.comp_stream)
                     comp_events[(stage_id, mb_idx, TaskType.FWD, bucket_id)] = evt
@@ -1090,11 +1127,11 @@ class PiperActor:
                     recv_key = (None, mb_idx)
                     if recv_key in self.recv_events:
                         self.comp_stream.wait_event(self.recv_events.pop(recv_key))
-                    torch.cuda.nvtx.range_push(f"backward_s{stage_id}_b{bucket_id}_mb{mb_idx}")
+                    self._nvtx_push(f"backward_s{stage_id}_b{bucket_id}_mb{mb_idx}")
                     self._start_timing(self.comp_stream, f"backward")
                     self._backward_dag(stage_id, bucket_id, mb_idx, loss_fn=loss_fn)
                     self._stop_timing(self.comp_stream, f"backward")
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
                     evt = torch.cuda.Event()
                     evt.record(self.comp_stream)
                     comp_events[(stage_id, mb_idx, TaskType.BWD, bucket_id)] = evt
@@ -1104,26 +1141,26 @@ class PiperActor:
                     recv_key = (None, mb_idx)
                     if recv_key in self.recv_events:
                         self.comp_stream.wait_event(self.recv_events.pop(recv_key))
-                    torch.cuda.nvtx.range_push(f"backward_input_stage_{stage_id}_b{bucket_id}_mb_{mb_idx}")
+                    self._nvtx_push(f"backward_input_stage_{stage_id}_b{bucket_id}_mb_{mb_idx}")
                     self._start_timing(self.comp_stream, f"backward_input")
                     self._backward_input_dag(stage_id, bucket_id, mb_idx, loss_fn=loss_fn)
                     self._stop_timing(self.comp_stream, f"backward_input")
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
                     evt = torch.cuda.Event()
                     evt.record(self.comp_stream)
                     comp_events[(stage_id, mb_idx, TaskType.BWD_I, bucket_id)] = evt
 
                 case TaskType.BWD_W:
-                    torch.cuda.nvtx.range_push(f"backward_weight_stage_{stage_id}_mb_{mb_idx}")
+                    self._nvtx_push(f"backward_weight_stage_{stage_id}_mb_{mb_idx}")
                     self._start_timing(self.comp_stream, f"backward_weight")
                     self._backward_weight_dag(stage_id, mb_idx, loss_fn=loss_fn)
                     self._stop_timing(self.comp_stream, f"backward_weight")
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
 
                 case TaskType.UPD:
-                    torch.cuda.nvtx.range_push("update")
+                    self._nvtx_push("update")
                     self._update()
-                    torch.cuda.nvtx.range_pop()
+                    self._nvtx_pop()
 
             # Decrement in-degree for all successors; execute in topological order.
             all_succs = list(node.data_succs)

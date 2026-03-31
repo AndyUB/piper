@@ -13,7 +13,7 @@ RAY_TMP="${RAY_TMP:-/tmp/ray}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
-export CUDA_VISIBLE_DEVICES="0,2,3,4"
+export CUDA_VISIBLE_DEVICES="2,3,4,5"
 export PYTHONUNBUFFERED=1
 export RAY_DEDUP_LOGS=0
 
@@ -29,6 +29,7 @@ python3 -m test.test_llama \
   --zero-stage 1 \
   --bucketing \
   --tracing \
+  --no-render-dag \
   ${NSIGHT:+--nsight} \
   >"$LOG_FILE" 2>&1
 
