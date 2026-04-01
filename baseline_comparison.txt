@@ -152,3 +152,157 @@ D. Peak vs allocated gap is large (e.g. 39.1 GiB peak vs 11.9 GiB allocated for 
 4. ZeRO-3 is already as fast as ZeRO-0 here — the bucketed prefetch design works well.
    For larger models or longer sequences where activation memory is less dominant,
    ZeRO-3's parameter savings would become the deciding factor.
+
+
+══════════════════════════════════════════════════════════════════════════════
+RUN 2: 2026-03-31 — Non-Bucketed, GPUs 0-3
+══════════════════════════════════════════════════════════════════════════════
+
+Logs
+----
+  pp=2 dp-nozero  : logs/piper_dp_nozero_3b_20260331_094347.log
+  pp=2 zero-1     : logs/piper_zero1_3b_20260331_094650.log
+  pp=2 zero-2     : logs/piper_zero2_3b_20260331_095023.log
+  pp=2 zero-3     : logs/piper_zero3_3b_20260331_095344.log
+  no-pp dp-nozero : logs/piper_dp_nozero_nopp_3b_20260331_095729.log
+  no-pp zero-1    : logs/piper_zero1_nopp_3b_20260331_095941.log
+  no-pp zero-2    : logs/piper_zero2_nopp_3b_20260331_100225.log
+  no-pp zero-3    : OOM (Ray GPU memory not fully released after zero-2)
+
+Setup
+-----
+  Model        : LLaMA-3B (same as Run 1)
+  Bucketing    : DISABLED for all runs
+  Warmup iters : 2  |  Timed iters: 5
+  GPUs         : 0,1,2,3  (different from Run 1: 2,3,4,5 — not directly comparable)
+
+  pp=2 runs  : PP=2, DP=2, schedule=interleaved-1f1b, mbs=4 → 16384 tok/iter/DP-rank
+  no-pp runs : PP=1, DP=2, schedule=no-pp-4s,          mbs=1 →  4096 tok/iter/DP-rank
+
+──────────────────────────────────────────────────────────────────────────────
+6. THROUGHPUT — RUN 2
+──────────────────────────────────────────────────────────────────────────────
+
+PP=2, non-bucketed:
+
+Config        GPUs  Tok/s (DP-rank 0)  Tok/s (DP-rank 1)  Global tok/s  Iter(s)  ±std
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+dp-nozero        4        6 738.4             6 736.3         13 474.7    2.431   0.083
+zero-1           4        6 667.2             6 666.7         13 333.9    2.457   0.173
+zero-2           4        7 063.4             7 064.0         14 127.4    2.320   0.104
+zero-3           4        6 746.6             6 746.8         13 493.4    2.428   0.121
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+
+ZeRO vs dp-nozero (non-bucketed, PP=2):
+  zero-1: 13 334 / 13 475 =  -1.0%
+  zero-2: 14 127 / 13 475 =  +4.8%  ← fastest (contrast: bucketed zero-3 was fastest)
+  zero-3: 13 493 / 13 475 =  +0.1%
+
+PP=1 (no-pp-4s), non-bucketed:
+
+Config        GPUs  Tok/s (DP-rank 0)  Tok/s (DP-rank 1)  Global tok/s  Iter(s)  ±std
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+dp-nozero        2        3 199.8             3 186.9          6 386.7    1.280   0.144
+zero-1           2        3 636.4             3 635.8          7 272.2    1.126   0.090
+zero-2           2        3 615.5             3 615.4          7 230.9    1.133   0.086
+zero-3           2          OOM                 OOM              —         —       —
+────────────  ────  ─────────────────  ─────────────────  ────────────  ───────  ────
+
+  Note: no-pp uses batch=16×1mbs so 4096 tok/iter/DP-rank (4× fewer than pp=2 runs).
+  Global tok/s figures are not directly comparable across the two tables.
+
+ZeRO vs dp-nozero (non-bucketed, no-PP):
+  zero-1: 7 272 / 6 387 = +13.9%  ← ZeRO faster than plain AR — see analysis §G
+  zero-2: 7 231 / 6 387 = +13.2%
+
+Per-GPU throughput (normalises for GPUs used per DP rank):
+  PP=2 uses 2 GPUs per DP rank; no-PP uses 1 GPU per DP rank.
+
+  Config              Tok/s/GPU
+  ──────────────────  ─────────
+  dp-nozero (PP=2)     3 369       = 6 738 / 2
+  zero-2    (PP=2)     3 532       = 7 063 / 2   ← best PP=2
+  dp-nozero (no-PP)    3 200
+  zero-1    (no-PP)    3 636                      ← best no-PP, beats PP=2 per-GPU
+  zero-2    (no-PP)    3 616
+
+  PP overhead (dp-nozero only, mbs effect confounded): PP=2 is +5% vs no-PP per GPU.
+  This reflects mbs=4 improving GPU utilisation, not PP itself being faster.
+
+──────────────────────────────────────────────────────────────────────────────
+7. MEMORY — RUN 2
+──────────────────────────────────────────────────────────────────────────────
+
+Peak memory:
+
+Config              rank 0    rank 1    rank 2    rank 3
+──────────────────  ──────    ──────    ──────    ──────
+pp=2  dp-nozero     37.362    37.638    37.362    37.638
+pp=2  zero-1/2/3    35.682    35.958    35.682    35.958
+no-pp dp-nozero     55.733    55.733       —         —
+no-pp zero-1/2      52.373    52.373       —         —
+
+Steady-state allocated (after 1st timed iter):
+
+Config              rank  allocated  reserved  params   grads   shard  other(acts+optim)
+──────────────────  ────  ─────────  ────────  ──────   ─────   ─────  ─────────────────
+pp=2  dp-nozero        0   13.532     40.775   3.359    3.359   0.000    6.814
+pp=2  dp-nozero        1   15.489     41.627   3.359    3.359   0.000    8.771
+pp=2  zero-1/2/3       0   11.852     40.879   3.359    3.359   1.680    5.134
+pp=2  zero-1/2/3       1   13.809     41.189   3.359    3.359   1.680    7.091
+no-pp dp-nozero        0   29.045     59.146   6.718    6.718   0.000   15.609
+no-pp dp-nozero        1   29.045     59.146   6.718    6.718   0.000   15.609
+no-pp zero-1/2         0   25.685     59.312   6.718    6.718   3.359   12.248
+no-pp zero-1/2         1   25.685     59.312   6.718    6.718   3.359   12.248
+
+Key observations:
+  - no-pp: ranks 0/1 are symmetric (no PP asymmetry between first/last stage).
+  - no-pp dp-nozero: 29.045 allocated = same as Run 1 single-GPU baseline, as expected
+    (full model on each GPU, no PP split).
+  - no-pp ZeRO shard = 3.359 GiB (half of 6.718 GiB full model, DP=2) — twice the
+    pp=2 shard (1.680 GiB = half of 3.359 GiB per-rank params).
+
+Bucketed (Run 1) vs non-bucketed (Run 2) peak memory, PP=2:
+  dp-nozero: 40.776 → 37.362 = −3.4 GiB  (bucket_flat_params + bucket_flat_grads absent)
+  zero-1/2/3: 39.096 → 35.682 = −3.4 GiB  (same reason)
+
+Bucketed vs non-bucketed steady-state allocated: essentially identical (~0.001 GiB diff).
+  → The peak difference is entirely from transient bucket buffer allocations during BWD,
+    not from ongoing memory usage.
+
+PP overhead on memory:
+  no-pp dp-nozero peak: 55.733 GiB  vs  pp=2 dp-nozero peak: 37.362 GiB → −18.4 GiB from PP
+  no-pp zero-1/2  peak: 52.373 GiB  vs  pp=2 zero-1/2/3 peak: 35.682 GiB → −16.7 GiB from PP
+  PP splits the model across 2 ranks, roughly halving params+grads+activations per rank.
+
+──────────────────────────────────────────────────────────────────────────────
+8. ADDITIONAL ANALYSIS
+──────────────────────────────────────────────────────────────────────────────
+
+E. Non-bucketed vs bucketed throughput (PP=2, note: different GPUs so absolute values differ):
+   Bucketed (Run 1) showed: zero-3 fastest, zero-1 slowest (-1.4% vs dp-nozero).
+   Non-bucketed (Run 2) shows: zero-2 fastest (+4.8%), zero-1 slightly slower (-1.0%).
+   Zero-3 without bucketing no longer leads — without the prefetch overlap mechanism,
+   the ZeRO-3 all-gather overhead is not hidden and it performs similarly to ZeRO-0.
+   Zero-2 leading non-bucketed is surprising and likely within variance (±0.10s std).
+
+F. Why does zero-3_nopp OOM while zero-1/2_nopp do not?
+   At the start of each forward pass ZeRO-3 must all-gather the full parameter tensor
+   (6.718 GiB) as a temporary reconstruction buffer alongside the existing params.
+   With no-PP, the full 6.718 GiB params are already on each rank (no PP split), so
+   ZeRO-3 transiently needs ~2× params ≈ 13.4 GiB extra vs zero-1/2. Combined with the
+   ~52 GiB already in use (from zero-1/2_nopp baseline), this pushes past the GPU's
+   capacity. The Run 2 OOM was also aggravated by stale memory from the previous Ray
+   session not fully releasing before the zero-3_nopp process started.
+
+G. Why are ZeRO-1/2 ~13% faster than dp-nozero with no-PP?
+   With no-PP, the all-reduce (dp-nozero) is a single coarse-grained NCCL op launched
+   after the entire backward pass completes, giving zero overlap with computation.
+   ZeRO-1/2's post_accumulate_grad_hook fires per-parameter as each gradient becomes
+   ready during backprop, launching reduce-scatter immediately. This provides fine-
+   grained comm/compute overlap that the monolithic all-reduce cannot.
+   With PP=2 this advantage is smaller (ZeRO-1 is still −1% vs dp-nozero) because the
+   pipeline schedule already creates compute/communication concurrency via the DAG
+   task graph; ZeRO hooks add marginal benefit on top.
+   Implication: for single-node DP without PP, switching from DDP all-reduce to ZeRO-1
+   can yield meaningful speedup through better overlap, even without bucketed prefetch.

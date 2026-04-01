@@ -7,27 +7,26 @@ mkdir -p "$LOG_DIR"
 MODEL="${1:-3b}"
 NSIGHT="${NSIGHT:-1}"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
-LOG_FILE="$LOG_DIR/piper_zero1_bucketed_${MODEL}_${TIMESTAMP}.log"
+LOG_FILE="$LOG_DIR/piper_zero3_nopp_${MODEL}_${TIMESTAMP}.log"
 
 RAY_TMP="${RAY_TMP:-/tmp/ray}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
-export CUDA_VISIBLE_DEVICES="0,1,2,6"
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
 export PYTHONUNBUFFERED=1
 export RAY_DEDUP_LOGS=0
 
 echo "Logging to $LOG_FILE"
 python3 -m test.test_llama \
   --dp 2 \
-  --pp 2 \
+  --pp 1 \
   --warmup 2 \
   --iters 5 \
-  --schedule interleaved-1f1b \
-  --mbs 4 \
+  --schedule no-pp-4s \
+  --mbs 1 \
   --model "$MODEL" \
-  --zero-stage 1 \
-  --bucketing \
+  --zero-stage 3 \
   --tracing \
   --no-render-dag \
   ${NSIGHT:+--nsight} \
@@ -40,7 +39,7 @@ sleep 30
 
 # Copy nsys traces out of Ray's temp directory
 # Ray places nsys-rep files in $RAY_TMPDIR/ray/session_*/logs/nsight/
-NSYS_OUT_DIR="nsys_traces/zero1_bucketed_${MODEL}_${TIMESTAMP}"
+NSYS_OUT_DIR="nsys_traces/zero3_nopp_${MODEL}_${TIMESTAMP}"
 mkdir -p "$NSYS_OUT_DIR"
 
 SESSION_DIR=$(ls -td "${RAY_TMP}/ray"/session_* 2>/dev/null | head -1)

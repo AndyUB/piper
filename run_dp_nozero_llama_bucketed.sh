@@ -10,13 +10,13 @@ mkdir -p "$LOG_DIR"
 MODEL="${1:-3b}"
 NSIGHT="${NSIGHT:-0}"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
-LOG_FILE="$LOG_DIR/piper_dp_nozero_${MODEL}_${TIMESTAMP}.log"
+LOG_FILE="$LOG_DIR/piper_dp_nozero_bucketed_${MODEL}_${TIMESTAMP}.log"
 
 RAY_TMP="${RAY_TMP:-/tmp/ray}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
-export CUDA_VISIBLE_DEVICES="0,1,2,3"
+export CUDA_VISIBLE_DEVICES="0,1,2,6"
 export PYTHONUNBUFFERED=1
 export RAY_DEDUP_LOGS=0
 
@@ -30,6 +30,7 @@ python3 -m test.test_llama \
   --mbs 4 \
   --model "$MODEL" \
   --zero-stage 0 \
+  --bucketing \
   ${NSIGHT:+--nsight} \
   >"$LOG_FILE" 2>&1
 
@@ -37,7 +38,7 @@ echo "Run complete. Log: $LOG_FILE"
 
 if [[ "${NSIGHT:-0}" == "1" ]]; then
     sleep 30
-    NSYS_OUT_DIR="nsys_traces/dp_nozero_${MODEL}_${TIMESTAMP}"
+    NSYS_OUT_DIR="nsys_traces/dp_nozero_bucketed_${MODEL}_${TIMESTAMP}"
     mkdir -p "$NSYS_OUT_DIR"
     SESSION_DIR=$(ls -td "${RAY_TMP}/ray"/session_* 2>/dev/null | head -1)
     if [ -d "${SESSION_DIR:-}" ]; then
