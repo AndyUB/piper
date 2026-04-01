@@ -30,6 +30,7 @@ python3 -m test.test_llama \
   --batch-size 16 \
   --model "$MODEL" \
   --zero-stage 0 \
+  --tracing \
   >"$LOG_FILE" 2>&1
 
 echo "Baseline run complete. Log: $LOG_FILE"

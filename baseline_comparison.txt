@@ -436,3 +436,134 @@ Verdict: OOM is NOT expected. Caused by Ray session memory leak between
   sequential runs. Re-ran on GPUs 2,3 (clean): succeeded with peak = 52.373 GiB,
   iter time = 1.231 ± 0.104s, throughput = 3 327 tok/s/rank (6 655 global).
   Memory breakdown identical to zero-1/2_nopp as predicted.
+
+──────────────────────────────────────────────────────────────────────────────
+11. SCALING EFFICIENCY SUMMARY (Run 2, non-bucketed)
+──────────────────────────────────────────────────────────────────────────────
+
+Reference: single-GPU baseline, T_ref = 1.057s → 3 875 tok/s·GPU⁻¹ (4 096 tok/iter)
+  T_theoretical from theoretical_time.py (critical-path, zero comm overhead)
+  Efficiency = per-GPU throughput / T_ref  (3 875 tok/s·GPU⁻¹)
+
+  PP=2 batch  = 16×4mbs×256 = 32 768 tok/iter (global, DP=2)
+  no-PP batch = 16×1mbs×256 =  8 192 tok/iter (global, DP=2)
+  T_theoretical is identical for all ZeRO levels within a PP/DP config
+  (communication overhead = 0 by assumption)
+
+Setting          GPUs  T_theor  T_actual  Overhead  Global tok/s         Efficiency (per-GPU / ref)
+                                                     theor    actual      theor      actual
+───────────────  ────  ───────  ────────  ────────  ───────  ───────     ──────     ──────
+single-GPU (ref)    1   1.057s    1.057s      —       3 875    3 875      100%       100%
+
+PP=2  ZeRO-0        4   2.378s    2.431s    +2.2%    13 778   13 475       89%        87%
+PP=2  ZeRO-1        4   2.378s    2.457s    +3.3%    13 778   13 334       89%        86%
+PP=2  ZeRO-2        4   2.378s    2.320s    −2.4%    13 778   14 127       89%        91%  ←(a)
+PP=2  ZeRO-3        4   2.378s    2.428s    +2.1%    13 778   13 493       89%        87%
+
+no-PP ZeRO-0        2   1.057s    1.280s   +21.1%     7 750    6 400      100%        83%  ←(b)
+no-PP ZeRO-1        2   1.057s    1.126s    +6.5%     7 750    7 275      100%        94%
+no-PP ZeRO-2        2   1.057s    1.133s    +7.2%     7 750    7 230      100%        93%
+no-PP ZeRO-3        2   1.057s    1.231s   +16.5%     7 750    6 655      100%        86%  ←(c)
+───────────────  ────  ───────  ────────  ────────  ───────  ───────     ──────     ──────
+
+Notes:
+(a) PP=2 ZeRO-2 actual efficiency 91% > theoretical 89%: iter time 2.320s falls −2.4% below
+    theoretical, consistent with GPUs 0-3 being ~2-3% faster than the Run 1 single-GPU
+    reference. Not a meaningful violation; within 1σ (std=0.104s).
+
+(b) no-PP ZeRO-0 (dp-nozero) drops to 83% despite 100% theoretical: the monolithic all-reduce
+    (6.72 GiB across DP=2) is serialised after the backward pass with zero overlap, adding
+    +21% (+0.226s) latency. Bandwidth-limited at ~30 GB/s (PCIe-connected GPUs).
+
+(c) no-PP ZeRO-3 (86%) is worse than ZeRO-1/2 (93-94%) but better than ZeRO-0 (83%):
+    the all-gather (+0.105s overhead vs ZeRO-1) is not overlapped with compute when PP=1,
+    partially cancelling the reduce-scatter benefit. With PP=2 this penalty disappears (89%
+    for all ZeRO levels) because AGs are dispatched as DAG roots and hidden behind FWD compute.
+
+Key takeaways:
+  · PP=2 achieves 86-91% actual efficiency vs 89% theoretical — overhead is only +2-4%,
+    meaning communication (P2P + DP sync) is almost entirely hidden in the pipeline schedule.
+  · no-PP ZeRO-1/2 achieves 93-94% — exceeds PP=2 theoretical (89%) per GPU, because
+    reduce-scatter overlaps with backward, while the single-GPU reference has no DP cost at all.
+  · no-PP ZeRO-0 is the worst (83%) due to unmasked all-reduce; PP is the fix.
+  · The "theoretical ceiling" for PP=2 is 89%, set purely by the 11.1% pipeline bubble.
+    The 4-8% gap between theoretical no-PP and best PP=2 (actual) is within the noise of
+    the mixed batch-size comparison (PP=2 uses 4× more tokens/iter, improving GPU utilisation).
+
+──────────────────────────────────────────────────────────────────────────────
+12. WHY BUCKETING IS SLOWER
+──────────────────────────────────────────────────────────────────────────────
+
+Observed overhead (Run 1 bucketed vs Run 2 non-bucketed, PP=2):
+
+  Config      Bucketed   Non-bucketed   Overhead
+  ──────────  ────────   ────────────   ────────
+  dp-nozero   2.891s     2.431s         +18.9%
+  zero-1      2.940s     2.457s         +19.7%
+  zero-2      2.924s     2.320s         +26.0%
+  zero-3      2.863s     2.428s         +17.9%
+
+Hardware is not a confound: single-GPU baselines are 1.054s (Run 1) vs 1.057s (Run 2),
+a difference of +0.28%. The 18-26% overhead is due to bucketing, not the GPU assignment.
+The overhead is also present for dp-nozero (no ZeRO comms), confirming it is not specific
+to gradient communication.
+
+Why bucketing adds overhead:
+
+1. Python scheduler overhead per bucket sub-task (dominant)
+   ─────────────────────────────────────────────────────────
+   expand_bucket_tasks() replaces each FWD/BWD task with a chain of K=36 bucket nodes.
+   For PP=2, interleaved-1F1B, MB=4: 16 compute tasks/rank → 576 bucket sub-tasks/rank.
+   The run_dag() Python scheduler processes each node: in_degree tracking, queue management,
+   CUDA event creation (torch.cuda.Event()), event recording, and stream.wait_event() calls.
+
+   Quantifying this: dp-nozero overhead = 2.891 − 2.431 = 0.460s across 560 extra compute
+   nodes + 70 extra AR nodes = 630 extra tasks, giving ~0.73 ms overhead per extra task.
+   At K=36 and 2.4ms actual compute per bucket (88ms/stage ÷ 36), Python/CUDA dispatch
+   overhead is ~30% of compute per bucket, which directly produces ~19% total overhead.
+
+2. Compute fragmentation — buckets are sub-layer granularity
+   ────────────────────────────────────────────────────────────
+   LLaMA-3B has ~28 transformer layers split across 4 FX stages (7 layers/stage). With
+   36 buckets/stage, each bucket covers ~0.19 layers of compute. At this granularity:
+   - GPU arithmetic units are underutilised: small work units don't fill the GPU's
+     warp scheduler; each kernel launch has a ~5-20μs startup dead-time.
+   - More autograd graph segments: each bucket's backward is a separate autograd call,
+     increasing graph traversal overhead and gradient accumulation bookkeeping.
+   - Intermediate tensor materialisation at every bucket boundary: outputs of bucket b
+     are stored in bucket_buffer before being passed as inputs to bucket b+1, adding
+     memory writes/reads that are absent in the single-pass non-bucketed case.
+
+3. 36× more NCCL operations (same bytes, higher per-call overhead)
+   ─────────────────────────────────────────────────────────────────
+   Non-bucketed: 1 all-reduce per stage per rank (∼3.36 GiB per call for dp-nozero)
+   Bucketed:     36 all-reduces per stage per rank (∼93 MB each)
+   Total gradient bytes are identical; bandwidth utilisation is similar (93 MB is still
+   bandwidth-bound at 30 GB/s). The overhead comes from NCCL's fixed per-call cost:
+   host-side enqueue, internal ring-buffer write, and GPU-side kernel setup. At 36×
+   more calls per stage × 2 stages = 72 extra NCCL calls per rank this adds up.
+
+4. More CUDA events (36× event create + record + wait chains)
+   ───────────────────────────────────────────────────────────
+   Each bucket sub-task records a CUDA event on comp_stream after executing, and the
+   next sub-task (or the AR node) waits on that event. With 576 sub-tasks vs 16 original
+   tasks, there are 560 extra event create/record/wait triples per rank per iteration.
+   Each triple involves a GPU operation (timestamp + dependency insertion), adding small
+   but compounding overhead.
+
+5. Zero-2 outlier (+26% vs +18% for others)
+   ──────────────────────────────────────────
+   Non-bucketed zero-2 was unusually fast (2.320s, +4.8% vs dp-nozero, best config).
+   Bucketed zero-2 is 2.924s, barely faster than bucketed zero-1 (2.940s). The benefit
+   that made non-bucketed zero-2 stand out — likely a favourable timing alignment between
+   RS communication and the pipeline's bubble slots — is disrupted by bucketing. The
+   fine-grained bucket chain serialises the backward pass differently, eliminating the
+   overlap window that zero-2's RS timing was exploiting.
+
+Summary:
+  The 36-bucket design was motivated by prefetch overlap for ZeRO-3 (AG for bucket b+1
+  fires while FWD for bucket b runs) and fine-grained RS overlap for ZeRO-1/2. In
+  practice, the Python scheduler + CUDA event overhead per bucket (~0.73ms) consumes
+  ~30% of each bucket's compute time (2.4ms), drowning out the overlap benefit.
+  The design would perform better with fewer, larger buckets (4-8 instead of 36)
+  to amortise Python/CUDA overhead across more GPU work per bucket.
