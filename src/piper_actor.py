@@ -25,7 +25,6 @@ CLEANUP_MEMORY = True
 
 logger = create_logger("piper_actor", LOG_LEVEL)
 
-torch.autograd.set_detect_anomaly(True, check_nan=False)
 
 def _get_rank(pp_rank, dp_rank, pp_degree):
     return pp_rank + dp_rank * pp_degree

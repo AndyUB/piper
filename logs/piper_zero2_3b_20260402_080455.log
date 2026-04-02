@@ -1,0 +1,129 @@
+Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=2, iters=5, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, zero_stage=2, nsight=True, no_render_dag=True, no_nvtx=False)
+2026-04-02 08:05:08,270	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+{'placement_group_id': '3a1d7e42ee0338b7f9c4423baecb01000000', 'name': '', 'bundles': {0: {'CPU': 2.0, 'GPU': 2.0}, 1: {'CPU': 2.0, 'GPU': 2.0}}, 'bundles_to_node_id': {0: 'c3f03e361215fcf18b2c1d6c4e8f2be5c9447c973776387f05785239', 1: 'c3f03e361215fcf18b2c1d6c4e8f2be5c9447c973776387f05785239'}, 'strategy': 'PACK', 'state': 'CREATED', 'stats': {'end_to_end_creation_latency_ms': 2.932, 'scheduling_latency_ms': 2.789, 'scheduling_attempt': 1, 'highest_retry_delay_ms': 0.0, 'scheduling_state': 'FINISHED'}}
+[36m(run_dp_rank pid=1974052)[0m Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=2, iters=5, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, zero_stage=2, nsight=True, no_render_dag=True, no_nvtx=False)
+[36m(run_dp_rank pid=1974086)[0m Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=2, iters=5, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, zero_stage=2, nsight=True, no_render_dag=True, no_nvtx=False)
+[36m(run_dp_rank pid=1974052)[0m Schedule:
+[36m(run_dp_rank pid=1974052)[0m 0:0:f    	0:1:f    	2:0:f    	2:1:f    	 ------ 	0:2:f    	2:0:b    	0:3:f    	2:1:b    	2:2:f    	0:0:b    	2:3:f    	0:1:b    	 ------ 	2:2:b    	2:3:b    	0:2:b    	0:3:b    	
+[36m(run_dp_rank pid=1974052)[0m  ------ 	1:0:f    	1:1:f    	3:0:f    	3:0:b    	3:1:f    	3:1:b    	1:2:f    	1:0:b    	1:3:f    	1:1:b    	3:2:f    	3:2:b    	3:3:f    	3:3:b    	1:2:b    	1:3:b    	 ------ 	
+[36m(run_dp_rank pid=1974052)[0m Stage to device mapping: {0: 0, 2: 0, 1: 1, 3: 1}
+[36m(run_dp_rank pid=1974086)[0m Schedule:
+[36m(run_dp_rank pid=1974086)[0m 0:0:f    	0:1:f    	2:0:f    	2:1:f    	 ------ 	0:2:f    	2:0:b    	0:3:f    	2:1:b    	2:2:f    	0:0:b    	2:3:f    	0:1:b    	 ------ 	2:2:b    	2:3:b    	0:2:b    	0:3:b    	
+[36m(run_dp_rank pid=1974086)[0m  ------ 	1:0:f    	1:1:f    	3:0:f    	3:0:b    	3:1:f    	3:1:b    	1:2:f    	1:0:b    	1:3:f    	1:1:b    	3:2:f    	3:2:b    	3:3:f    	3:3:b    	1:2:b    	1:3:b    	 ------ 	
+[36m(run_dp_rank pid=1974086)[0m Stage to device mapping: {0: 0, 2: 0, 1: 1, 3: 1}
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:06:27,243 - piper_actor - INFO - Initializing Ray actor 0 GPU 2
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:06:27,291 - piper_actor - INFO - Initializing Ray actor 1 GPU 3
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:06:27,330 - piper_actor - INFO - Initializing Ray actor 2 GPU 4
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:06:27,600 - piper_actor - INFO - Initializing Ray actor 3 GPU 5
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:06:30,852 - piper_actor - INFO - Actor 0 initializing process groups with master address 10.158.48.71:37427
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:06:31,834 - piper_actor - INFO - Actor 1 initializing process groups with master address 10.158.48.71:37427
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:06:32,215 - piper_actor - INFO - Actor 2 initializing process groups with master address 10.158.48.71:37427
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:06:32,219 - piper_actor - INFO - Actor 3 initializing process groups with master address 10.158.48.71:37427
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:06:58,447 - piper_actor - INFO - Global rank 0 warmed up 2 pp communicators
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:06:58,447 - piper_actor - INFO - Global rank 1 warmed up 2 pp communicators
+[36m(run_dp_rank pid=1974052)[0m Model size: 3607 M parameters (6.72 GB), dtype: torch.bfloat16
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:06:58,503 - piper_compile - INFO - DP rank 1 compiling (meta)...
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:03,960 - piper_backend - INFO - Graph has stage annotations: True
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:03,964 - piper_graph_transform - INFO - Found stage nodes in graph
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:07:11,475 - piper_actor - WARNING - Could not determine output activation shape for stage 0
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:07:11,525 - piper_actor - WARNING - Could not determine output activation shape for stage 1
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,654 - piper_backend - INFO - Built task DAG: 32 nodes, 28 data edges, 26 temporal edges
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,658 - piper_backend - INFO - Inserted ALL_REDUCE nodes for DP gradient sync
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,658 - piper_backend - INFO - Inserted ZeRO-2 collective nodes
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,659 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,660 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:12,663 - piper_backend - INFO - Loaded per-rank DAGs onto 2 actors
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:07:12,640 - piper_actor - WARNING - Could not determine output activation shape for stage 2
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:07:12,652 - piper_actor - WARNING - Could not determine output activation shape for stage 3
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:13,391 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:13,391 - piper_compile - INFO - DP rank 1 stage graphs loaded onto actors.
+[36m(run_dp_rank pid=1974086)[0m Model size: 3607 M parameters (6.72 GB), dtype: torch.bfloat16
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:24,896 - piper_compile - INFO - DP rank 2 compiling (meta)...
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:07:24,830 - piper_actor - INFO - Global rank 2 warmed up 2 pp communicators
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:07:24,829 - piper_actor - INFO - Global rank 3 warmed up 2 pp communicators
+[36m(run_dp_rank pid=1974052)[0m Running 2 warmup iterations...
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:25,840 - piper_compile - INFO - DP rank 1 real inputs/labels loaded onto actors.
+[36m(run_dp_rank pid=1974052)[0m 2026-04-02 08:07:25,840 - piper_compile - INFO - DP rank 1 done.
+[36m(PiperActor pid=1996219)[0m [rank1]:[W402 08:07:25.360071851 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996207)[0m [rank0]:[W402 08:07:27.595490456 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:31,540 - piper_backend - INFO - Graph has stage annotations: True
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:31,543 - piper_graph_transform - INFO - Found stage nodes in graph
+[36m(PiperActor pid=1996207)[0m [rank0]:[W402 08:07:31.062639539 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996219)[0m [rank1]:[W402 08:07:31.072045378 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:07:38,087 - piper_actor - WARNING - Could not determine output activation shape for stage 1
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:07:38,414 - piper_actor - WARNING - Could not determine output activation shape for stage 0
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:07:39,215 - piper_actor - WARNING - Could not determine output activation shape for stage 3
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,470 - piper_backend - INFO - Built task DAG: 32 nodes, 28 data edges, 26 temporal edges
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,475 - piper_backend - INFO - Inserted ALL_REDUCE nodes for DP gradient sync
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,475 - piper_backend - INFO - Inserted ZeRO-2 collective nodes
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,476 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,476 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:39,480 - piper_backend - INFO - Loaded per-rank DAGs onto 2 actors
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:07:39,468 - piper_actor - WARNING - Could not determine output activation shape for stage 2
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:40,421 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:40,422 - piper_compile - INFO - DP rank 2 stage graphs loaded onto actors.
+[36m(run_dp_rank pid=1974086)[0m Running 2 warmup iterations...
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:52,318 - piper_compile - INFO - DP rank 2 real inputs/labels loaded onto actors.
+[36m(run_dp_rank pid=1974086)[0m 2026-04-02 08:07:52,318 - piper_compile - INFO - DP rank 2 done.
+[36m(PiperActor pid=1996214)[0m [rank3]:[W402 08:07:52.837931139 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996178)[0m [rank2]:[W402 08:07:52.247589903 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996178)[0m [rank2]:[W402 08:08:07.144539401 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=1996214)[0m [rank3]:[W402 08:08:07.150233189 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(run_dp_rank pid=1974052)[0m Running 5 timed iterations...
+[36m(run_dp_rank pid=1974086)[0m Running 5 timed iterations...
+[36m(run_dp_rank pid=1974052)[0m rank 0 iter time= 0.57480 ± 0.00116 s (5 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 throughput= 28503.978 tokens/s
+[36m(run_dp_rank pid=1974052)[0m rank 0 peak_memory= 35.682 GiB
+[36m(run_dp_rank pid=1974052)[0m rank 1 peak_memory= 35.958 GiB
+[36m(run_dp_rank pid=1974052)[0m Memory breakdown (after 1st timed iter):
+[36m(run_dp_rank pid=1974052)[0m   rank 0  allocated=11.852 GiB  reserved=40.879 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=5.134 GiB
+[36m(run_dp_rank pid=1974052)[0m   rank 1  allocated=13.809 GiB  reserved=41.189 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=7.091 GiB
+[36m(run_dp_rank pid=1974052)[0m Running 3 tracing iterations...
+[36m(run_dp_rank pid=1974086)[0m rank 1 iter time= 0.57462 ± 0.00092 s (5 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 1 throughput= 28512.832 tokens/s
+[36m(run_dp_rank pid=1974086)[0m rank 2 peak_memory= 35.682 GiB
+[36m(run_dp_rank pid=1974086)[0m rank 3 peak_memory= 35.958 GiB
+[36m(run_dp_rank pid=1974086)[0m Memory breakdown (after 1st timed iter):
+[36m(run_dp_rank pid=1974086)[0m   rank 2  allocated=11.852 GiB  reserved=40.879 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=5.134 GiB
+[36m(run_dp_rank pid=1974086)[0m   rank 3  allocated=13.809 GiB  reserved=41.189 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=7.091 GiB
+[36m(run_dp_rank pid=1974086)[0m Running 3 tracing iterations...
+[36m(PiperActor pid=1996207)[0m 2026-04-02 08:08:53,236 - piper_actor - INFO - Actor 0: Tracing enabled
+[36m(PiperActor pid=1996219)[0m 2026-04-02 08:08:53,236 - piper_actor - INFO - Actor 1: Tracing enabled
+[36m(PiperActor pid=1996178)[0m 2026-04-02 08:08:53,237 - piper_actor - INFO - Actor 2: Tracing enabled
+[36m(PiperActor pid=1996214)[0m 2026-04-02 08:08:53,237 - piper_actor - INFO - Actor 3: Tracing enabled
+[36m(run_dp_rank pid=1974052)[0m rank 0 forward time= 18.752 ± 1.108 ms (24 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 p2p_send time= 0.164 ± 0.091 ms (36 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 p2p_recv time= 40.199 ± 23.943 ms (36 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 backward time= 36.114 ± 2.360 ms (24 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 reduce_scatter time= 9.946 ± 1.333 ms (6 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 backward_sync time= 10.326 ± 1.374 ms (3 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 optim_step time= 11.905 ± 0.003 ms (3 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 0 all_gather time= 3.062 ± 0.715 ms (6 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 p2p_recv time= 14.770 ± 14.522 ms (36 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 forward time= 20.548 ± 3.042 ms (24 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 p2p_send time= 0.230 ± 0.112 ms (36 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 backward time= 41.677 ± 9.207 ms (24 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 reduce_scatter time= 10.347 ± 2.077 ms (6 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 backward_sync time= 8.825 ± 1.549 ms (3 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 optim_step time= 11.410 ± 0.048 ms (3 samples)
+[36m(run_dp_rank pid=1974052)[0m rank 1 all_gather time= 3.108 ± 0.532 ms (6 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 forward time= 18.749 ± 1.125 ms (24 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 p2p_send time= 0.165 ± 0.090 ms (36 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 p2p_recv time= 40.106 ± 23.794 ms (36 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 backward time= 36.329 ± 2.378 ms (24 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 reduce_scatter time= 3.489 ± 0.534 ms (6 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 backward_sync time= 4.016 ± 0.071 ms (3 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 optim_step time= 11.335 ± 0.008 ms (3 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 2 all_gather time= 3.316 ± 0.974 ms (6 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 p2p_recv time= 15.591 ± 14.904 ms (36 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 forward time= 20.857 ± 3.136 ms (24 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 p2p_send time= 0.235 ± 0.117 ms (36 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 backward time= 42.046 ± 9.377 ms (24 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 reduce_scatter time= 4.009 ± 1.596 ms (6 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 backward_sync time= 2.422 ± 0.081 ms (3 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 optim_step time= 11.173 ± 0.020 ms (3 samples)
+[36m(run_dp_rank pid=1974086)[0m rank 3 all_gather time= 3.229 ± 0.426 ms (6 samples)
+[36m(run_dp_rank pid=1974052)[0m Ray timeline saved to: out/llama-dag-pp2-dp2-interleaved-1f1b-zero2-20260402_080858
+[36m(run_dp_rank pid=1974086)[0m Ray timeline saved to: out/llama-dag-pp2-dp2-interleaved-1f1b-zero2-20260402_080858
