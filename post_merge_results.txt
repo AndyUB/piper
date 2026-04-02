@@ -1,22 +1,24 @@
 ═══════════════════════════════════════════════════════════════════════════════
-LLaMA-3B Post-Merge Results (2026-04-01/02)
+LLaMA-3B Post-Merge Results (2026-04-02, corrected schedule)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Logs
 ----
-  baseline (single-GPU)   : logs/piper_baseline_3b_20260402_010730.log  (schedule=no-pp-4s, 4 stages)
-  no-pp  dp-nozero        : logs/piper_dp_nozero_nopp_3b_20260402_005522.log
-  pp=2   dp-nozero        : logs/piper_dp_nozero_3b_20260402_004403.log
-  pp=2   dp-nozero bkt    : logs/piper_dp_nozero_bucketed_3b_20260402_004811.log
-  no-pp  zero-1           : logs/piper_zero1_nopp_3b_20260402_005409.log
-  pp=2   zero-1           : logs/piper_zero1_3b_20260401_220327.log
-  pp=2   zero-1 bkt       : logs/piper_zero1_bucketed_3b_20260402_003847.log
-  no-pp  zero-2           : logs/piper_zero2_nopp_3b_20260402_005846.log
-  pp=2   zero-2           : logs/piper_zero2_3b_20260401_215838.log
-  pp=2   zero-2 bkt       : logs/piper_zero2_bucketed_3b_20260402_002929.log
-  no-pp  zero-3           : logs/piper_zero3_nopp_3b_20260402_005729.log
-  pp=2   zero-3           : logs/piper_zero3_3b_20260401_234408.log
-  pp=2   zero-3 bkt       : logs/piper_zero3_bucketed_3b_20260402_002249.log
+  baseline (single-GPU)   : logs/piper_baseline_3b_20260402_021014.log
+  no-pp  dp-nozero        : logs/piper_dp_nozero_nopp_3b_20260402_021503.log
+  no-pp  zero-1           : logs/piper_zero1_nopp_3b_20260402_022633.log
+  no-pp  zero-2           : logs/piper_zero2_nopp_3b_20260402_023524.log
+  no-pp  zero-3           : logs/piper_zero3_nopp_3b_20260402_023827.log
+  pp=2   dp-nozero        : logs/piper_dp_nozero_3b_20260402_004403.log       [unchanged]
+  pp=2   dp-nozero bkt    : logs/piper_dp_nozero_bucketed_3b_20260402_004811.log [unchanged]
+  pp=2   zero-1           : logs/piper_zero1_3b_20260401_220327.log            [unchanged]
+  pp=2   zero-1 bkt       : logs/piper_zero1_bucketed_3b_20260402_003847.log   [unchanged]
+  pp=2   zero-2           : logs/piper_zero2_3b_20260401_215838.log            [unchanged]
+  pp=2   zero-2 bkt       : logs/piper_zero2_bucketed_3b_20260402_002929.log   [unchanged]
+  pp=2   zero-3           : logs/piper_zero3_3b_20260401_234408.log            [unchanged]
+  pp=2   zero-3 bkt       : logs/piper_zero3_bucketed_3b_20260402_002249.log   [unchanged]
+
+  Previous (incorrect) no-pp/baseline logs moved to: logs/incorrect_schedule_logs/
 
 Setup
 -----
@@ -28,7 +30,9 @@ Setup
   no-pp runs   : PP=1, DP=2, ZeRO=?, 2 GPUs, batch=16×1mbs×256 =  4096 tok/iter/DP-rank
   pp=2 runs    : PP=2, DP=2, ZeRO=?, 4 GPUs, batch=16×4mbs×256 = 16384 tok/iter/DP-rank
 
-  All runs use schedule="no-pp-4s" (4 stages, consistent with no-pp DP runs).
+  Schedule fix: NO_PP_4STAGE_SCHEDULE previously contained an explicit UPD task, causing
+  a duplicate optimizer step (schedule UPD + schedule_to_dag synthesized UPD). Removed.
+  INTERLEAVED_1F1B_PP2_MB4_SCHEDULE was already correct; PP=2 data is unchanged.
 
 ──────────────────────────────────────────────────────────────────────────────
 1. THROUGHPUT
@@ -38,7 +42,10 @@ Single-GPU baseline:
 
 Config       GPUs  Tok/s        Fwd (ms)   Bwd (ms)   Optim (ms)
 ──────────   ────  ──────────   ────────   ────────   ──────────
-baseline        1   13 742.6      16.8        36.7        9.5
+baseline        1   16 177.4      17.3        37.2        0.003 *
+
+  * Baseline optim_step is CPU-side only (async GPU ops, no DP sync → no blocking
+    event). Not indicative of optimizer not running; throughput is wall-clock timed.
 
 PP=2 non-bucketed:
 
@@ -68,7 +75,7 @@ zero-3          4   24 637.8    24 641.8    49 279.6      0.55±0.39    0.99±0.
   * Bucketed fwd/bwd times are per-bucket (not per full forward pass).
 
 Bucketed vs non-bucketed (same ZeRO, PP=2):
-  dp-nozero : 48 927 / 55 073 = -11.2%  ← bucketing overhead without ZeRO benefit
+  dp-nozero : 48 927 / 55 073 = -11.2%
   zero-1    : 51 185 / 55 866 =  -8.4%
   zero-2    : 48 499 / 56 347 = -13.9%
   zero-3    : 49 280 / 56 209 = -12.3%
@@ -77,35 +84,36 @@ PP=1 (no-pp), non-bucketed:
 
 Config       GPUs  Tok/s r0    Tok/s r1    Global      Fwd r0 (ms)  Bwd r0 (ms)  Optim r0 (ms)
 ──────────   ────  ──────────  ──────────  ──────────  ───────────  ───────────  ─────────────
-dp-nozero       2   13 043.6    12 989.9    26 033.5       —            —            —
-zero-1          2   14 227.7    14 216.9    28 444.6      19.6 ±4.5    36.3 ±7.3   23.4 ±0.1
-zero-2          2   12 904.7    13 703.1    26 607.8      19.7 ±4.5    35.9 ±7.5   23.4 ±0.0
-zero-3          2   14 508.7    14 508.0    29 016.7      20.0 ±5.1    36.0 ±7.5   23.4 ±0.0
+dp-nozero       2   15 652.9    15 628.3    31 281.2       —            —            —
+zero-1          2   15 894.0    15 875.8    31 769.8      20.0 ±4.9    36.2 ±7.3   23.3 ±0.1
+zero-2          2   16 082.1    16 080.6    32 162.7      19.8 ±4.6    35.8 ±7.7   23.5 ±0.0
+zero-3          2   15 675.9    15 871.5    31 547.4      20.1 ±5.1    35.7 ±7.6   23.4 ±0.0
 
-  Note: dp-nozero tracing=False. zero-2 rank 0/1 throughput split is suspicious (see §A).
+  Note: dp-nozero tracing=False. All ZeRO stages now symmetric (previous suspicious
+  zero-2 asymmetry was a duplicate-UPD artifact).
 
 ZeRO vs dp-nozero (no-PP, non-bucketed):
-  zero-1: 28 445 / 26 034 =  +9.3%
-  zero-2: 26 608 / 26 034 =  +2.2%
-  zero-3: 29 017 / 26 034 = +11.5%  ← fastest
+  zero-1: 31 770 / 31 281 =  +1.6%
+  zero-2: 32 163 / 31 281 =  +2.8%  ← fastest
+  zero-3: 31 547 / 31 281 =  +0.9%
 
-Per-GPU throughput (PP=2 uses 2 GPUs per DP rank, no-PP uses 1):
+Per-GPU throughput:
 
 Config                Tok/s/GPU   vs baseline
 ────────────────────  ─────────   ──────────
-baseline                13 743      —
-no-pp dp-nozero         13 017     -5.3%   = 26 034 / 2
-no-pp zero-1            14 222     +3.5%   = 28 445 / 2
-no-pp zero-2            13 304     -3.2%   = 26 608 / 2
-no-pp zero-3            14 508     +5.6%   = 29 017 / 2
-pp=2  dp-nozero         13 768     +0.2%   = 55 073 / 4
-pp=2  zero-1            13 967     +1.6%   = 55 866 / 4
-pp=2  zero-2            14 087     +2.5%   = 56 347 / 4
-pp=2  zero-3            14 052     +2.2%   = 56 209 / 4
-pp=2  dp-nozero bkt     12 232    -11.0%   = 48 927 / 4
-pp=2  zero-1 bkt        12 796     -6.9%   = 51 185 / 4
-pp=2  zero-2 bkt        12 125    -11.8%   = 48 499 / 4
-pp=2  zero-3 bkt        12 320    -10.4%   = 49 280 / 4
+baseline                16 177      —
+no-pp dp-nozero         15 641     -3.3%   = 31 281 / 2
+no-pp zero-1            15 885     -1.8%   = 31 770 / 2
+no-pp zero-2            16 082     -0.6%   = 32 163 / 2
+no-pp zero-3            15 774     -2.5%   = 31 547 / 2
+pp=2  dp-nozero         13 768    -14.9%   = 55 073 / 4
+pp=2  zero-1            13 967    -13.7%   = 55 866 / 4
+pp=2  zero-2            14 087    -12.9%   = 56 347 / 4
+pp=2  zero-3            14 052    -13.2%   = 56 209 / 4
+pp=2  dp-nozero bkt     12 232    -24.4%   = 48 927 / 4
+pp=2  zero-1 bkt        12 796    -20.9%   = 51 185 / 4
+pp=2  zero-2 bkt        12 125    -25.0%   = 48 499 / 4
+pp=2  zero-3 bkt        12 320    -23.8%   = 49 280 / 4
 
 ──────────────────────────────────────────────────────────────────────────────
 2. MEMORY — STEADY STATE (allocated after 1st timed iter, GiB)
@@ -127,51 +135,68 @@ pp=2  bkt dp-nozero     1   15.458     41.609   3.359    3.359   0.000   8.740
 pp=2  bkt zero-1/2/3    0   11.822     41.178   3.359    3.359   1.680   5.103
 pp=2  bkt zero-1/2/3    1   13.778     40.680   3.359    3.359   1.680   7.060
 
-  All ZeRO stages still show identical allocated/shard/other breakdown, same as before.
-  Bucketing slightly increases reserved (cached allocator pools) but allocated is unchanged.
+  Memory is unchanged from incorrect-schedule runs and from pre-merge Run 2.
+  The schedule fix only affected compute; no memory allocation paths changed.
 
 ZeRO savings vs dp-nozero (allocated, rank 0):
-  no-pp: 29.014 → 25.653 = -3.36 GiB  (= shard size; same as Run 2)
-  pp=2 : 13.501 → 11.821 = -1.68 GiB  (= shard size; same as Run 2)
+  no-pp: 29.014 → 25.653 = -3.36 GiB  (= 1 optimizer shard)
+  pp=2 : 13.501 → 11.821 = -1.68 GiB  (= 1 optimizer shard)
 
 ──────────────────────────────────────────────────────────────────────────────
 3. ANALYSIS
 ──────────────────────────────────────────────────────────────────────────────
 
-A. Suspicious zero-2 no-PP throughput split (12 905 vs 13 703 tok/s)
-   Only zero-2 no-PP shows ~6% imbalance between DP ranks; zero-1 and zero-3 are
-   symmetric. Likely a single-iter startup artifact affecting the per-iter timing
-   average (only 5 iters, no re-run). Should be re-run for clean data.
+A. Duplicate UPD bug caused ~10-21% throughput undercount in no-PP runs
+   The NO_PP_4STAGE_SCHEDULE had an explicit UPD task that was then followed by
+   a second UPD synthesized by schedule_to_dag, causing every no-PP iteration to
+   run the optimizer twice. PP=2 runs were unaffected (INTERLEAVED_1F1B had no
+   explicit UPD). After the fix, no-PP throughput increases 9-21%:
 
-B. PP=2 non-bucketed: all configs ~28k tok/s per DP-rank
-   All four configs are within 2% of each other (27 933–28 201 tok/s per DP rank).
-   ZeRO overheads are now fully overlapped with computation at PP=2. The throughput
-   gap between ZeRO stages was already small in Run 2; it is now essentially noise.
+   Config       Old (incorrect)  New (corrected)  Δ
+   ──────────   ───────────────  ───────────────  ──────
+   baseline           13 743          16 177       +17.7%
+   no-pp dp-nozero    26 034          31 281       +20.2%
+   no-pp zero-1       28 445          31 770       +11.7%
+   no-pp zero-2       26 608          32 163       +20.9%
+   no-pp zero-3       29 017          31 547        +8.7%
 
-C. Bucketing hurts throughput at PP=2 (~10–14% regression)
-   Non-bucketed PP=2 dp-nozero reaches 55 073 global tok/s vs 48 927 bucketed — an
-   11% drop. This is consistent across all ZeRO levels. The cost is DAG overhead from
-   dispatching 36× more fine-grained FWD/BWD tasks through the scheduler, plus
-   per-bucket NCCL calls that don't saturate the NIC individually. For this model size
-   and batch configuration, bucketing is a net negative without ZeRO.
+   Variance in speedup is consistent with the optimizer step being ~23ms for ZeRO
+   stages (reduce-scatter + optim + all-gather) vs ~9.5ms for plain no-DP optimizer.
+   The extra UPD consumed a larger fraction of total time for dp-nozero and zero-2
+   (which had pathological 12905/13703 imbalance in the old run).
 
-D. No-PP ZeRO-3 is fastest (29 017 global tok/s, +11.5% over dp-nozero)
-   This repeats the Run 2 finding for ZeRO-1 (+13.9%) but with ZeRO-3 winning this
-   time. The margin is within run-to-run noise. The RS+AG pattern is competitive with
-   plain all-reduce at DP=2 because RS and AG are individually ~half the all-reduce
-   volume and both fit within the synchronization window.
+B. PP=2 per-GPU efficiency is now correctly below baseline (-13 to -15%)
+   With the old duplicate-UPD baseline, PP=2 appeared to match or beat single-GPU
+   (0.2-2.5% above). This was an artifact: the baseline was artificially slowed by
+   the double optimizer step. With the corrected baseline (16,177 tok/s/GPU), PP=2
+   shows the expected pipeline bubble overhead: -13% to -15% per GPU for
+   non-bucketed, -21% to -25% for bucketed.
+
+C. No-PP ZeRO stages are now very similar (within ~3% of dp-nozero)
+   All no-PP ZeRO variants land at 31.3–32.2k global tok/s, compared to 31.3k for
+   dp-nozero. The ZeRO collective overhead (RS+AG ≈ same volume as all-reduce) is
+   nearly fully overlapped with computation at DP=2. Previous results showed larger
+   spread (26.6–29.0k) due to double-UPD contamination magnifying small timing noise
+   and the suspicious zero-2 imbalance.
+
+D. PP=2 non-bucketed: all configs still ~28k tok/s per DP-rank (unchanged)
+   ZeRO overheads are fully overlapped with computation at PP=2. The ZeRO stages
+   are within 2% of each other and of dp-nozero. This finding is unchanged.
+
+E. Bucketing hurts throughput at PP=2 (~10–14% regression) — unchanged
+   Non-bucketed PP=2 dp-nozero reaches 55,073 global tok/s vs 48,927 bucketed (−11%).
+   Consistent across all ZeRO levels. DAG overhead from fine-grained tasks and
+   per-bucket NCCL calls that don't individually saturate NIC. For this config,
+   bucketing is a net negative without a benefit from model-parallel comm overlap.
 
 ──────────────────────────────────────────────────────────────────────────────
-4. COMPARISON TO PREVIOUS RESULTS (baseline_comparison.txt)
+4. COMPARISON TO PREVIOUS RESULTS (baseline_comparison.txt and post_merge v1)
 ──────────────────────────────────────────────────────────────────────────────
 
-The most striking change is the 3.5–4.2× throughput increase across all configs.
-This is entirely explained by the removal of torch.autograd.set_detect_anomaly(True)
-in the dag-ir merge. That call was silently wrapping every forward op with Python-
-level stack capture, dominating forward time (204ms → 17ms for the baseline forward
-pass). It was not a real performance characteristic of the system.
+The total 3.5–4.4× speedup vs baseline_comparison.txt (Run 1/2) is the same story:
+set_detect_anomaly removal + correct single-UPD schedule.
 
-Throughput comparison (global tok/s, non-bucketed, PP=2):
+Throughput comparison (global tok/s, non-bucketed, PP=2) — unchanged from first post-merge run:
 
 Config       Run 1 (bkt)  Run 2 (non-bkt)  Post-merge (non-bkt)  Speedup vs Run 2
 ──────────   ───────────  ───────────────  ────────────────────  ────────────────
@@ -180,30 +205,24 @@ zero-1        11 151        13 334              55 866               +4.19×
 zero-2        11 210        14 127              56 347               +3.99×
 zero-3        11 447        13 493              56 209               +4.17×
 
-  Run 1 was bucketed; Run 2 and post-merge are non-bucketed (same setup as Run 2).
+No-PP (2-GPU) comparison — corrected:
 
-No-PP (2-GPU) comparison:
-
-Config       Run 2          Post-merge     Speedup
-──────────   ──────────     ──────────     ───────
-dp-nozero     6 387           26 034        +4.08×
-zero-1        7 272           28 445        +3.91×
-zero-2        7 231           26 608        +3.68×
-zero-3        6 655           29 017        +4.36×
+Config       Run 2          Post-merge v1  Post-merge v2    Speedup vs Run 2
+             (incorrect)    (incorrect)    (corrected)
+──────────   ──────────     ──────────     ──────────        ───────
+dp-nozero     6 387           26 034         31 281           +4.90×
+zero-1        7 272           28 445         31 770           +4.37×
+zero-2        7 231           26 608         32 163           +4.45×
+zero-3        6 655           29 017         31 547           +4.74×
 
 Single-GPU baseline:
 
-Config       Run 1/2        Post-merge     Speedup
-──────────   ──────────     ──────────     ───────
-baseline      3 887           13 743        +3.54×
+Config       Run 1/2        Post-merge v1  Post-merge v2    Speedup vs Run 2
+             (incorrect)    (incorrect)    (corrected)
+──────────   ──────────     ──────────     ──────────        ───────
+baseline      3 887           13 743         16 177           +4.16×
 
-  The slightly lower baseline speedup (3.54×) vs PP=2 runs (~4.1×) makes sense:
-  the baseline has no PP communication overhead, so anomaly detection consumed a
-  relatively larger fraction of total step time.
-
-Relative ordering of ZeRO stages is unchanged: all stages within ~2% of each other
-at PP=2. No-PP shows more variance between stages due to small absolute token count
-per iter (4096 vs 16384), making per-call NCCL latency relatively more important.
-
-Memory numbers are identical between Run 2 and post-merge (to within ±0.05 GiB),
-confirming that the merge did not change any memory allocation paths.
+  Post-merge v1 speedups (~3.5-4.4×) were suppressed by the duplicate-UPD bug in
+  no-PP/baseline runs. v2 (corrected) shows higher speedups for those configs
+  because the denominator (Run 2) also had the duplicate-UPD artifact.
+  PP=2 results are identical between v1 and v2.

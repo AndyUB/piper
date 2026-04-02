@@ -1,0 +1,226 @@
+Namespace(model='3b', schedule='no-pp-4s', dp=1, pp=1, batch_size=16, mbs=1, seq_len=256, warmup=5, iters=10, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, zero_stage=0, nsight=True, no_render_dag=False, no_nvtx=False)
+2026-04-02 02:10:27,761	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+{'placement_group_id': 'eb403265de284e49c1d76058d57901000000', 'name': '', 'bundles': {0: {'CPU': 1.0, 'GPU': 1.0}}, 'bundles_to_node_id': {0: '8f03e4bf73a5536910bdb6d8ac4f5be8e55762d1601b03d3e9e413d2'}, 'strategy': 'PACK', 'state': 'CREATED', 'stats': {'end_to_end_creation_latency_ms': 2.68, 'scheduling_latency_ms': 2.522, 'scheduling_attempt': 1, 'highest_retry_delay_ms': 0.0, 'scheduling_state': 'FINISHED'}}
+[36m(run_dp_rank pid=3333313)[0m Namespace(model='3b', schedule='no-pp-4s', dp=1, pp=1, batch_size=16, mbs=1, seq_len=256, warmup=5, iters=10, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, zero_stage=0, nsight=True, no_render_dag=False, no_nvtx=False)
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:10:44,844 - piper_coordinator - DEBUG - Running DP rank 1 of 1 with 10.158.48.71:56641 as master address
+[36m(run_dp_rank pid=3333313)[0m Schedule:
+[36m(run_dp_rank pid=3333313)[0m 0:0:f    	1:0:f    	2:0:f    	3:0:f    	3:0:b    	2:0:b    	1:0:b    	0:0:b    	
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:10:49,238 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 27f4b017d7d07149464c3c4901000000) global rank 0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:40,824 - piper_actor - DEBUG - Initializing Ray actor 0 GPU 0
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:43,855 - piper_compile - DEBUG - Master address for process groups: 10.158.48.71:52029
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:43,856 - piper_actor - INFO - Actor 0 using GPU 0, master addr 10.158.48.71:52029
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:44,165 - piper_actor - DEBUG - Actor 0 has GPU 0, joined the global process group
+[36m(run_dp_rank pid=3333313)[0m Model size: 3607 M parameters (6.72 GB), dtype: torch.bfloat16
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:50,201 - piper_backend - DEBUG - Graph has stage annotations: True
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:50,203 - piper_graph_transform - DEBUG - Found stage nodes in graph
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:50,918 - piper_actor - DEBUG - Loading stage 0 (1 module(s)) on actor 0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:53,773 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:53,773 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:55,531 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:55,582 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:55,582 - piper_actor - DEBUG - Stage 0 module 0 input indices: [1]
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,232 - piper_actor - DEBUG - Loading stage 1 (1 module(s)) on actor 0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,232 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,233 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,622 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,672 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,672 - piper_actor - DEBUG - Stage 1 module 0 input indices: [0]
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,712 - piper_actor - DEBUG - Loading stage 2 (1 module(s)) on actor 0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,713 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,713 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,720 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,771 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,771 - piper_actor - DEBUG - Stage 2 module 0 input indices: [0]
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,788 - piper_actor - DEBUG - Loading stage 3 (1 module(s)) on actor 0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,789 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,789 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,795 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:56,859 - piper_backend - DEBUG - Built task DAG: 9 nodes, 7 data edges, 8 temporal edges
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:56,860 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:56,862 - piper_backend - DEBUG - Loaded per-rank DAGs onto 1 actors
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,845 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:11:56,845 - piper_actor - DEBUG - Stage 3 module 0 input indices: [0]
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:57,560 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:11:57,560 - piper_compile - INFO - DP rank 0 stage graphs loaded onto actors.
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:12:00,140 - piper_compile - INFO - DP rank 0 published compiled stage data.
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:00,147 - piper_actor - DEBUG - Actor 0 loaded inputs 1
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:11,981 - piper_actor - DEBUG - Actor 0 loaded labels torch.Size([16, 256, 128256])
+[36m(run_dp_rank pid=3333313)[0m Running 5 warmup iterations...
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:12:12,227 - piper_compile - INFO - DP rank 0 real inputs/labels loaded onto actors.
+[36m(run_dp_rank pid=3333313)[0m 2026-04-02 02:12:12,228 - piper_compile - INFO - DP rank 0 done.
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:12,234 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:13,223 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:13,867 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:13,961 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:14,109 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:14,230 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:14,252 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:14,273 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:14,362 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,301 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,313 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,323 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,334 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,346 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,371 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,406 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,435 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:17,465 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,559 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,571 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,581 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,592 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,602 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,627 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,664 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,693 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:18,786 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,848 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,860 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,871 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,881 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,892 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,916 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,953 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:19,982 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:20,012 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,106 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,118 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,129 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,140 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,151 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,176 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,211 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,240 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:21,270 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(run_dp_rank pid=3333313)[0m Running 10 timed iterations...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,365 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,377 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,388 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,398 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,409 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,434 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,470 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,499 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,529 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,620 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,632 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,642 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,653 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,664 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,689 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,725 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,754 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,785 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,874 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,885 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,896 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,906 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,917 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,942 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:22,979 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,008 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,038 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,127 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,139 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,150 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,160 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,171 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,196 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,232 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,261 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,291 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,380 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,392 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,403 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,413 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,424 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,450 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,485 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,514 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,544 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,633 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,645 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,656 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,666 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,677 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,702 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,738 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,768 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,798 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,887 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,899 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,909 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,920 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,931 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,955 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:23,991 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,021 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,051 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,140 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,152 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,162 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,173 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,184 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,209 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,245 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,274 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,304 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,393 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,406 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,417 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,428 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,439 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,464 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,499 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,528 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,558 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,646 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,658 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,669 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,679 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,690 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,713 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,751 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,781 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,812 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(run_dp_rank pid=3333313)[0m rank 0 iter time= 0.25319 ± 0.00041 s (10 samples)
+[36m(run_dp_rank pid=3333313)[0m rank 0 throughput= 16177.351 tokens/s
+[36m(run_dp_rank pid=3333313)[0m rank 0 peak_memory= 55.702 GiB
+[36m(run_dp_rank pid=3333313)[0m Memory breakdown (after 1st timed iter):
+[36m(run_dp_rank pid=3333313)[0m   rank 0  allocated=29.014 GiB  reserved=59.109 GiB  params=6.718 GiB  grads=6.718 GiB  shard=0.000 GiB  other(acts+optim)=15.578 GiB
+[36m(run_dp_rank pid=3333313)[0m Running 3 tracing iterations...
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,899 - piper_actor - INFO - Actor 0: Tracing enabled
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,904 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,915 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,926 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,936 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,947 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:24,970 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:25,009 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:25,038 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:25,068 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,163 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,177 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,187 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,198 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,208 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,235 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,268 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,297 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:26,327 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,424 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,439 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,449 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,465 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,480 - piper_actor - DEBUG - run_dag dispatch (time 4): backward s3 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,509 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,535 - piper_actor - DEBUG - run_dag dispatch (time 6): backward s1 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,561 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s0 mb0 bkt=0
+[36m(PiperActor pid=3354754)[0m 2026-04-02 02:12:27,590 - piper_actor - DEBUG - run_dag dispatch (time 8): update s0 mb0 bkt=0
+[36m(run_dp_rank pid=3333313)[0m rank 0 forward time= 17.315 ± 2.337 ms (12 samples)
+[36m(run_dp_rank pid=3333313)[0m rank 0 backward time= 37.212 ± 7.395 ms (12 samples)
+[36m(run_dp_rank pid=3333313)[0m rank 0 optim_step time= 0.003 ± 0.000 ms (3 samples)
+[36m(run_dp_rank pid=3333313)[0m Ray timeline saved to: out/llama-dag-pp1-dp1-no-pp-4s-zero0-20260402_021228
