@@ -1021,20 +1021,20 @@ class PiperActor:
                     self._nvtx_pop()
 
                 case TaskType.REDUCE_SCATTER:
-                    bucket_id = task.bucket_id
+                    bucket_id = node.bucket_id
                     bwd_node = node.data_preds[0]
                     bwd_key = (
                         bwd_node.task.batches[0].stage_id,
                         bwd_node.task.batches[0].mb_idx,
                         bwd_node.task.type,
-                        bwd_node.task.bucket_id,
+                        bwd_node.bucket_id,
                     )
                     self._nvtx_push(f"reduce_scatter_s{stage_id}_b{bucket_id}")
                     self._exec_reduce_scatter(stage_id, bucket_id, comp_events[bwd_key])
                     self._nvtx_pop()
 
                 case TaskType.ALL_GATHER:
-                    bucket_id = task.bucket_id
+                    bucket_id = node.bucket_id
                     self._nvtx_push(f"all_gather_s{stage_id}_b{bucket_id}")
                     self._exec_all_gather(stage_id, bucket_id)
                     self._nvtx_pop()

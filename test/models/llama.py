@@ -498,6 +498,19 @@ class Transformer(nn.Module):
     #     return output
 
     # """
+    # 1 STAGE
+    # """
+    # def forward(self, tokens: torch.Tensor):
+    #     with torch.fx.traceback.annotate({"stage": 0}):
+    #         h = self.tok_embeddings(tokens) if self.tok_embeddings else tokens
+    #         start_pos = 0
+    #         for layer in self.layers:
+    #             h = layer(h, start_pos, self.freqs_cis, self.mask)
+    #         h = self.norm(h) if self.norm else h
+    #         output = self.output(h).float() if self.output else h
+    #     return output
+
+    # """
     # No annotations: auto infer stages
     # """
     # def forward(self, tokens: torch.Tensor):

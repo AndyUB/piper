@@ -149,7 +149,6 @@ NO_PP_SCHEDULE = Schedule2D(
         [
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.FWD),
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.BWD),
-            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.UPD),
         ]
     ],
 )
@@ -167,7 +166,6 @@ NO_PP_4STAGE_SCHEDULE = Schedule2D(
             Task(pp_rank=0, batches=[BatchMeta(stage_id=2, mb_idx=0)], type=CompType.BWD),
             Task(pp_rank=0, batches=[BatchMeta(stage_id=1, mb_idx=0)], type=CompType.BWD),
             Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.BWD),
-            Task(pp_rank=0, batches=[BatchMeta(stage_id=0, mb_idx=0)], type=CompType.UPD),
         ]
     ],
 )

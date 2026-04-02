@@ -9,7 +9,7 @@ NSIGHT="${NSIGHT:-1}"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 LOG_FILE="$LOG_DIR/piper_zero2_${MODEL}_${TIMESTAMP}.log"
 
-RAY_TMP="${RAY_TMP:-/tmp/ray}"
+RAY_TMP="${RAY_TMP:-/m-coriander/coriander/wxdeng/ray_tmp}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
@@ -34,9 +34,6 @@ python3 -m test.test_llama \
 
 echo "Run complete. Log: $LOG_FILE"
 
-# Wait for nsys to finish flushing trace data before copying
-sleep 30
-
 # Copy nsys traces out of Ray's temp directory
 # Ray places nsys-rep files in $RAY_TMPDIR/ray/session_*/logs/nsight/
 NSYS_OUT_DIR="nsys_traces/zero2_${MODEL}_${TIMESTAMP}"
@@ -47,6 +44,13 @@ if [ -d "${SESSION_DIR:-}" ]; then
     echo "Ray session: $SESSION_DIR"
     NSIGHT_DIR="$SESSION_DIR/logs/nsight"
     if [ -d "$NSIGHT_DIR" ]; then
+        echo "Waiting for nsys to finish flushing..."
+        for i in $(seq 1 60); do
+            if find "$NSIGHT_DIR" -name "*.nsys-rep" -size +0c 2>/dev/null | grep -q .; then
+                break
+            fi
+            sleep 5
+        done
         mapfile -t NSYS_FILES < <(find "$NSIGHT_DIR" -name "*.nsys-rep" -o -name "*.sqlite" 2>/dev/null)
         if [ "${#NSYS_FILES[@]}" -gt 0 ]; then
             for f in "${NSYS_FILES[@]}"; do
