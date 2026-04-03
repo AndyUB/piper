@@ -1,4 +1,5 @@
 import ray
+# from ray.actor import ActorProxy
 import torch
 import uuid
 import inspect
@@ -14,6 +15,7 @@ from typing import Any, Optional
 Logger utility
 """
 
+
 def create_logger(name: str, log_level: str):
     match log_level:
         case "DEBUG":
@@ -24,38 +26,43 @@ def create_logger(name: str, log_level: str):
             log_level = logging.WARNING
         case "ERROR":
             log_level = logging.ERROR
-    
+
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
-    
+
     if not logger.handlers:
         handler = logging.StreamHandler()
         fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         handler.setFormatter(logging.Formatter(fmt))
         logger.addHandler(handler)
         logger.propagate = False
-    
+
     return logger
+
 
 """
 Piper thread local storage for tracking Piper actors, stages, and microbatches
 """
 
+
 class ThreadLocal(threading.local):
-    events = None
+    events: list[threading.Event] = None
     mb_idx = None
     actor_mutexes = None
 
+
 events_tls = ThreadLocal()
 
+
 class PiperMetadata:
-    actors = dict()
+    actors: dict[int, Any] = dict()
     dag = set()
-    currently_compiling = True
-    current_stage = None
-    current_actor = None
+    currently_compiling: bool = True
+    current_stage: int = None
+    current_actor: int = None
     first_graph_of_stage = None
-    parallelism_configs = {'dp': 1}
+    parallelism_configs = {"dp": 1}
+
 
 piper_metadata = PiperMetadata()
 
@@ -66,9 +73,11 @@ Remote tensors wrap Ray ObjectRefs
 _fake_tensor_mode = FakeTensorMode()
 _fake_tensor_converter = _fake_tensor_mode.fake_tensor_converter
 
+
 class RemoteTensorKey:
     def __init__(self):
         self.key = str(uuid.uuid4())
+
 
 class RemoteTensor(torch.Tensor):
     _fake: torch.Tensor
@@ -76,10 +85,12 @@ class RemoteTensor(torch.Tensor):
     _obj_ref: ray._raylet.ObjectRef
     _resolved: Any
 
-    def __new__(cls, 
-                fake: FakeTensor, 
-                obj_ref: ray._raylet.ObjectRef,
-                stage_id: Optional[int] = None):
+    def __new__(
+        cls,
+        fake: FakeTensor,
+        obj_ref: ray._raylet.ObjectRef,
+        stage_id: Optional[int] = None,
+    ):
         instance = torch.Tensor._make_wrapper_subclass(
             cls,
             fake.size(),
@@ -109,20 +120,22 @@ class RemoteTensor(torch.Tensor):
             else:
                 self._resolved = obj
         return self._resolved
-    
+
     def get_ref(self):
         return self._obj_ref
 
     def __torch_dispatch__(cls, func, types, args=(), kwargs=None):
         if piper_metadata.currently_compiling:
+
             def unwrap_fake(x):
                 if isinstance(x, RemoteTensor):
                     return x._fake
                 return x
+
             args = torch.utils._pytree.tree_map(unwrap_fake, args)
             kwargs = torch.utils._pytree.tree_map(unwrap_fake, kwargs or {})
             return func(*args, **kwargs)
-            
+
         def unwrap(x):
             if isinstance(x, RemoteTensor):
                 return x.get()
@@ -139,9 +152,11 @@ class RemoteTensor(torch.Tensor):
         out = func(*args, **kwargs)
         return out
 
+
 """
 Serialize/deserialize an fx.GraphModule
 """
+
 
 def encode_arg(a):
     if isinstance(a, fx.Node):
@@ -151,10 +166,12 @@ def encode_arg(a):
     if isinstance(a, torch.dtype):
         return {"__dtype__": str(a).replace("torch.", "")}
     if isinstance(a, slice):
-        return {"__slice__": True,
-                "start": encode_arg(a.start),
-                "stop": encode_arg(a.stop),
-                "step": encode_arg(a.step)}
+        return {
+            "__slice__": True,
+            "start": encode_arg(a.start),
+            "stop": encode_arg(a.stop),
+            "step": encode_arg(a.step),
+        }
     if a is Ellipsis:
         return {"__ellipsis__": True}
     if isinstance(a, tuple):  # <-- preserve tuples
@@ -164,6 +181,7 @@ def encode_arg(a):
     if isinstance(a, dict):
         return {k: encode_arg(v) for k, v in a.items()}
     return a
+
 
 def decode_arg(a, name_to_node):
     if isinstance(a, dict):
@@ -189,9 +207,13 @@ def decode_arg(a, name_to_node):
         return [decode_arg(x, name_to_node) for x in a]
     return a
 
+
 def _is_op_overload(obj):
     # Works across PyTorch versions without importing private types directly
-    return obj.__class__.__module__.startswith("torch._ops") or obj.__class__.__name__.startswith("OpOverload")
+    return obj.__class__.__module__.startswith(
+        "torch._ops"
+    ) or obj.__class__.__name__.startswith("OpOverload")
+
 
 def serialize_target(t):
     # print("SERIALIZING", t)
@@ -209,7 +231,10 @@ def serialize_target(t):
 
     # torch.ops.* (aten, prim, etc.)
     if _is_op_overload(t) or (getattr(t, "__module__", "").startswith("torch._ops")):
-        return {"kind": "torch_op", "path": str(t)}  # e.g. "aten.add.Tensor" or "aten.add"
+        return {
+            "kind": "torch_op",
+            "path": str(t),
+        }  # e.g. "aten.add.Tensor" or "aten.add"
 
     # regular python function or built-in
     if inspect.isfunction(t) or inspect.isbuiltin(t):
@@ -235,11 +260,13 @@ def serialize_target(t):
 
     raise NotImplementedError(f"Unsupported target type: {t} ({type(t)})")
 
+
 def _resolve_qualname(mod, qualname):
     obj = mod
     for part in qualname.split("."):
         obj = getattr(obj, part)
     return obj
+
 
 def deserialize_target(payload):
     # print("DESERIALIZING", payload)
@@ -264,20 +291,30 @@ def deserialize_target(payload):
 
     raise NotImplementedError(f"Unknown target kind: {kind}")
 
+
 def serialize_graphmodule(gm: fx.GraphModule) -> str:
     nodes = []
     for n in gm.graph.nodes:
-        nodes.append({
-            "name": n.name,
-            "op": n.op,
-            "target": serialize_target(n.target) if n.op in ("call_function", "call_method", "call_module", "get_attr") else None,
-            "args": encode_arg(n.args),
-            "kwargs": encode_arg(n.kwargs),
-        })
+        nodes.append(
+            {
+                "name": n.name,
+                "op": n.op,
+                "target": (
+                    serialize_target(n.target)
+                    if n.op
+                    in ("call_function", "call_method", "call_module", "get_attr")
+                    else None
+                ),
+                "args": encode_arg(n.args),
+                "kwargs": encode_arg(n.kwargs),
+            }
+        )
 
     data = {
         "nodes": nodes,
-        "state_dict": {k: v.detach().cpu().tolist() for k, v in gm.state_dict().items()},
+        "state_dict": {
+            k: v.detach().cpu().tolist() for k, v in gm.state_dict().items()
+        },
         # save which device parameters were on, optional:
         "param_devices": {k: str(v.device) for k, v in gm.state_dict().items()},
     }
@@ -288,12 +325,18 @@ def serialize_graphmodule(gm: fx.GraphModule) -> str:
 
     return serialized
 
+
 def _unwrap_output_arg(decoded):
     # FX stores output as (value,), where value may itself be a tuple.
     # Inductor expects the inner tuple directly.
-    if isinstance(decoded, (tuple, list)) and len(decoded) == 1 and isinstance(decoded[0], (tuple, list)):
+    if (
+        isinstance(decoded, (tuple, list))
+        and len(decoded) == 1
+        and isinstance(decoded[0], (tuple, list))
+    ):
         return decoded[0]
     return decoded
+
 
 def deserialize_graphmodule(s: str) -> fx.GraphModule:
     data = json.loads(s)
