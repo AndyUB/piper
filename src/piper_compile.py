@@ -222,6 +222,7 @@ def piper_setup(
     naive_gradient_sync=False,
     activation_checkpointing=False,
     bucketing=False,
+    bucket_size: int = 25 * 1024 * 1024,
     zero_stage: int = 0,
     schedule_name: str = "",
     visualize_dag_render: bool = True,
@@ -247,6 +248,7 @@ def piper_setup(
     piper_metadata.stage_to_device = stage_to_device
     piper_metadata.use_activation_checkpointing = activation_checkpointing
     piper_metadata.bucketing = bucketing
+    piper_metadata.bucket_size = bucket_size
     piper_metadata.schedule = schedule
     piper_metadata.zero_stage = zero_stage
     piper_metadata.schedule_name = schedule_name

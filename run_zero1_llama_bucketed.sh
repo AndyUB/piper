@@ -5,6 +5,18 @@ LOG_DIR="logs"
 mkdir -p "$LOG_DIR"
 
 MODEL="${1:-3b}"
+# Bucket sizes for ~2 buckets per stage:
+#   bs_3b:    7 layers/stage × ~100.67M params × 2B (bf16) / 2 = ~700 MB
+#   bs_debug: 2 layers/stage × ~3.80M params × 2B (bf16) / 2 = ~8 MB
+bs_3b=$((700 * 1024 * 1024))
+bs_debug=$((8 * 1024 * 1024))
+if [ -n "${2:-}" ]; then
+    BUCKET_SIZE="$2"
+elif [ "$MODEL" = "debug" ]; then
+    BUCKET_SIZE="$bs_debug"
+else
+    BUCKET_SIZE="$bs_3b"
+fi
 NSIGHT="${NSIGHT:-1}"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 LOG_FILE="$LOG_DIR/piper_zero1_bucketed_${MODEL}_${TIMESTAMP}.log"
@@ -28,6 +40,7 @@ python3 -m test.test_llama \
   --model "$MODEL" \
   --zero-stage 1 \
   --bucketing \
+  --bucket-size "$BUCKET_SIZE" \
   --tracing \
   --no-render-dag \
   ${NSIGHT:+--nsight} \

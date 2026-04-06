@@ -308,10 +308,10 @@ class PiperActor:
         allocated_gb = torch.cuda.memory_allocated() / (1024**3)
         reserved_gb = torch.cuda.memory_reserved() / (1024**3)
         peak_gb = torch.cuda.max_memory_allocated() / (1024**3)
-        # Full flat param buffers (reconstructed for FWD/BWD)
-        params_bytes = sum(t.nbytes for t in self.bucket_flat_params.values())
-        # Gradient flat buffers
-        grads_bytes = sum(t.nbytes for t in self.bucket_flat_grads.values())
+        # Full flat param buffers (None when freed between compute chains for ZeRO-3)
+        params_bytes = sum(t.nbytes for t in self.bucket_flat_params.values() if t is not None)
+        # Gradient flat buffers (None when freed after reduce-scatter for ZeRO-2/3)
+        grads_bytes = sum(t.nbytes for t in self.bucket_flat_grads.values() if t is not None)
         # Owned shard (smaller for ZeRO-1/2/3, same as params for ZeRO-0)
         shard_bytes = sum(t.nbytes for t in self.bucket_shard_params.values())
         params_gb = params_bytes / (1024**3)
@@ -930,6 +930,14 @@ class PiperActor:
         self.a2a_events = {}
         self.ar_events = {}
         self.rs_events = {}
+        # ZeRO-2/3: zero bucket_rs_grads so that RS accumulation (add_) starts from
+        # zero each iteration.  Do this on comp_stream so the zero completes before
+        # any BWD task writes gradients (BWD nodes sort after the preamble AGs/allocs).
+        if self.zero_stage >= 2:
+            with torch.cuda.stream(self.comp_stream):
+                for buf in self.bucket_rs_grads.values():
+                    if buf is not None:
+                        buf.zero_()
         # ZeRO-3: ag_events are populated by ALL_GATHER root nodes at the start of this
         # iteration.  For ZeRO-1/2 they persist from the previous iteration so that FWD
         # can wait on the prior iteration's all_gather; don't clear them here.
@@ -950,13 +958,24 @@ class PiperActor:
         # CUDA streams (e.g. a RECV alongside the preceding compute task), so
         # having two nodes of the same type at the same time_step would indicate
         # a scheduling error — assert against it before dispatching.
+        # Exception: ZeRO-2/3 legitimately insert multiple RS, AG, ALLOC_*, FREE_*
+        # nodes (one per stage/bucket/chunk) that may share a time_step.
+        _TS_MULTI_OK = {
+            TaskType.REDUCE_SCATTER,
+            TaskType.ALL_GATHER,
+            TaskType.ALLOC_FULL_GRADS,
+            TaskType.FREE_FULL_GRADS,
+            TaskType.ALLOC_FULL_PARAMS,
+            TaskType.FREE_FULL_PARAMS,
+        }
         sorted_nodes = sorted(dag.nodes, key=lambda n: n.time_step)
         ts_types: dict[int, set] = {}
         for node in sorted_nodes:
             ts, ttype = node.time_step, node.task.type
-            assert ttype not in ts_types.get(ts, set()), (
-                f"run_dag: time_step={ts} has two nodes of type {ttype}"
-            )
+            if ttype not in _TS_MULTI_OK:
+                assert ttype not in ts_types.get(ts, set()), (
+                    f"run_dag: time_step={ts} has two nodes of type {ttype}"
+                )
             ts_types.setdefault(ts, set()).add(ttype)
 
         for node in sorted_nodes:
@@ -1643,7 +1662,11 @@ class PiperActor:
                 f"REDUCE_SCATTER dispatched for {lookup_key} without allocated gradient buffers"
             )
             self._start_timing(self.comm_stream, "reduce_scatter")
-            dist.reduce_scatter_tensor(rs_out, flat_grads, group=self.dp_group)
+            # Use a temp buffer and add_ so multiple RSes per stage/bucket
+            # (ZeRO-2/3 per-BWD-chunk RS) accumulate correctly into rs_out.
+            tmp = torch.empty_like(rs_out)
+            dist.reduce_scatter_tensor(tmp, flat_grads, group=self.dp_group)
+            rs_out.add_(tmp)
             self._stop_timing(self.comm_stream, "reduce_scatter")
             evt = torch.cuda.Event()
             evt.record(self.comm_stream)

@@ -337,6 +337,7 @@ class PiperMetadata:
     naive_gradient_sync = False
     use_activation_checkpointing = False
     bucketing = False  # Whether to split stages into per-param-bucket sub-modules
+    bucket_size: int = 25 * 1024 * 1024  # Target bucket size in bytes (default 25 MB)
     schedule = None   # Schedule2D set by piper_setup; used by the piper backend
     task_dag = None   # TaskDAG built from schedule by the piper backend
     per_rank_dags = None  # Per-rank TaskDAGs built by the piper backend

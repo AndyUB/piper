@@ -13,7 +13,7 @@ RAY_TMP="${RAY_TMP:-/m-coriander/coriander/wxdeng/ray_tmp}"
 mkdir -p "$RAY_TMP"
 
 export RAY_TMPDIR="$RAY_TMP"
-export CUDA_VISIBLE_DEVICES="0,1"
+export CUDA_VISIBLE_DEVICES="4,7"
 export PYTHONUNBUFFERED=1
 export RAY_DEDUP_LOGS=0
 

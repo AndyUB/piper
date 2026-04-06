@@ -43,6 +43,8 @@ from .piper_graph_transform import (
     overlap_a2a_tasks,
     visualize_dag,
     print_dag_order,
+    print_dag_text,
+    print_per_rank_schedules,
     bucket_stage,
     split_by_a2a,
 )
@@ -114,7 +116,8 @@ def piper(gm, example_inputs, **kwargs):
 
         for seg_idx, (seg_gm, seg_in, seg_param, seg_args) in enumerate(a2a_segments):
             if piper_metadata.bucketing and seg_idx % 2 == 0:
-                buckets = bucket_stage(seg_gm, seg_args, seg_in, seg_param)
+                buckets = bucket_stage(seg_gm, seg_args, seg_in, seg_param,
+                                       bucket_size_bytes=piper_metadata.bucket_size)
                 if len(buckets) > 1:
                     logger.debug(
                         f"Stage {stage_id} segment {seg_idx} bucketed into {len(buckets)} buckets"
@@ -251,6 +254,10 @@ def piper(gm, example_inputs, **kwargs):
             per_rank_dags = insert_zero_ops(per_rank_dags, zero_stage)
             logger.debug(f"Inserted ZeRO-{zero_stage} collective nodes")
 
+        # Print textual DAG representations for debugging and schedule verification.
+        dag_label = f"{piper_metadata.schedule_name or 'sched'} zero{piper_metadata.zero_stage}"
+        print_dag_text(per_rank_dags, label=dag_label)
+        print_per_rank_schedules(per_rank_dags, label=dag_label)
 
         piper_metadata.per_rank_dags = per_rank_dags
         actors = piper_metadata.actors

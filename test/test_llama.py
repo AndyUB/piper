@@ -100,6 +100,7 @@ def main(args, pg):
         naive_gradient_sync=args.naive_grad_sync,
         activation_checkpointing=args.activation_checkpointing,
         bucketing=args.bucketing,
+        bucket_size=args.bucket_size,
         zero_stage=args.zero_stage,
         schedule_name=args.schedule,
         visualize_dag_render=not args.no_render_dag,
@@ -202,6 +203,8 @@ def parse_args():
     parser.add_argument('--activation-checkpointing', action='store_true', default=False)
     parser.add_argument('--bucketing', action='store_true', default=False,
                         help='Split stages into per-param-bucket sub-modules for overlapped all-reduce')
+    parser.add_argument('--bucket-size', type=int, default=25 * 1024 * 1024,
+                        help='Target bucket size in bytes for --bucketing (default 25 MB)')
     parser.add_argument('--zero-stage', type=int, default=0, choices=[0, 1, 2, 3],
                         help='ZeRO stage: 0=disabled, 1=optim states, 2=+gradients, 3=+parameters')
     parser.add_argument('--nsight', action='store_true', default=False,
@@ -221,7 +224,6 @@ if __name__ == "__main__":
         namespace="llama",
         log_to_driver=True,
         include_dashboard=False,
-        # _temp_dir="/m-coriander/coriander/mfris/piper/ray_tmp",
     )
     pg = placement_group([{"CPU": args.pp, "GPU": args.pp}] * args.dp, strategy="PACK")
     ray.get(pg.ready(), timeout=600)

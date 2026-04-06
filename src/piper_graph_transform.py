@@ -1789,7 +1789,43 @@ def _replace_all_reduce_with_reduce_scatter(rank_dag: TaskDAG) -> None:
     rank_dag.nodes = new_nodes
 
 
+def _chunk_by_gap(nodes: list, gap: int = 2) -> list:
+    """Group time_step-sorted nodes into chunks where consecutive gap <= `gap`.
+
+    Returns a list of lists, each inner list being one chunk.  Chunks are
+    separated whenever two consecutive nodes differ in time_step by more than
+    `gap`, allowing ZeRO ops to be grouped into meaningful computation blocks.
+    """
+    if not nodes:
+        return []
+    chunks: list = [[nodes[0]]]
+    for node in nodes[1:]:
+        if node.time_step - chunks[-1][-1].time_step <= gap:
+            chunks[-1].append(node)
+        else:
+            chunks.append([node])
+    return chunks
+
+
+def _remove_ar_nodes(rank_dag: TaskDAG) -> None:
+    """Remove ALL_REDUCE nodes and detach them from their predecessors/successors."""
+    ar_set = {id(n) for n in rank_dag.nodes if n.task.type == TaskType.ALL_REDUCE}
+    if not ar_set:
+        return
+    for n in rank_dag.nodes:
+        if id(n) not in ar_set:
+            n.data_preds = [p for p in n.data_preds if id(p) not in ar_set]
+            n.data_succs = [s for s in n.data_succs if id(s) not in ar_set]
+    rank_dag.nodes = [n for n in rank_dag.nodes if id(n) not in ar_set]
+
+
 def _insert_zero1_ops(rank_dag: TaskDAG) -> None:
+    """Insert post-UPD ALL_GATHER nodes for ZeRO-1/2.
+
+    AGs are ordered so s0 is dispatched *first* on comm_stream.  This means
+    FWD_s0 can start (on comp_stream) as soon as AG_s0 completes, while
+    AG_s1, AG_s2, … overlap with FWD_s0 on the communication stream.
+    """
     upd_node = next((n for n in rank_dag.nodes if n.task.type == TaskType.UPD), None)
     if upd_node is None:
         return
@@ -1798,12 +1834,15 @@ def _insert_zero1_ops(rank_dag: TaskDAG) -> None:
         for n in rank_dag.nodes
         if n.task.type in (TaskType.FWD, TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W)
     })
+    n_stages = len(stages)
     prev_ag = None
     for idx, stage_id in enumerate(stages):
+        # Give s0 the lowest time_step so it is dispatched first and completes
+        # earliest on comm_stream; subsequent stages can then overlap with FWD_s0.
         ag_node = TaskNode(
             task=Task(pp_rank=upd_node.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALL_GATHER),
             pp_rank=upd_node.pp_rank,
-            time_step=-20000 - idx,
+            time_step=-20000 - (n_stages - 1 - idx),
             bucket_id=-1,
         )
         upd_node.data_succs.append(ag_node)
@@ -1816,108 +1855,210 @@ def _insert_zero1_ops(rank_dag: TaskDAG) -> None:
 
 
 def _insert_zero2_ops(rank_dag: TaskDAG) -> None:
-    _replace_all_reduce_with_reduce_scatter(rank_dag)
+    """ZeRO-2: replace per-stage AR with per-BWD-chunk RS; add ALLOC/FREE_FULL_GRADS.
+
+    Grad buffer lifetime is minimised by chunking BWD tasks: consecutive BWD
+    tasks for the same stage (gap ≤ 2 time_steps) share one ALLOC/FREE cycle
+    and one RS per bucket.  Non-consecutive chunks each get their own cycle, and
+    bucket_rs_grads accumulates across chunks so the optimizer sees the correct
+    full gradient at UPD time.
+
+    Post-UPD ALL_GATHER (for param reconstruction) is inherited from ZeRO-1.
+    """
+    # Post-UPD AG to restore full params after optimizer step.
     _insert_zero1_ops(rank_dag)
 
-    bwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
-    rs_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
-    for node in rank_dag.nodes:
-        if node.task.type in (TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W):
-            bwd_by_stage[node.task.batches[0].stage_id].append(node)
-        if node.task.type == TaskType.REDUCE_SCATTER:
-            rs_by_stage[node.task.batches[0].stage_id].append(node)
+    # Remove the per-stage AR nodes inserted by insert_ar_ops; we will replace
+    # them with per-BWD-chunk RS nodes below.
+    _remove_ar_nodes(rank_dag)
 
-    prev_alloc = prev_free = None
-    for i, stage_id in enumerate(sorted(bwd_by_stage)):
-        first_bwd = min(bwd_by_stage[stage_id], key=lambda n: n.time_step)
-        last_sync = max(rs_by_stage.get(stage_id, bwd_by_stage[stage_id]), key=lambda n: n.time_step)
-        alloc = TaskNode(
-            task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_GRADS),
-            pp_rank=first_bwd.pp_rank,
-            time_step=-25000 - i,
-            bucket_id=-1,
-        )
-        free = TaskNode(
-            task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_GRADS),
-            pp_rank=first_bwd.pp_rank,
-            time_step=last_sync.time_step + 1,
-            bucket_id=-1,
-        )
-        alloc.data_succs.append(first_bwd)
-        first_bwd.data_preds.append(alloc)
-        last_sync.data_succs.append(free)
-        free.data_preds.append(last_sync)
-        if prev_alloc is not None:
-            prev_alloc.temporal_succs.append(alloc)
-            alloc.temporal_preds.append(prev_alloc)
-            prev_free.temporal_succs.append(free)
-            free.temporal_preds.append(prev_free)
-        prev_alloc, prev_free = alloc, free
-        rank_dag.nodes.extend([alloc, free])
+    _BWD_TYPES = {TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W}
+
+    # Collect BWD nodes sorted by time_step.
+    all_bwd = sorted(
+        [n for n in rank_dag.nodes if n.task.type in _BWD_TYPES],
+        key=lambda n: n.time_step,
+    )
+
+    all_stages = sorted({n.task.batches[0].stage_id for n in all_bwd})
+
+    for stage_id in all_stages:
+        stage_bwd = [n for n in all_bwd if n.task.batches[0].stage_id == stage_id]
+        # Chunk: consecutive BWDs with time_step gap ≤ 2 belong to the same cycle.
+        bwd_chunks = _chunk_by_gap(stage_bwd, gap=2)
+
+        for chunk_nodes in bwd_chunks:
+            first_bwd = chunk_nodes[0]
+            last_bwd = chunk_nodes[-1]
+
+            # ALLOC_FULL_GRADS just before the first BWD of this chunk.
+            alloc = TaskNode(
+                task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)],
+                          type=TaskType.ALLOC_FULL_GRADS),
+                pp_rank=first_bwd.pp_rank,
+                time_step=first_bwd.time_step - 1,
+                bucket_id=-1,
+            )
+            rank_dag.nodes.append(alloc)
+
+            # One RS per (stage, bucket) immediately after the last BWD of that
+            # bucket within this chunk.
+            bucket_ids = sorted({n.bucket_id for n in chunk_nodes})
+            last_rs_ts = last_bwd.time_step + 1
+            for bucket_id in bucket_ids:
+                bucket_bwd = [n for n in chunk_nodes if n.bucket_id == bucket_id]
+                if not bucket_bwd:
+                    continue
+                last_bucket_bwd = bucket_bwd[-1]
+                rs_ts = last_bucket_bwd.time_step + 1
+                last_rs_ts = max(last_rs_ts, rs_ts)
+                rs = TaskNode(
+                    task=Task(pp_rank=last_bucket_bwd.pp_rank,
+                              batches=list(last_bucket_bwd.task.batches),
+                              type=TaskType.REDUCE_SCATTER),
+                    pp_rank=last_bucket_bwd.pp_rank,
+                    time_step=rs_ts,
+                    bucket_id=bucket_id,
+                )
+                rs.data_preds.append(last_bucket_bwd)
+                last_bucket_bwd.data_succs.append(rs)
+                rank_dag.nodes.append(rs)
+
+            # FREE_FULL_GRADS appended *after* the last RS node at the same
+            # time_step so stable sort dispatches RS before FREE.
+            free = TaskNode(
+                task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)],
+                          type=TaskType.FREE_FULL_GRADS),
+                pp_rank=first_bwd.pp_rank,
+                time_step=last_rs_ts,
+                bucket_id=-1,
+            )
+            rank_dag.nodes.append(free)
 
 
 def _insert_zero3_ops(rank_dag: TaskDAG) -> None:
-    _replace_all_reduce_with_reduce_scatter(rank_dag)
+    """ZeRO-3: per-chunk ALLOC/AG/FREE params + per-BWD-chunk ALLOC/RS/FREE grads.
 
-    fwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
-    bwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
-    rs_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    Parameter lifetime is minimised by chunking *all* tasks (FWD + BWD) for each
+    stage: consecutive tasks with time_step gap ≤ 2 share one param alloc cycle.
+    Each param chunk gets:
+      ALLOC_FULL_PARAMS(first.t - 2)  → AG(first.t - 1)  → FREE_FULL_PARAMS(last.t + 1)
+
+    Within each param chunk, BWD tasks are sub-chunked (gap ≤ 2) and each BWD
+    chunk gets its own grad alloc cycle (same as ZeRO-2's per-BWD-chunk RS):
+      ALLOC_FULL_GRADS(first_bwd.t - 1)  → per-bucket RS(last_bucket_bwd.t + 1)
+      → FREE_FULL_GRADS(last_rs_ts)
+
+    This does NOT call _insert_zero1_ops (no post-UPD AG) or
+    _replace_all_reduce_with_reduce_scatter (AR nodes are removed and RS nodes are
+    inserted here directly).
+    """
+    # Remove any AR nodes that insert_ar_ops added; we insert RS below ourselves.
+    _remove_ar_nodes(rank_dag)
+
+    _FWD_BWD_TYPES = {TaskType.FWD, TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W}
+    _BWD_TYPES = {TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W}
+
+    # Collect compute nodes per stage, sorted by time_step.
+    compute_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
     for node in rank_dag.nodes:
-        stage_id = node.task.batches[0].stage_id
-        if node.task.type == TaskType.FWD:
-            fwd_by_stage[stage_id].append(node)
-        elif node.task.type in (TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W):
-            bwd_by_stage[stage_id].append(node)
-        elif node.task.type == TaskType.REDUCE_SCATTER:
-            rs_by_stage[stage_id].append(node)
+        if node.task.type in _FWD_BWD_TYPES:
+            compute_by_stage[node.task.batches[0].stage_id].append(node)
 
-    prev_alloc_params = prev_ag = prev_alloc_grads = prev_free_grads = prev_free_params = None
-    for i, stage_id in enumerate(sorted(fwd_by_stage)):
-        first_fwd = min(fwd_by_stage[stage_id], key=lambda n: n.time_step)
-        bwd_nodes = bwd_by_stage.get(stage_id, [])
-        if not bwd_nodes:
-            continue
-        last_bwd = max(bwd_nodes, key=lambda n: n.time_step)
-        last_sync = max(rs_by_stage.get(stage_id, bwd_nodes), key=lambda n: n.time_step)
+    for stage_id in sorted(compute_by_stage):
+        all_compute = sorted(compute_by_stage[stage_id], key=lambda n: n.time_step)
+        pp_rank = all_compute[0].pp_rank
 
-        alloc_params = TaskNode(
-            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_PARAMS),
-            pp_rank=first_fwd.pp_rank, time_step=-30000 - i, bucket_id=-1,
-        )
-        ag = TaskNode(
-            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALL_GATHER),
-            pp_rank=first_fwd.pp_rank, time_step=-29500 - i, bucket_id=-1,
-        )
-        alloc_grads = TaskNode(
-            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_GRADS),
-            pp_rank=first_fwd.pp_rank, time_step=-29000 - i, bucket_id=-1,
-        )
-        free_grads = TaskNode(
-            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_GRADS),
-            pp_rank=first_fwd.pp_rank, time_step=last_sync.time_step + 1, bucket_id=-1,
-        )
-        free_params = TaskNode(
-            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_PARAMS),
-            pp_rank=first_fwd.pp_rank, time_step=last_bwd.time_step + 2, bucket_id=-1,
-        )
+        # ── Param chunks: consecutive FWD+BWD with gap ≤ 2 ──────────────────
+        param_chunks = _chunk_by_gap(all_compute, gap=2)
 
-        alloc_params.data_succs.append(ag); ag.data_preds.append(alloc_params)
-        ag.data_succs.append(first_fwd); first_fwd.data_preds.append(ag)
-        alloc_grads.data_succs.append(min(bwd_nodes, key=lambda n: n.time_step))
-        min(bwd_nodes, key=lambda n: n.time_step).data_preds.append(alloc_grads)
-        last_sync.data_succs.append(free_grads); free_grads.data_preds.append(last_sync)
-        last_bwd.data_succs.append(free_params); free_params.data_preds.append(last_bwd)
+        for param_chunk in param_chunks:
+            first_node = param_chunk[0]
+            last_node = param_chunk[-1]
 
-        if prev_alloc_params is not None:
-            prev_alloc_params.temporal_succs.append(alloc_params); alloc_params.temporal_preds.append(prev_alloc_params)
-            prev_ag.temporal_succs.append(ag); ag.temporal_preds.append(prev_ag)
-            prev_alloc_grads.temporal_succs.append(alloc_grads); alloc_grads.temporal_preds.append(prev_alloc_grads)
-            prev_free_grads.temporal_succs.append(free_grads); free_grads.temporal_preds.append(prev_free_grads)
-            prev_free_params.temporal_succs.append(free_params); free_params.temporal_preds.append(prev_free_params)
-        prev_alloc_params, prev_ag = alloc_params, ag
-        prev_alloc_grads, prev_free_grads = alloc_grads, free_grads
-        prev_free_params = free_params
-        rank_dag.nodes.extend([alloc_params, ag, alloc_grads, free_grads, free_params])
+            # ALLOC_FULL_PARAMS(t-2) → AG(t-1) so both land before first compute.
+            alloc_params = TaskNode(
+                task=Task(pp_rank=pp_rank, batches=[BatchMeta(stage_id, 0)],
+                          type=TaskType.ALLOC_FULL_PARAMS),
+                pp_rank=pp_rank,
+                time_step=first_node.time_step - 2,
+                bucket_id=-1,
+            )
+            ag = TaskNode(
+                task=Task(pp_rank=pp_rank, batches=[BatchMeta(stage_id, 0)],
+                          type=TaskType.ALL_GATHER),
+                pp_rank=pp_rank,
+                time_step=first_node.time_step - 1,
+                bucket_id=-1,
+            )
+            # FREE_FULL_PARAMS immediately after last node in chunk.
+            free_params = TaskNode(
+                task=Task(pp_rank=pp_rank, batches=[BatchMeta(stage_id, 0)],
+                          type=TaskType.FREE_FULL_PARAMS),
+                pp_rank=pp_rank,
+                time_step=last_node.time_step + 1,
+                bucket_id=-1,
+            )
+
+            ag.data_succs.append(first_node)
+            first_node.data_preds.append(ag)
+
+            # Append ALLOC before AG, FREE last so stable sort keeps the correct order.
+            rank_dag.nodes.append(alloc_params)
+            rank_dag.nodes.append(ag)
+
+            # ── BWD sub-chunks within this param chunk ────────────────────────
+            bwd_in_chunk = [n for n in param_chunk if n.task.type in _BWD_TYPES]
+            bwd_sub_chunks = _chunk_by_gap(bwd_in_chunk, gap=2)
+
+            for bwd_chunk in bwd_sub_chunks:
+                first_bwd = bwd_chunk[0]
+                last_bwd = bwd_chunk[-1]
+
+                alloc_grads = TaskNode(
+                    task=Task(pp_rank=pp_rank, batches=[BatchMeta(stage_id, 0)],
+                              type=TaskType.ALLOC_FULL_GRADS),
+                    pp_rank=pp_rank,
+                    time_step=first_bwd.time_step - 1,
+                    bucket_id=-1,
+                )
+                rank_dag.nodes.append(alloc_grads)
+
+                # One RS per (stage, bucket) after the last BWD for that bucket.
+                bucket_ids = sorted({n.bucket_id for n in bwd_chunk})
+                last_rs_ts = last_bwd.time_step + 1
+                for bucket_id in bucket_ids:
+                    bucket_bwd = [n for n in bwd_chunk if n.bucket_id == bucket_id]
+                    if not bucket_bwd:
+                        continue
+                    last_bucket_bwd = bucket_bwd[-1]
+                    rs_ts = last_bucket_bwd.time_step + 1
+                    last_rs_ts = max(last_rs_ts, rs_ts)
+                    rs = TaskNode(
+                        task=Task(pp_rank=pp_rank,
+                                  batches=list(last_bucket_bwd.task.batches),
+                                  type=TaskType.REDUCE_SCATTER),
+                        pp_rank=pp_rank,
+                        time_step=rs_ts,
+                        bucket_id=bucket_id,
+                    )
+                    rs.data_preds.append(last_bucket_bwd)
+                    last_bucket_bwd.data_succs.append(rs)
+                    rank_dag.nodes.append(rs)
+
+                # FREE_FULL_GRADS appended after RS nodes so stable sort fires RS first.
+                free_grads = TaskNode(
+                    task=Task(pp_rank=pp_rank, batches=[BatchMeta(stage_id, 0)],
+                              type=TaskType.FREE_FULL_GRADS),
+                    pp_rank=pp_rank,
+                    time_step=last_rs_ts,
+                    bucket_id=-1,
+                )
+                rank_dag.nodes.append(free_grads)
+
+            # FREE_FULL_PARAMS appended last in this param chunk so it sorts after
+            # any FREE_FULL_GRADS / RS at the same time_step.
+            rank_dag.nodes.append(free_params)
 
 
 def insert_zero_ops(per_rank_dags: list, zero_stage: int) -> list:
@@ -1985,6 +2126,19 @@ def insert_ar_ops(per_rank_dags: list, trainable_bucket_keys: set | None = None)
             new_nodes.append(ar_node)
 
         rank_dag.nodes.extend(new_nodes)
+
+        # Ensure UPD dispatches *after* all AR/RS nodes on this rank.
+        # insert_ar_ops sets ar_node.time_step = trigger_node.time_step + 1.
+        # The trigger BWD node's time_step also feeds UPD via assign_time_steps,
+        # so UPD and the AR/RS nodes can end up with identical time_steps.
+        # Python's stable sort preserves insertion order, putting UPD before AR/RS
+        # and causing _update() to miss RS events → optimizer runs on stale grads.
+        # Fix: bump UPD's time_step above the maximum AR/RS time_step on this rank.
+        if new_nodes:
+            max_ar_ts = max(n.time_step for n in new_nodes)
+            upd = next((n for n in rank_dag.nodes if n.task.type == TaskType.UPD), None)
+            if upd is not None and upd.time_step <= max_ar_ts:
+                upd.time_step = max_ar_ts + 1
 
     return per_rank_dags
 
@@ -2254,6 +2408,54 @@ def print_dag_order(dag: TaskDAG, label: str = "") -> None:
             if in_degree[id(succ)] == 0:
                 queue.append(succ)
     print("-" * len(header))
+
+
+def _node_short(node: "TaskNode") -> str:
+    """One-line description of a node for DAG text output."""
+    task = node.task
+    ttype = task.type.value if task.type is not None else "?"
+    batches = ",".join(f"s{b.stage_id}mb{b.mb_idx}" for b in task.batches) if task.batches else "-"
+    bkt = f" bkt={node.bucket_id}" if node.bucket_id is not None and node.bucket_id != 0 else ""
+    return f"[r{node.pp_rank} t={node.time_step:6d} {ttype:<18s} {batches}{bkt}]"
+
+
+def print_dag_text(per_rank_dags: list, label: str = "") -> None:
+    """Print a complete textual representation of the final per-rank DAGs.
+
+    For each node (sorted by pp_rank then time_step), prints its type/batches/
+    bucket and lists all outgoing data and temporal edges.  This reflects the
+    final DAG state after all transformation passes (P2P, AR, ZeRO).
+    """
+    header = f"=== DAG text{': ' + label if label else ''} ==="
+    print(header)
+    all_nodes = []
+    for rank_dag in per_rank_dags:
+        all_nodes.extend(rank_dag.nodes)
+    all_nodes.sort(key=lambda n: (n.pp_rank, n.time_step))
+    for node in all_nodes:
+        print(f"  {_node_short(node)}")
+        for s in node.data_succs:
+            print(f"      data  --> {_node_short(s)}")
+        for s in node.temporal_succs:
+            print(f"      temp  --> {_node_short(s)}")
+    print("=" * len(header))
+
+
+def print_per_rank_schedules(per_rank_dags: list, label: str = "") -> None:
+    """Print each rank's execution schedule in dispatch order (sorted by time_step).
+
+    This matches the order that ``run_dag`` actually dispatches tasks to actors,
+    making it directly useful for verifying correctness of the schedule.
+    """
+    header = f"=== Per-rank execution schedules{': ' + label if label else ''} ==="
+    print(header)
+    for rank_dag in per_rank_dags:
+        rank = rank_dag.nodes[0].pp_rank if rank_dag.nodes else "?"
+        print(f"  -- Rank {rank} --")
+        sorted_nodes = sorted(rank_dag.nodes, key=lambda n: n.time_step)
+        for step, node in enumerate(sorted_nodes):
+            print(f"    {step:4d}  {_node_short(node)}")
+    print("=" * len(header))
 
 
 # ---------------------------------------------------------------------------
