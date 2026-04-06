@@ -222,6 +222,9 @@ class PiperActor:
         self.bucket_shard_params: dict = {}
         # (stage_id, bucket_id) -> shard optimizer
         self.bucket_shard_optims: dict = {}
+        # (stage_id, bucket_id) -> metadata for remapping parameter views:
+        # list[(param_tensor, offset, numel, shape)]
+        self.bucket_param_view_specs: dict = {}
         # (stage_id, bucket_id) -> output buffer for reduce_scatter result (ZeRO-2/3)
         self.bucket_rs_grads: dict = {}
         # (stage_id, bucket_id) -> CUDA event after reduce_scatter
@@ -823,27 +826,43 @@ class PiperActor:
 
                 # Map each param's data to its slice of flat_params (post-padding).
                 offset = 0
+                view_specs = []
                 for idx, p in zip(trainable_idxs, trainable):
                     numel = p.numel()
                     realized[idx] = realized[idx].detach()
                     realized[idx].data = flat_params[offset:offset + numel].view(p.shape)
                     realized[idx].requires_grad_(True)
+                    view_specs.append((realized[idx], offset, numel, tuple(p.shape)))
                     offset += numel
-
-                self.bucket_flat_params[(stage_id, b_idx)] = flat_params
-                self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
+                self.bucket_param_view_specs[(stage_id, b_idx)] = view_specs
 
                 # ZeRO: create per-shard optimizer that owns only this rank's slice.
                 if self.zero_stage > 0 and self.dp_degree > 1:
                     shard_start = self.dp_rank * shard_size
-                    shard_param = flat_params.new_empty(shard_size)
-                    shard_param.data = flat_params[shard_start:shard_start + shard_size]
+                    # ZeRO-1/2 keep full params resident, so the optimizer shard can
+                    # be a view into flat_params (no extra storage). ZeRO-3 frees
+                    # full params between compute chains, so it needs owned shard storage.
+                    if self.zero_stage == 3:
+                        shard_param = flat_params[shard_start:shard_start + shard_size].detach().clone()
+                    else:
+                        shard_param = flat_params[shard_start:shard_start + shard_size]
                     shard_param.requires_grad_(True)
                     self.bucket_shard_params[(stage_id, b_idx)] = shard_param
                     self.bucket_shard_optims[(stage_id, b_idx)] = self.optim_class([shard_param])
                     self.bucket_rs_grads[(stage_id, b_idx)] = flat_params.new_zeros(shard_size)
                     self.param_shard_info[(stage_id, b_idx)] = (shard_start, shard_size, orig_numel)
+                    if self.zero_stage == 3:
+                        # ZeRO-3 keeps only shard params resident between compute chains.
+                        self.bucket_flat_params[(stage_id, b_idx)] = None
+                        self.bucket_flat_grads[(stage_id, b_idx)] = None
+                    else:
+                        self.bucket_flat_params[(stage_id, b_idx)] = flat_params
+                        self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
+                else:
+                    self.bucket_flat_params[(stage_id, b_idx)] = flat_params
+                    self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
             else:
+                self.bucket_param_view_specs[(stage_id, b_idx)] = []
                 self.bucket_flat_params[(stage_id, b_idx)] = None
                 self.bucket_flat_grads[(stage_id, b_idx)] = None
 
@@ -917,21 +936,11 @@ class PiperActor:
         if self.zero_stage == 3:
             self.ag_events = {}
 
-        # Point each trainable param's .grad at the appropriate slice of its
-        # bucket's flat_grads tensor so backward accumulates contiguously.
-        for (s_id, b_idx), trainable_idxs in self.bucket_trainable_param_idxs.items():
-            flat_grads = self.bucket_flat_grads.get((s_id, b_idx))
-            if flat_grads is None:
-                continue
-            flat_grads.zero_()
-            args = self.bucket_fwd_args[s_id][b_idx]
-            offset = 0
-            for i in trainable_idxs:
-                p = args[i]
-                if p is not None:
-                    numel = p.numel()
-                    p.grad = flat_grads[offset:offset + numel].view(p.shape)
-                    offset += numel
+        # ZeRO-0/1 keep full gradients resident; bind gradient views once per iteration.
+        if self.zero_stage <= 1:
+            stage_ids = {key[0] for key in self.bucket_trainable_param_idxs}
+            for stage_id in stage_ids:
+                self._alloc_full_grads_for_stage(stage_id)
 
         self.recv_buffer = {}
         self.recv_events = {}
@@ -1038,6 +1047,18 @@ class PiperActor:
                     self._nvtx_push(f"all_gather_s{stage_id}_b{bucket_id}")
                     self._exec_all_gather(stage_id, bucket_id)
                     self._nvtx_pop()
+
+                case TaskType.ALLOC_FULL_GRADS:
+                    self._alloc_full_grads_for_stage(stage_id)
+
+                case TaskType.FREE_FULL_GRADS:
+                    self._free_full_grads_for_stage(stage_id)
+
+                case TaskType.ALLOC_FULL_PARAMS:
+                    self._alloc_full_params_for_stage(stage_id)
+
+                case TaskType.FREE_FULL_PARAMS:
+                    self._free_full_params_for_stage(stage_id)
 
                 case TaskType.FWD:
                     bucket_id = node.bucket_id
@@ -1211,6 +1232,8 @@ class PiperActor:
         # On the first iteration ag_events is empty so the wait is skipped.
         if self.zero_stage > 0:
             ag_evt = self.ag_events.get((stage_id, bucket_id))
+            if ag_evt is None:
+                ag_evt = self.ag_events.get((stage_id, None))
             if ag_evt is not None:
                 comp_stream.wait_event(ag_evt)
 
@@ -1545,6 +1568,65 @@ class PiperActor:
             evt.record(self.comm_stream)
         self.ar_events[(stage_id, bucket_id)] = evt
 
+    def _alloc_full_params_for_stage(self, stage_id: int) -> None:
+        """Allocate full flat params for all buckets in a stage and rebind parameter views."""
+        if self.zero_stage != 3:
+            return
+        for key, (shard_start, shard_size, _orig_numel) in self.param_shard_info.items():
+            if key[0] != stage_id:
+                continue
+            full = self.bucket_flat_params.get(key)
+            if full is None:
+                full = self.bucket_shard_params[key].new_empty(shard_size * self.dp_degree)
+                self.bucket_flat_params[key] = full
+            for param, offset, numel, shape in self.bucket_param_view_specs.get(key, []):
+                param.data = full[offset:offset + numel].view(shape)
+                param.requires_grad_(True)
+
+    def _free_full_params_for_stage(self, stage_id: int) -> None:
+        """Drop full flat params for all stage buckets and clear parameter views."""
+        if self.zero_stage != 3:
+            return
+        for key in list(self.param_shard_info.keys()):
+            if key[0] != stage_id:
+                continue
+            for param, *_ in self.bucket_param_view_specs.get(key, []):
+                param.grad = None
+                param.data = torch.empty_like(param)
+            self.bucket_flat_params[key] = None
+
+    def _alloc_full_grads_for_stage(self, stage_id: int) -> None:
+        """Allocate full flat grads for all stage buckets and bind .grad views."""
+        for key, specs in self.bucket_param_view_specs.items():
+            if key[0] != stage_id or not specs:
+                continue
+            flat_grads = self.bucket_flat_grads.get(key)
+            if flat_grads is None:
+                shard_info = self.param_shard_info.get(key)
+                if shard_info is None:
+                    continue
+                _shard_start, shard_size, _orig_numel = shard_info
+                flat_grads = self.bucket_shard_params[key].new_zeros(shard_size * self.dp_degree)
+                self.bucket_flat_grads[key] = flat_grads
+            else:
+                flat_grads.zero_()
+            for param, offset, numel, shape in specs:
+                param.grad = flat_grads[offset:offset + numel].view(shape)
+
+    def _free_full_grads_for_stage(self, stage_id: int) -> None:
+        """Release full flat grads for all stage buckets and clear stale grad views."""
+        if self.zero_stage in (2, 3):
+            for evt_key, evt in self.rs_events.items():
+                if evt_key[0] == stage_id:
+                    self.comp_stream.wait_event(evt)
+        for key, specs in self.bucket_param_view_specs.items():
+            if key[0] != stage_id:
+                continue
+            for param, *_ in specs:
+                param.grad = None
+            if self.zero_stage in (2, 3):
+                self.bucket_flat_grads[key] = None
+
     def _exec_reduce_scatter(self, stage_id: int, bucket_id: int, bwd_event: torch.cuda.Event) -> None:
         """Launch a reduce-scatter for a stage/bucket's gradients (ZeRO-2/3).
 
@@ -1557,6 +1639,9 @@ class PiperActor:
             self.comm_stream.wait_event(bwd_event)
             flat_grads = self.bucket_flat_grads.get(lookup_key)
             rs_out = self.bucket_rs_grads.get(lookup_key)
+            assert flat_grads is not None and rs_out is not None, (
+                f"REDUCE_SCATTER dispatched for {lookup_key} without allocated gradient buffers"
+            )
             self._start_timing(self.comm_stream, "reduce_scatter")
             dist.reduce_scatter_tensor(rs_out, flat_grads, group=self.dp_group)
             self._stop_timing(self.comm_stream, "reduce_scatter")
@@ -1574,19 +1659,25 @@ class PiperActor:
         Records an event in ``ag_events`` which ``_forward_dag`` waits on before
         executing the stage's computation.
         """
-        lookup_key = (stage_id, bucket_id)
-        shard_info = self.param_shard_info.get(lookup_key)
-        if shard_info is None:
+        stage_keys = []
+        if bucket_id < 0:
+            stage_keys = sorted(k for k in self.param_shard_info if k[0] == stage_id)
+        else:
+            stage_keys = [(stage_id, bucket_id)]
+        if not stage_keys:
             return
-        flat_params = self.bucket_flat_params[lookup_key]
-        shard_in = self.bucket_shard_params[lookup_key]
         with torch.cuda.stream(self.comm_stream):
             self._start_timing(self.comm_stream, "all_gather")
-            dist.all_gather_into_tensor(flat_params, shard_in, group=self.dp_group)
+            for lookup_key in stage_keys:
+                flat_params = self.bucket_flat_params.get(lookup_key)
+                shard_in = self.bucket_shard_params.get(lookup_key)
+                if flat_params is None or shard_in is None:
+                    continue
+                dist.all_gather_into_tensor(flat_params, shard_in, group=self.dp_group)
             self._stop_timing(self.comm_stream, "all_gather")
             evt = torch.cuda.Event()
             evt.record(self.comm_stream)
-        self.ag_events[lookup_key] = evt
+        self.ag_events[(stage_id, None if bucket_id < 0 else bucket_id)] = evt
 
     def _backward_weight_dag(self, stage_id: int, mb_idx: int, *, loss_fn=None) -> None:
         """Backward-weight pass for DAG execution (ZeroBubble split backward).

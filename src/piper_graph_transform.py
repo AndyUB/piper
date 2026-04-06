@@ -1756,141 +1756,182 @@ def insert_p2p_ops(dag: TaskDAG) -> list[TaskDAG]:
     return [TaskDAG(nodes=rank_nodes[r]) for r in sorted(rank_nodes)]
 
 
+def _replace_all_reduce_with_reduce_scatter(rank_dag: TaskDAG) -> None:
+    node_map: dict = {}
+    new_nodes: list = []
+    for node in rank_dag.nodes:
+        if node.task.type != TaskType.ALL_REDUCE:
+            node_map[id(node)] = node
+            new_nodes.append(node)
+            continue
+        rs_node = TaskNode(
+            task=Task(
+                pp_rank=node.task.pp_rank,
+                batches=list(node.task.batches),
+                type=TaskType.REDUCE_SCATTER,
+            ),
+            pp_rank=node.pp_rank,
+            time_step=node.time_step,
+            peer_pp_rank=node.peer_pp_rank,
+            bucket_id=node.bucket_id,
+        )
+        rs_node.data_preds = list(node.data_preds)
+        rs_node.data_succs = list(node.data_succs)
+        rs_node.temporal_preds = list(node.temporal_preds)
+        rs_node.temporal_succs = list(node.temporal_succs)
+        node_map[id(node)] = rs_node
+        new_nodes.append(rs_node)
+    for node in new_nodes:
+        node.data_preds = [node_map.get(id(p), p) for p in node.data_preds]
+        node.data_succs = [node_map.get(id(s), s) for s in node.data_succs]
+        node.temporal_preds = [node_map.get(id(p), p) for p in node.temporal_preds]
+        node.temporal_succs = [node_map.get(id(s), s) for s in node.temporal_succs]
+    rank_dag.nodes = new_nodes
+
+
+def _insert_zero1_ops(rank_dag: TaskDAG) -> None:
+    upd_node = next((n for n in rank_dag.nodes if n.task.type == TaskType.UPD), None)
+    if upd_node is None:
+        return
+    stages = sorted({
+        n.task.batches[0].stage_id
+        for n in rank_dag.nodes
+        if n.task.type in (TaskType.FWD, TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W)
+    })
+    prev_ag = None
+    for idx, stage_id in enumerate(stages):
+        ag_node = TaskNode(
+            task=Task(pp_rank=upd_node.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALL_GATHER),
+            pp_rank=upd_node.pp_rank,
+            time_step=-20000 - idx,
+            bucket_id=-1,
+        )
+        upd_node.data_succs.append(ag_node)
+        ag_node.data_preds.append(upd_node)
+        if prev_ag is not None:
+            prev_ag.temporal_succs.append(ag_node)
+            ag_node.temporal_preds.append(prev_ag)
+        prev_ag = ag_node
+        rank_dag.nodes.append(ag_node)
+
+
+def _insert_zero2_ops(rank_dag: TaskDAG) -> None:
+    _replace_all_reduce_with_reduce_scatter(rank_dag)
+    _insert_zero1_ops(rank_dag)
+
+    bwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    rs_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    for node in rank_dag.nodes:
+        if node.task.type in (TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W):
+            bwd_by_stage[node.task.batches[0].stage_id].append(node)
+        if node.task.type == TaskType.REDUCE_SCATTER:
+            rs_by_stage[node.task.batches[0].stage_id].append(node)
+
+    prev_alloc = prev_free = None
+    for i, stage_id in enumerate(sorted(bwd_by_stage)):
+        first_bwd = min(bwd_by_stage[stage_id], key=lambda n: n.time_step)
+        last_sync = max(rs_by_stage.get(stage_id, bwd_by_stage[stage_id]), key=lambda n: n.time_step)
+        alloc = TaskNode(
+            task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_GRADS),
+            pp_rank=first_bwd.pp_rank,
+            time_step=-25000 - i,
+            bucket_id=-1,
+        )
+        free = TaskNode(
+            task=Task(pp_rank=first_bwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_GRADS),
+            pp_rank=first_bwd.pp_rank,
+            time_step=last_sync.time_step + 1,
+            bucket_id=-1,
+        )
+        alloc.data_succs.append(first_bwd)
+        first_bwd.data_preds.append(alloc)
+        last_sync.data_succs.append(free)
+        free.data_preds.append(last_sync)
+        if prev_alloc is not None:
+            prev_alloc.temporal_succs.append(alloc)
+            alloc.temporal_preds.append(prev_alloc)
+            prev_free.temporal_succs.append(free)
+            free.temporal_preds.append(prev_free)
+        prev_alloc, prev_free = alloc, free
+        rank_dag.nodes.extend([alloc, free])
+
+
+def _insert_zero3_ops(rank_dag: TaskDAG) -> None:
+    _replace_all_reduce_with_reduce_scatter(rank_dag)
+
+    fwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    bwd_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    rs_by_stage: dict[int, list[TaskNode]] = defaultdict(list)
+    for node in rank_dag.nodes:
+        stage_id = node.task.batches[0].stage_id
+        if node.task.type == TaskType.FWD:
+            fwd_by_stage[stage_id].append(node)
+        elif node.task.type in (TaskType.BWD, TaskType.BWD_I, TaskType.BWD_W):
+            bwd_by_stage[stage_id].append(node)
+        elif node.task.type == TaskType.REDUCE_SCATTER:
+            rs_by_stage[stage_id].append(node)
+
+    prev_alloc_params = prev_ag = prev_alloc_grads = prev_free_grads = prev_free_params = None
+    for i, stage_id in enumerate(sorted(fwd_by_stage)):
+        first_fwd = min(fwd_by_stage[stage_id], key=lambda n: n.time_step)
+        bwd_nodes = bwd_by_stage.get(stage_id, [])
+        if not bwd_nodes:
+            continue
+        last_bwd = max(bwd_nodes, key=lambda n: n.time_step)
+        last_sync = max(rs_by_stage.get(stage_id, bwd_nodes), key=lambda n: n.time_step)
+
+        alloc_params = TaskNode(
+            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_PARAMS),
+            pp_rank=first_fwd.pp_rank, time_step=-30000 - i, bucket_id=-1,
+        )
+        ag = TaskNode(
+            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALL_GATHER),
+            pp_rank=first_fwd.pp_rank, time_step=-29500 - i, bucket_id=-1,
+        )
+        alloc_grads = TaskNode(
+            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.ALLOC_FULL_GRADS),
+            pp_rank=first_fwd.pp_rank, time_step=-29000 - i, bucket_id=-1,
+        )
+        free_grads = TaskNode(
+            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_GRADS),
+            pp_rank=first_fwd.pp_rank, time_step=last_sync.time_step + 1, bucket_id=-1,
+        )
+        free_params = TaskNode(
+            task=Task(pp_rank=first_fwd.pp_rank, batches=[BatchMeta(stage_id, 0)], type=TaskType.FREE_FULL_PARAMS),
+            pp_rank=first_fwd.pp_rank, time_step=last_bwd.time_step + 2, bucket_id=-1,
+        )
+
+        alloc_params.data_succs.append(ag); ag.data_preds.append(alloc_params)
+        ag.data_succs.append(first_fwd); first_fwd.data_preds.append(ag)
+        alloc_grads.data_succs.append(min(bwd_nodes, key=lambda n: n.time_step))
+        min(bwd_nodes, key=lambda n: n.time_step).data_preds.append(alloc_grads)
+        last_sync.data_succs.append(free_grads); free_grads.data_preds.append(last_sync)
+        last_bwd.data_succs.append(free_params); free_params.data_preds.append(last_bwd)
+
+        if prev_alloc_params is not None:
+            prev_alloc_params.temporal_succs.append(alloc_params); alloc_params.temporal_preds.append(prev_alloc_params)
+            prev_ag.temporal_succs.append(ag); ag.temporal_preds.append(prev_ag)
+            prev_alloc_grads.temporal_succs.append(alloc_grads); alloc_grads.temporal_preds.append(prev_alloc_grads)
+            prev_free_grads.temporal_succs.append(free_grads); free_grads.temporal_preds.append(prev_free_grads)
+            prev_free_params.temporal_succs.append(free_params); free_params.temporal_preds.append(prev_free_params)
+        prev_alloc_params, prev_ag = alloc_params, ag
+        prev_alloc_grads, prev_free_grads = alloc_grads, free_grads
+        prev_free_params = free_params
+        rank_dag.nodes.extend([alloc_params, ag, alloc_grads, free_grads, free_params])
+
+
 def insert_zero_ops(per_rank_dags: list, zero_stage: int) -> list:
-    """Insert REDUCE_SCATTER and ALL_GATHER nodes for ZeRO-1/2/3.
-
-    ZeRO-1 (optimizer-state sharding): keeps existing ALL_REDUCE nodes; adds one
-        ALL_GATHER per (stage, bucket) chained after the UPD node so that each rank's
-        parameter shard update is broadcast back into the full flat_params buffer.
-
-    ZeRO-2 (gradient + optimizer-state sharding): replaces every ALL_REDUCE node with
-        REDUCE_SCATTER so each rank receives only the gradient shard it needs; then adds
-        ALL_GATHER after UPD as in ZeRO-1.
-
-    ZeRO-3 (parameter + gradient + optimizer-state sharding): replaces ALL_REDUCE with
-        REDUCE_SCATTER; adds one ALL_GATHER per (stage, bucket) as a root node that is a
-        data predecessor of the first FWD node for that (stage, bucket), so parameters are
-        gathered before each stage's forward pass and freed (implicitly) after its backward.
-
-    Args:
-        per_rank_dags: Per-rank TaskDAGs, one per pipeline rank.
-        zero_stage: ZeRO stage (1, 2, or 3).
-
-    Returns:
-        Modified per-rank DAGs with ZeRO collective nodes inserted.
-    """
     if zero_stage == 0:
         return per_rank_dags
-
     for rank_dag in per_rank_dags:
-
-        # --- ZeRO-2/3: replace ALL_REDUCE nodes with REDUCE_SCATTER ---
-        if zero_stage >= 2:
-            node_map: dict = {}
-            new_nodes: list = []
-            for node in rank_dag.nodes:
-                if node.task.type == TaskType.ALL_REDUCE:
-                    rs_task = Task(
-                        pp_rank=node.task.pp_rank,
-                        batches=list(node.task.batches),
-                        type=TaskType.REDUCE_SCATTER,
-                    )
-                    new_node = TaskNode(
-                        task=rs_task,
-                        pp_rank=node.pp_rank,
-                        time_step=node.time_step,
-                        peer_pp_rank=node.peer_pp_rank,
-                        bucket_id=node.bucket_id,
-                    )
-                    # Copy edges from the old ALL_REDUCE node so the rewiring
-                    # loop below can remap any references through node_map.
-                    new_node.data_preds = list(node.data_preds)
-                    new_node.data_succs = list(node.data_succs)
-                    new_node.temporal_preds = list(node.temporal_preds)
-                    new_node.temporal_succs = list(node.temporal_succs)
-                    node_map[id(node)] = new_node
-                    new_nodes.append(new_node)
-                else:
-                    node_map[id(node)] = node
-                    new_nodes.append(node)
-            # Rewire all edges through the mapping.
-            for node in new_nodes:
-                node.data_preds = [node_map.get(id(p), p) for p in node.data_preds]
-                node.data_succs = [node_map.get(id(s), s) for s in node.data_succs]
-                node.temporal_preds = [node_map.get(id(p), p) for p in node.temporal_preds]
-                node.temporal_succs = [node_map.get(id(s), s) for s in node.temporal_succs]
-            rank_dag.nodes = new_nodes
-
-        # --- ZeRO-1/2: add ALL_GATHER after UPD ---
-        if zero_stage in (1, 2):
-            upd_node = next((n for n in rank_dag.nodes if n.task.type == TaskType.UPD), None)
-            if upd_node is None:
-                continue
-
-            # Collect all (stage, bucket) pairs owned by this rank.
-            sb_pairs: set = set()
-            for node in rank_dag.nodes:
-                if node.task.type in (
-                    TaskType.FWD, TaskType.BWD, TaskType.BWD_I,
-                    TaskType.ALL_REDUCE, TaskType.REDUCE_SCATTER,
-                ):
-                    sb_pairs.add((node.task.batches[0].stage_id, node.bucket_id))
-
-            ag_chain: list = []
-            for stage_id, bucket_id in sorted(sb_pairs):
-                ag_task = Task(
-                    pp_rank=upd_node.pp_rank,
-                    batches=[BatchMeta(stage_id=stage_id, mb_idx=0)],
-                    type=TaskType.ALL_GATHER,
-                )
-                ag_node = TaskNode(
-                    task=ag_task,
-                    pp_rank=upd_node.pp_rank,
-                    time_step=-20000 - len(ag_chain),
-                    bucket_id=bucket_id,
-                )
-                # Data edge from UPD so topological sort places AG after UPD.
-                upd_node.data_succs.append(ag_node)
-                ag_node.data_preds.append(upd_node)
-                # Temporal chain among AG nodes for sequential NCCL ordering.
-                if ag_chain:
-                    ag_chain[-1].temporal_succs.append(ag_node)
-                    ag_node.temporal_preds.append(ag_chain[-1])
-                ag_chain.append(ag_node)
-                rank_dag.nodes.append(ag_node)
-
-        # --- ZeRO-3: add ALL_GATHER before first FWD per (stage, bucket) ---
-        if zero_stage == 3:
-            fwd_groups: dict = defaultdict(list)
-            for node in rank_dag.nodes:
-                if node.task.type == TaskType.FWD:
-                    s = node.task.batches[0].stage_id
-                    fwd_groups[(s, node.bucket_id)].append(node)
-
-            ag_roots: list = []
-            for (stage_id, bucket_id), group in sorted(fwd_groups.items()):
-                first_fwd = min(group, key=lambda n: n.time_step)
-                ag_task = Task(
-                    pp_rank=first_fwd.pp_rank,
-                    batches=[BatchMeta(stage_id=stage_id, mb_idx=0)],
-                    type=TaskType.ALL_GATHER,
-                )
-                ag_node = TaskNode(
-                    task=ag_task,
-                    pp_rank=first_fwd.pp_rank,
-                    time_step=-30000 - len(ag_roots),
-                    bucket_id=bucket_id,
-                )
-                # Data edge: AG must complete before the first FWD for this (stage, bucket).
-                ag_node.data_succs.append(first_fwd)
-                first_fwd.data_preds.append(ag_node)
-                # Temporal chain among root AG nodes for sequential NCCL ordering.
-                if ag_roots:
-                    ag_roots[-1].temporal_succs.append(ag_node)
-                    ag_node.temporal_preds.append(ag_roots[-1])
-                ag_roots.append(ag_node)
-                rank_dag.nodes.append(ag_node)
-
+        if zero_stage == 1:
+            _insert_zero1_ops(rank_dag)
+        elif zero_stage == 2:
+            _insert_zero2_ops(rank_dag)
+        elif zero_stage == 3:
+            _insert_zero3_ops(rank_dag)
+        else:
+            raise ValueError(f"Unsupported ZeRO stage: {zero_stage}")
     return per_rank_dags
 
 
@@ -1970,6 +2011,10 @@ def _task_node_label(node: TaskNode) -> str:
         TaskType.ALL_REDUCE:     "AR",
         TaskType.REDUCE_SCATTER: "RS",
         TaskType.ALL_GATHER:     "AG",
+        TaskType.ALLOC_FULL_GRADS: "AGr+",
+        TaskType.FREE_FULL_GRADS: "AGr-",
+        TaskType.ALLOC_FULL_PARAMS: "AP+",
+        TaskType.FREE_FULL_PARAMS: "AP-",
         TaskType.FWD_A2A:        "F_A2A",
         TaskType.BWD_A2A:        "B_A2A",
     }.get(task.type, "?")
@@ -1977,7 +2022,11 @@ def _task_node_label(node: TaskNode) -> str:
     if task.type == TaskType.UPD:
         return type_abbrev
 
-    if task.type in (TaskType.ALL_REDUCE, TaskType.REDUCE_SCATTER, TaskType.ALL_GATHER):
+    if task.type in (
+        TaskType.ALL_REDUCE, TaskType.REDUCE_SCATTER, TaskType.ALL_GATHER,
+        TaskType.ALLOC_FULL_GRADS, TaskType.FREE_FULL_GRADS,
+        TaskType.ALLOC_FULL_PARAMS, TaskType.FREE_FULL_PARAMS,
+    ):
         stage_id = task.batches[0].stage_id
         return f"{type_abbrev} S{stage_id} b{node.bucket_id}"
 

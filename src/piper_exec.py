@@ -28,6 +28,10 @@ class TaskType(Enum):
     ALL_REDUCE = "all_reduce"
     REDUCE_SCATTER = "reduce_scatter"   # ZeRO-2/3: scatter+reduce gradients to each rank's shard
     ALL_GATHER = "all_gather"           # ZeRO-1/2/3: gather parameter shards to restore full params
+    ALLOC_FULL_GRADS = "alloc_full_grads"
+    FREE_FULL_GRADS = "free_full_grads"
+    ALLOC_FULL_PARAMS = "alloc_full_params"
+    FREE_FULL_PARAMS = "free_full_params"
     FWD_A2A = "forward_a2a"
     BWD_A2A = "backward_a2a"
 
