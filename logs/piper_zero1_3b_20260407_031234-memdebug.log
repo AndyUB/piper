@@ -1,0 +1,1186 @@
+Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=2, iters=5, trace_iters=3, tracing=True, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, bucket_size=26214400, zero_stage=1, nsight=True, no_render_dag=True, no_nvtx=False, mem_debug=True)
+2026-04-07 03:12:46,356	INFO worker.py:2007 -- Started a local Ray instance.
+/m-coriander/coriander/wxdeng/conda-envs/piper_ref/lib/python3.10/site-packages/ray/_private/worker.py:2046: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+{'placement_group_id': '7b138f40cb9688d6b308b09bbc1301000000', 'name': '', 'bundles': {0: {'GPU': 2.0, 'CPU': 2.0}, 1: {'GPU': 2.0, 'CPU': 2.0}}, 'bundles_to_node_id': {0: '6fe62bcf8cb4f34dc0965c36a423f57fcc7fa853005e5ef495362aba', 1: '6fe62bcf8cb4f34dc0965c36a423f57fcc7fa853005e5ef495362aba'}, 'strategy': 'PACK', 'state': 'CREATED', 'stats': {'end_to_end_creation_latency_ms': 2.542, 'scheduling_latency_ms': 2.4, 'scheduling_attempt': 1, 'highest_retry_delay_ms': 0.0, 'scheduling_state': 'FINISHED'}}
+[36m(run_dp_rank pid=2799105)[0m Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=1, iters=1, trace_iters=3, tracing=False, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, bucket_size=26214400, zero_stage=1, nsight=True, no_render_dag=True, no_nvtx=False, mem_debug=True)
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:13:00,689 - piper_coordinator - DEBUG - Running DP rank 1 of 2 with 10.158.48.71:59619 as master address
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:13:00,758 - piper_coordinator - DEBUG - Running DP rank 2 of 2 with 10.158.48.71:59619 as master address
+[36m(run_dp_rank pid=2799000)[0m Namespace(model='3b', schedule='interleaved-1f1b', dp=2, pp=2, batch_size=16, mbs=4, seq_len=256, warmup=1, iters=1, trace_iters=3, tracing=False, naive_grad_sync=False, activation_checkpointing=False, bucketing=False, bucket_size=26214400, zero_stage=1, nsight=True, no_render_dag=True, no_nvtx=False, mem_debug=True)
+[36m(run_dp_rank pid=2799105)[0m Schedule:
+[36m(run_dp_rank pid=2799105)[0m 0:0:f    	0:1:f    	2:0:f    	2:1:f    	 ------ 	0:2:f    	2:0:b    	0:3:f    	2:1:b    	2:2:f    	0:0:b    	2:3:f    	0:1:b    	 ------ 	2:2:b    	2:3:b    	0:2:b    	0:3:b    	
+[36m(run_dp_rank pid=2799105)[0m  ------ 	1:0:f    	1:1:f    	3:0:f    	3:0:b    	3:1:f    	3:1:b    	1:2:f    	1:0:b    	1:3:f    	1:1:b    	3:2:f    	3:2:b    	3:3:f    	3:3:b    	1:2:b    	1:3:b    	 ------ 	
+[36m(run_dp_rank pid=2799000)[0m Schedule:
+[36m(run_dp_rank pid=2799000)[0m 0:0:f    	0:1:f    	2:0:f    	2:1:f    	 ------ 	0:2:f    	2:0:b    	0:3:f    	2:1:b    	2:2:f    	0:0:b    	2:3:f    	0:1:b    	 ------ 	2:2:b    	2:3:b    	0:2:b    	0:3:b    	
+[36m(run_dp_rank pid=2799000)[0m  ------ 	1:0:f    	1:1:f    	3:0:f    	3:0:b    	3:1:f    	3:1:b    	1:2:f    	1:0:b    	1:3:f    	1:1:b    	3:2:f    	3:2:b    	3:3:f    	3:3:b    	1:2:b    	1:3:b    	 ------ 	
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:13:03,981 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 3acef239fc5bd8940c73be1601000000) global rank 0
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:13:03,983 - piper_actor - DEBUG - DP rank 0 created actor Actor(PiperActor, 0b70ee949f9e2cffc8487ade01000000) global rank 1
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:13:04,067 - piper_actor - DEBUG - DP rank 1 created actor Actor(PiperActor, cec501ee83d8d0c201adbdb601000000) global rank 2
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:13:04,068 - piper_actor - DEBUG - DP rank 1 created actor Actor(PiperActor, d23fbf01d4b9abf9a9eaeb3801000000) global rank 3
+[33m(raylet)[0m [2026-04-07 03:14:33,725 E 2798397 2798397] (raylet) worker_pool.cc:586: Some workers of the worker process(2830145) have not registered within the timeout. The process is still alive, probably it's hanging during start.
+[33m(raylet)[0m [2026-04-07 03:14:33,738 E 2798397 2798397] (raylet) worker_pool.cc:586: Some workers of the worker process(2830146) have not registered within the timeout. The process is still alive, probably it's hanging during start.
+[33m(raylet)[0m [2026-04-07 03:14:33,792 E 2798397 2798397] (raylet) worker_pool.cc:586: Some workers of the worker process(2830147) have not registered within the timeout. The process is still alive, probably it's hanging during start.
+[33m(raylet)[0m [2026-04-07 03:14:33,808 E 2798397 2798397] (raylet) worker_pool.cc:586: Some workers of the worker process(2830148) have not registered within the timeout. The process is still alive, probably it's hanging during start.
+[33m(raylet)[0m WARNING: GPU initialization took too long. Please run the NVIDIA persistence daemon.
+[33m(raylet)[0m For more information, visit the following page:
+[33m(raylet)[0m https://docs.nvidia.com/deploy/driver-persistence/index.html#persistence-daemon
+[33m(raylet)[0m 
+[33m(raylet)[0m WARNING: GPU initialization took too long. Please run the NVIDIA persistence daemon.
+[33m(raylet)[0m For more information, visit the following page:
+[33m(raylet)[0m https://docs.nvidia.com/deploy/driver-persistence/index.html#persistence-daemon
+[33m(raylet)[0m 
+[33m(raylet)[0m WARNING: GPU initialization took too long. Please run the NVIDIA persistence daemon.
+[33m(raylet)[0m For more information, visit the following page:
+[33m(raylet)[0m https://docs.nvidia.com/deploy/driver-persistence/index.html#persistence-daemon
+[33m(raylet)[0m 
+[33m(raylet)[0m WARNING: GPU initialization took too long. Please run the NVIDIA persistence daemon.
+[33m(raylet)[0m For more information, visit the following page:
+[33m(raylet)[0m https://docs.nvidia.com/deploy/driver-persistence/index.html#persistence-daemon
+[33m(raylet)[0m 
+[36m(pid=2832694)[0m [2026-04-07 03:14:36,177 E 2832694 2832694] core_worker_process.cc:224: Failed to register worker to Raylet: Invalid: Invalid: Unknown worker worker_id=da8b97b366ad91ed555775cd059298534772e170e51d63c15ae9ec8d
+[36m(pid=2832867)[0m [2026-04-07 03:14:36,931 E 2832867 2832867] core_worker_process.cc:224: Failed to register worker to Raylet: Invalid: Invalid: Unknown worker worker_id=b8bc08d0e0ec156405cfd38865680ec8b6dc65dd37f7454cdf9742d2
+[36m(pid=2832787)[0m [2026-04-07 03:14:37,227 E 2832787 2832787] core_worker_process.cc:224: Failed to register worker to Raylet: Invalid: Invalid: Unknown worker worker_id=5074288b2735fa85f3f202facf5b4b70d7cc881999404116cff26fdf
+[36m(pid=2832934)[0m [2026-04-07 03:14:37,357 E 2832934 2832934] core_worker_process.cc:224: Failed to register worker to Raylet: Invalid: Invalid: Unknown worker worker_id=c6741e2f01a8f0733a113c212ee830a84d1665c0841df6df0942b256
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:19,384 - piper_actor - DEBUG - Initializing Ray actor 0 GPU 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:20,880 - piper_actor - DEBUG - Initializing Ray actor 1 GPU 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:21,826 - piper_actor - DEBUG - Initializing Ray actor 2 GPU 2
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:21,893 - piper_compile - DEBUG - Master address for process groups: 10.158.48.71:46331
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:21,895 - piper_actor - INFO - Actor 0 using GPU 0, master addr 10.158.48.71:46331
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:21,945 - piper_actor - DEBUG - Initializing Ray actor 3 GPU 3
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:22,066 - piper_compile - DEBUG - Master address for process groups: 10.158.48.71:46331
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:24,425 - piper_actor - INFO - Actor 1 using GPU 1, master addr 10.158.48.71:46331
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:25,338 - piper_actor - DEBUG - Actor 1 has GPU 1, joined the global process group
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:25,341 - piper_actor - DEBUG - Global rank 1 joined its dp group 1 along with ranks [1, 3]
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:25,342 - piper_actor - INFO - Global rank 1 warmed up pp communicators
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:25,503 - piper_actor - INFO - Actor 2 using GPU 2, master addr 10.158.48.71:46331
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:25,560 - piper_actor - INFO - Actor 3 using GPU 3, master addr 10.158.48.71:46331
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:25,823 - piper_actor - DEBUG - Actor 0 has GPU 0, joined the global process group
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:25,825 - piper_actor - DEBUG - Global rank 0 joined its dp group 0 along with ranks [0, 2]
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:25,827 - piper_actor - INFO - Global rank 0 warmed up pp communicators
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:25,808 - piper_actor - DEBUG - Actor 2 has GPU 2, joined the global process group
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:25,811 - piper_actor - DEBUG - Global rank 2 joined its dp group 0 along with ranks [0, 2]
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:25,813 - piper_actor - INFO - Global rank 2 warmed up pp communicators
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:25,818 - piper_actor - DEBUG - Actor 3 has GPU 3, joined the global process group
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:25,821 - piper_actor - DEBUG - Global rank 3 joined its dp group 1 along with ranks [1, 3]
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:25,823 - piper_actor - INFO - Global rank 3 warmed up pp communicators
+[36m(run_dp_rank pid=2799105)[0m Model size: 3607 M parameters (6.72 GB), dtype: torch.bfloat16
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:26,474 - piper_compile - INFO - DP rank 1 waiting for dp_rank=0 to finish compiling...
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:31,436 - piper_backend - DEBUG - Graph has stage annotations: True
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:31,437 - piper_graph_transform - DEBUG - Found stage nodes in graph
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:32,156 - piper_actor - DEBUG - Loading stage 0 (1 module(s)) on actor 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:32,355 - piper_actor - DEBUG - Loading stage 1 (1 module(s)) on actor 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:35,340 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:35,341 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:35,497 - piper_actor - DEBUG - Actor 1 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:35,497 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 1...
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,722 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,773 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,773 - piper_actor - DEBUG - Stage 0 module 0 input indices: [1]
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,914 - piper_actor - DEBUG - Loading stage 2 (1 module(s)) on actor 0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,914 - piper_actor - DEBUG - Actor 0 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,915 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 0...
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,936 - piper_actor - DEBUG - Actor 0 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,986 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:37,986 - piper_actor - DEBUG - Stage 2 module 0 input indices: [0]
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,876 - piper_actor - DEBUG - Actor 1 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,926 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,926 - piper_actor - DEBUG - Stage 1 module 0 input indices: [0]
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,961 - piper_actor - DEBUG - Loading stage 3 (1 module(s)) on actor 1
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,961 - piper_actor - DEBUG - Actor 1 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,962 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 1...
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:37,981 - piper_actor - DEBUG - Actor 1 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:38,031 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:38,031 - piper_actor - DEBUG - Stage 3 module 0 input indices: [0]
+[36m(run_dp_rank pid=2799105)[0m === DAG text: interleaved-1f1b zero1 ===
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=-20001 all_gather         s0mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=-20000 all_gather         s2mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=-20000 all_gather         s2mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     0 forward            s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     1 send               s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     1 forward            s0mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     1 forward            s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     2 send               s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     2 forward            s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     1 send               s0mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     1 recv               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     2 forward            s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     2 forward            s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     3 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     3 forward            s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     2 send               s0mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     2 recv               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     3 forward            s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     3 forward            s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     4 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     4 forward            s0mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     3 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     4 forward            s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     5 send               s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     5 backward           s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     4 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     4 recv               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     5 backward           s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     5 backward           s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     6 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     6 forward            s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     5 send               s0mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     6 forward            s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     7 send               s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     7 backward           s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     6 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     6 recv               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     7 backward           s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     7 backward           s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     8 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     8 forward            s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     7 send               s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     7 recv               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     8 forward            s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     8 forward            s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     9 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=     9 backward           s0mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     8 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     8 recv               s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=     9 backward           s0mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     9 backward           s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    10 forward            s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     9 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=     9 recv               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    10 forward            s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    10 forward            s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    11 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    11 backward           s0mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    10 recv               s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    11 backward           s0mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    11 backward           s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    12 backward           s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    11 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    11 recv               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    12 backward           s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    12 backward           s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    13 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    13 backward           s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    12 recv               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    13 backward           s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    13 backward           s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    14 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    13 all_reduce         s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    14 backward           s0mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    13 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    13 recv               s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    14 backward           s0mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    13 all_reduce         s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    14 backward           s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    15 backward           s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    14 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    14 recv               s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    15 backward           s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    15 backward           s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=    15 all_reduce         s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r0 t=    16 update             s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    15 all_reduce         s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r0 t=    16 update             s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=-20001 all_gather         s0mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r0 t=-20000 all_gather         s2mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=-20001 all_gather         s1mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=-20000 all_gather         s3mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=-20000 all_gather         s3mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    -1 recv               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     0 forward            s1mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     0 forward            s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     1 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     1 forward            s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     0 recv               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     1 forward            s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     1 forward            s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     2 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     2 forward            s3mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     1 recv               s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     2 forward            s3mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     1 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     2 forward            s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     3 backward           s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     3 backward           s3mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     2 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     3 backward           s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     4 send               s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     4 forward            s3mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     3 recv               s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     4 forward            s3mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     4 forward            s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     5 backward           s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     5 backward           s3mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     4 send               s3mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     5 backward           s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     6 send               s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     6 forward            s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     5 recv               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     6 forward            s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     6 forward            s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     7 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     7 backward           s1mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     6 recv               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     7 backward           s1mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     6 send               s3mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     7 backward           s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     8 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     8 forward            s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     7 recv               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     8 forward            s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     7 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     8 forward            s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     9 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=     9 backward           s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     8 recv               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=     9 backward           s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     8 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     9 backward           s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    10 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    10 forward            s3mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     9 recv               s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    10 forward            s3mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=     9 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    10 forward            s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    11 backward           s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    11 backward           s3mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    10 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    11 backward           s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    12 send               s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    12 forward            s3mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    11 recv               s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    12 forward            s3mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    12 forward            s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    13 backward           s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    13 backward           s3mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    12 send               s3mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    13 backward           s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    14 send               s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    13 all_reduce         s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    14 backward           s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    13 recv               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    14 backward           s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    13 all_reduce         s3mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    14 backward           s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    15 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    15 backward           s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    14 recv               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    15 backward           s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    14 send               s3mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    15 backward           s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    16 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=    15 all_reduce         s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       temp  --> [r1 t=    16 update             s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    15 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    15 all_reduce         s1mb3]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    16 update             s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=-20001 all_gather         s1mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m       data  --> [r1 t=-20000 all_gather         s3mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m   [r1 t=    16 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m ========================================
+[36m(run_dp_rank pid=2799105)[0m === Per-rank execution schedules: interleaved-1f1b zero1 ===
+[36m(run_dp_rank pid=2799105)[0m   -- Rank 0 --
+[36m(run_dp_rank pid=2799105)[0m        0  [r0 t=-20001 all_gather         s0mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m        1  [r0 t=-20000 all_gather         s2mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m        2  [r0 t=     0 forward            s0mb0]
+[36m(run_dp_rank pid=2799105)[0m        3  [r0 t=     1 forward            s0mb1]
+[36m(run_dp_rank pid=2799105)[0m        4  [r0 t=     1 send               s0mb0]
+[36m(run_dp_rank pid=2799105)[0m        5  [r0 t=     1 recv               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m        6  [r0 t=     2 forward            s2mb0]
+[36m(run_dp_rank pid=2799105)[0m        7  [r0 t=     2 send               s0mb1]
+[36m(run_dp_rank pid=2799105)[0m        8  [r0 t=     2 recv               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m        9  [r0 t=     3 forward            s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       10  [r0 t=     3 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       11  [r0 t=     4 forward            s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       12  [r0 t=     4 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       13  [r0 t=     4 recv               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       14  [r0 t=     5 backward           s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       15  [r0 t=     5 send               s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       16  [r0 t=     6 forward            s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       17  [r0 t=     6 send               s2mb0]
+[36m(run_dp_rank pid=2799105)[0m       18  [r0 t=     6 recv               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       19  [r0 t=     7 backward           s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       20  [r0 t=     7 send               s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       21  [r0 t=     7 recv               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       22  [r0 t=     8 forward            s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       23  [r0 t=     8 send               s2mb1]
+[36m(run_dp_rank pid=2799105)[0m       24  [r0 t=     8 recv               s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       25  [r0 t=     9 backward           s0mb0]
+[36m(run_dp_rank pid=2799105)[0m       26  [r0 t=     9 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       27  [r0 t=     9 recv               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       28  [r0 t=    10 forward            s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       29  [r0 t=    10 recv               s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       30  [r0 t=    11 backward           s0mb1]
+[36m(run_dp_rank pid=2799105)[0m       31  [r0 t=    11 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       32  [r0 t=    11 recv               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       33  [r0 t=    12 backward           s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       34  [r0 t=    12 recv               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       35  [r0 t=    13 backward           s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       36  [r0 t=    13 send               s2mb2]
+[36m(run_dp_rank pid=2799105)[0m       37  [r0 t=    13 recv               s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       38  [r0 t=    13 all_reduce         s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       39  [r0 t=    14 backward           s0mb2]
+[36m(run_dp_rank pid=2799105)[0m       40  [r0 t=    14 send               s2mb3]
+[36m(run_dp_rank pid=2799105)[0m       41  [r0 t=    14 recv               s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       42  [r0 t=    15 backward           s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       43  [r0 t=    15 all_reduce         s0mb3]
+[36m(run_dp_rank pid=2799105)[0m       44  [r0 t=    16 update             s0mb3]
+[36m(run_dp_rank pid=2799105)[0m   -- Rank 1 --
+[36m(run_dp_rank pid=2799105)[0m        0  [r1 t=-20001 all_gather         s1mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m        1  [r1 t=-20000 all_gather         s3mb0 bkt=-1]
+[36m(run_dp_rank pid=2799105)[0m        2  [r1 t=    -1 recv               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m        3  [r1 t=     0 forward            s1mb0]
+[36m(run_dp_rank pid=2799105)[0m        4  [r1 t=     0 recv               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m        5  [r1 t=     1 forward            s1mb1]
+[36m(run_dp_rank pid=2799105)[0m        6  [r1 t=     1 recv               s3mb0]
+[36m(run_dp_rank pid=2799105)[0m        7  [r1 t=     1 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m        8  [r1 t=     2 forward            s3mb0]
+[36m(run_dp_rank pid=2799105)[0m        9  [r1 t=     2 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       10  [r1 t=     3 backward           s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       11  [r1 t=     3 recv               s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       12  [r1 t=     4 forward            s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       13  [r1 t=     4 send               s3mb0]
+[36m(run_dp_rank pid=2799105)[0m       14  [r1 t=     5 backward           s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       15  [r1 t=     5 recv               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       16  [r1 t=     6 forward            s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       17  [r1 t=     6 recv               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       18  [r1 t=     6 send               s3mb1]
+[36m(run_dp_rank pid=2799105)[0m       19  [r1 t=     7 backward           s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       20  [r1 t=     7 recv               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       21  [r1 t=     7 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       22  [r1 t=     8 forward            s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       23  [r1 t=     8 recv               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       24  [r1 t=     8 send               s1mb0]
+[36m(run_dp_rank pid=2799105)[0m       25  [r1 t=     9 backward           s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       26  [r1 t=     9 recv               s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       27  [r1 t=     9 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       28  [r1 t=    10 forward            s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       29  [r1 t=    10 send               s1mb1]
+[36m(run_dp_rank pid=2799105)[0m       30  [r1 t=    11 backward           s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       31  [r1 t=    11 recv               s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       32  [r1 t=    12 forward            s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       33  [r1 t=    12 send               s3mb2]
+[36m(run_dp_rank pid=2799105)[0m       34  [r1 t=    13 backward           s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       35  [r1 t=    13 recv               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       36  [r1 t=    13 all_reduce         s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       37  [r1 t=    14 backward           s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       38  [r1 t=    14 recv               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       39  [r1 t=    14 send               s3mb3]
+[36m(run_dp_rank pid=2799105)[0m       40  [r1 t=    15 backward           s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       41  [r1 t=    15 send               s1mb2]
+[36m(run_dp_rank pid=2799105)[0m       42  [r1 t=    15 all_reduce         s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       43  [r1 t=    16 update             s1mb3]
+[36m(run_dp_rank pid=2799105)[0m       44  [r1 t=    16 send               s1mb3]
+[36m(run_dp_rank pid=2799105)[0m ============================================================
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,060 - piper_backend - DEBUG - Built task DAG: 34 nodes, 28 data edges, 32 temporal edges
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,060 - piper_backend - DEBUG - Inserted ALL_REDUCE nodes for DP gradient sync
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,060 - piper_backend - DEBUG - Inserted ZeRO-1 collective nodes
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,069 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,070 - piper_graph_transform - WARNING - graphviz Python package not installed; skipping DAG visualisation
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,073 - piper_backend - DEBUG - Loaded per-rank DAGs onto 2 actors
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,757 - piper_backend - WARNING - Should not directly call compiled module, running non-distributed execution
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:38,758 - piper_compile - INFO - DP rank 0 stage graphs loaded onto actors.
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:41,292 - piper_compile - INFO - DP rank 0 published compiled stage data.
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:41,312 - piper_compile - INFO - DP rank 1 received compiled stage data, loading onto actors...
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:41,298 - piper_actor - DEBUG - Actor 0 loaded inputs 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:41,329 - piper_actor - DEBUG - Loading stage 0 (1 module(s)) on actor 2
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:41,327 - piper_actor - DEBUG - Loading stage 1 (1 module(s)) on actor 3
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:44,286 - piper_actor - DEBUG - Actor 2 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:44,287 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 2...
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:44,311 - piper_actor - DEBUG - Actor 3 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:44,311 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 3...
+[36m(run_dp_rank pid=2799105)[0m Running 1 warmup iterations...
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:46,210 - piper_compile - INFO - DP rank 0 real inputs/labels loaded onto actors.
+[36m(run_dp_rank pid=2799105)[0m 2026-04-07 03:15:46,210 - piper_compile - INFO - DP rank 0 done.
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:15:46,216 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s0 mb0 bkt=-1
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:46,199 - piper_actor - DEBUG - Actor 1 loaded labels torch.Size([16, 256, 128256])
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:15:46,216 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s1 mb0 bkt=-1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,284 - piper_actor - DEBUG - Actor 2 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,279 - piper_actor - DEBUG - Actor 3 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,336 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,337 - piper_actor - DEBUG - Stage 0 module 0 input indices: [1]
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,329 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,329 - piper_actor - DEBUG - Stage 1 module 0 input indices: [0]
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,496 - piper_actor - DEBUG - Loading stage 2 (1 module(s)) on actor 2
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,497 - piper_actor - DEBUG - Actor 2 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,497 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 2...
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,460 - piper_actor - DEBUG - Loading stage 3 (1 module(s)) on actor 3
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,460 - piper_actor - DEBUG - Actor 3 imported and initialized Triton kernel modules
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,461 - piper_actor - DEBUG - Manually registering Triton kernel at index 0 on actor 3...
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,660 - piper_actor - DEBUG - Actor 3 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,709 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:46,709 - piper_actor - DEBUG - Stage 3 module 0 input indices: [0]
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,808 - piper_actor - DEBUG - Actor 2 registered kernel at id_to_kernel[0] (copied from index 0)
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,858 - piper_actor - DEBUG - _replace_meta_constants: No meta device tensors found to replace! (checked 0 submodules)
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:46,858 - piper_actor - DEBUG - Stage 2 module 0 input indices: [0]
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:47,716 - piper_compile - INFO - DP rank 1 stage graphs and DAGs loaded onto actors.
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:47,720 - piper_actor - DEBUG - Actor 2 loaded inputs 1
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:51,392 - piper_compile - INFO - DP rank 1 real inputs/labels loaded onto actors.
+[36m(run_dp_rank pid=2799000)[0m 2026-04-07 03:15:51,393 - piper_compile - INFO - DP rank 1 done.
+[36m(run_dp_rank pid=2799000)[0m Running 1 warmup iterations...
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:15:51,398 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s0 mb0 bkt=-1
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:51,382 - piper_actor - DEBUG - Actor 3 loaded labels torch.Size([16, 256, 128256])
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:15:51,397 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s1 mb0 bkt=-1
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:05,115 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s3 mb0 bkt=-1
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:05,117 - piper_actor - DEBUG - run_dag dispatch (time -1): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:05,117 - piper_actor - DEBUG - exec_recv key ((1, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m [rank3]:[W407 03:16:05.576321131 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:05,263 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s3 mb0 bkt=-1
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:05,264 - piper_actor - DEBUG - run_dag dispatch (time -1): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:05,265 - piper_actor - DEBUG - exec_recv key ((1, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m [rank1]:[W407 03:16:05.724203968 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:07,933 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s2 mb0 bkt=-1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:07,934 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:07,935 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s2 mb0 bkt=-1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:07,937 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:08,801 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:08,799 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:08,919 - piper_actor - DEBUG - run_dag dispatch (time 1): send s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:08,919 - piper_actor - DEBUG - exec_send key ((0, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m [rank0]:[W407 03:16:08.378391486 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:08,912 - piper_actor - DEBUG - run_dag dispatch (time 1): send s0 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:08,913 - piper_actor - DEBUG - exec_send key ((0, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m [rank2]:[W407 03:16:08.372215402 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:17,873 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:17,873 - piper_actor - DEBUG - exec_recv key ((2, 0), 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m [rank0]:[W407 03:16:17.332969599 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:17,874 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s1 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:18,093 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:18,093 - piper_actor - DEBUG - exec_recv key ((2, 0), 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m [rank2]:[W407 03:16:18.553166479 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:18,091 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:18,628 - piper_actor - DEBUG - run_dag dispatch (time 0): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:18,629 - piper_actor - DEBUG - exec_recv key ((1, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:18,630 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,379 - piper_actor - DEBUG - run_dag dispatch (time 0): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,379 - piper_actor - DEBUG - exec_recv key ((1, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,380 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:19,506 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s3 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:19,506 - piper_actor - DEBUG - exec_recv key ((3, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:19,507 - piper_actor - DEBUG - run_dag dispatch (time 1): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:19,507 - piper_actor - DEBUG - exec_send key ((1, 0), 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m [rank1]:[W407 03:16:19.966255252 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,717 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s3 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,718 - piper_actor - DEBUG - exec_recv key ((3, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,718 - piper_actor - DEBUG - run_dag dispatch (time 1): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:19,718 - piper_actor - DEBUG - exec_send key ((1, 0), 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m [rank3]:[W407 03:16:19.177945362 ProcessGroupNCCL.cpp:4068] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,368 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:27,413 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s3 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,681 - piper_actor - DEBUG - run_dag dispatch (time 2): send s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,682 - piper_actor - DEBUG - exec_send key ((0, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,682 - piper_actor - DEBUG - run_dag dispatch (time 2): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,682 - piper_actor - DEBUG - exec_recv key ((2, 0), 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:27,683 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:27,742 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:27,743 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s3 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,586 - piper_actor - DEBUG - run_dag dispatch (time 3): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,587 - piper_actor - DEBUG - exec_send key ((2, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,588 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s0 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,608 - piper_actor - DEBUG - run_dag dispatch (time 2): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,609 - piper_actor - DEBUG - exec_send key ((1, 0), 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,609 - piper_actor - DEBUG - run_dag dispatch (time 3): backward s3 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,612 - piper_actor - DEBUG - run_dag dispatch (time 2): send s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,612 - piper_actor - DEBUG - exec_send key ((0, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,613 - piper_actor - DEBUG - run_dag dispatch (time 2): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,613 - piper_actor - DEBUG - exec_recv key ((2, 0), 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,613 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s2 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,727 - piper_actor - DEBUG - run_dag dispatch (time 3): recv s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,728 - piper_actor - DEBUG - exec_recv key ((3, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,729 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,740 - piper_actor - DEBUG - run_dag dispatch (time 4): send s3 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,740 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,741 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s3 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,854 - piper_actor - DEBUG - run_dag dispatch (time 4): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,854 - piper_actor - DEBUG - exec_send key ((2, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,855 - piper_actor - DEBUG - run_dag dispatch (time 4): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,855 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,855 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,859 - piper_actor - DEBUG - run_dag dispatch (time 5): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,860 - piper_actor - DEBUG - exec_recv key ((1, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,860 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s1 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,886 - piper_actor - DEBUG - run_dag dispatch (time 3): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,886 - piper_actor - DEBUG - exec_send key ((2, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:28,887 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s0 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,905 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,905 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,905 - piper_actor - DEBUG - run_dag dispatch (time 6): send s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,905 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,906 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:28,911 - piper_actor - DEBUG - run_dag dispatch (time 2): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:28,911 - piper_actor - DEBUG - exec_send key ((1, 0), 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:28,912 - piper_actor - DEBUG - run_dag dispatch (time 3): backward s3 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,982 - piper_actor - DEBUG - run_dag dispatch (time 5): send s0 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,983 - piper_actor - DEBUG - exec_send key ((0, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,983 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,995 - piper_actor - DEBUG - run_dag dispatch (time 6): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,995 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,995 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,995 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:28,996 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,017 - piper_actor - DEBUG - run_dag dispatch (time 7): send s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,018 - piper_actor - DEBUG - exec_send key ((0, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,018 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,018 - piper_actor - DEBUG - exec_recv key ((2, 0), 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,018 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,029 - piper_actor - DEBUG - run_dag dispatch (time 8): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,029 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,029 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,029 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,030 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s0 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,986 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,986 - piper_actor - DEBUG - exec_recv key ((1, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,987 - piper_actor - DEBUG - run_dag dispatch (time 7): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,987 - piper_actor - DEBUG - exec_send key ((1, 0), 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:28,987 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,006 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,006 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,006 - piper_actor - DEBUG - run_dag dispatch (time 8): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,006 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,007 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,040 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,040 - piper_actor - DEBUG - exec_recv key ((3, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,041 - piper_actor - DEBUG - run_dag dispatch (time 9): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,041 - piper_actor - DEBUG - exec_send key ((1, 0), 3) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,041 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,060 - piper_actor - DEBUG - run_dag dispatch (time 10): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,060 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,060 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,023 - piper_actor - DEBUG - run_dag dispatch (time 3): recv s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,024 - piper_actor - DEBUG - exec_recv key ((3, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,024 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,036 - piper_actor - DEBUG - run_dag dispatch (time 4): send s3 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,036 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,036 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s3 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,117 - piper_actor - DEBUG - run_dag dispatch (time 9): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,117 - piper_actor - DEBUG - exec_send key ((2, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,118 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,118 - piper_actor - DEBUG - exec_recv key ((2, 0), 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,119 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,129 - piper_actor - DEBUG - run_dag dispatch (time 10): recv s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,129 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,130 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,152 - piper_actor - DEBUG - run_dag dispatch (time 11): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,152 - piper_actor - DEBUG - exec_send key ((2, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,153 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,153 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,153 - piper_actor - DEBUG - run_dag dispatch (time 12): backward s2 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,122 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,122 - piper_actor - DEBUG - exec_recv key ((3, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,123 - piper_actor - DEBUG - run_dag dispatch (time 12): forward s3 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,174 - piper_actor - DEBUG - run_dag dispatch (time 12): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,175 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,175 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s2 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,165 - piper_actor - DEBUG - run_dag dispatch (time 12): send s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,165 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,166 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s3 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,212 - piper_actor - DEBUG - run_dag dispatch (time 13): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,212 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,213 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s0 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,213 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,213 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,214 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s0 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,197 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,198 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,198 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,199 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,254 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,255 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,255 - piper_actor - DEBUG - run_dag dispatch (time 14): send s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,255 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,256 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s1 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,292 - piper_actor - DEBUG - run_dag dispatch (time 14): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,292 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,293 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,293 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,293 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s0 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,292 - piper_actor - DEBUG - run_dag dispatch (time 15): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,293 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,293 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:29,294 - piper_actor - DEBUG - run_dag dispatch (time 16): update s1 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,334 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:29,335 - piper_actor - DEBUG - run_dag dispatch (time 16): update s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,752 - piper_actor - DEBUG - run_dag dispatch (time 4): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,752 - piper_actor - DEBUG - exec_send key ((2, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,752 - piper_actor - DEBUG - run_dag dispatch (time 4): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,753 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,753 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,835 - piper_actor - DEBUG - run_dag dispatch (time 5): send s0 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,836 - piper_actor - DEBUG - exec_send key ((0, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,836 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,848 - piper_actor - DEBUG - run_dag dispatch (time 6): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,848 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,849 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,849 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,849 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s2 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,757 - piper_actor - DEBUG - run_dag dispatch (time 5): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,757 - piper_actor - DEBUG - exec_recv key ((1, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,758 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,802 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,802 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,803 - piper_actor - DEBUG - run_dag dispatch (time 6): send s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,803 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,803 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,839 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,839 - piper_actor - DEBUG - exec_recv key ((1, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,839 - piper_actor - DEBUG - run_dag dispatch (time 7): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,840 - piper_actor - DEBUG - exec_send key ((1, 0), 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,840 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s1 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,872 - piper_actor - DEBUG - run_dag dispatch (time 7): send s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,872 - piper_actor - DEBUG - exec_send key ((0, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,873 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,873 - piper_actor - DEBUG - exec_recv key ((2, 0), 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,873 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,884 - piper_actor - DEBUG - run_dag dispatch (time 8): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,885 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,885 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s0 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,885 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,885 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s0 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,859 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,859 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,859 - piper_actor - DEBUG - run_dag dispatch (time 8): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,859 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,860 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,894 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,894 - piper_actor - DEBUG - exec_recv key ((3, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,894 - piper_actor - DEBUG - run_dag dispatch (time 9): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,895 - piper_actor - DEBUG - exec_send key ((1, 0), 3) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,895 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,913 - piper_actor - DEBUG - run_dag dispatch (time 10): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,913 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,914 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s3 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,967 - piper_actor - DEBUG - run_dag dispatch (time 9): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,968 - piper_actor - DEBUG - exec_send key ((2, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,968 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,968 - piper_actor - DEBUG - exec_recv key ((2, 0), 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,969 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,980 - piper_actor - DEBUG - run_dag dispatch (time 10): recv s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,980 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:29,981 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,004 - piper_actor - DEBUG - run_dag dispatch (time 11): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,005 - piper_actor - DEBUG - exec_send key ((2, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,005 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,005 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,006 - piper_actor - DEBUG - run_dag dispatch (time 12): backward s2 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,972 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,973 - piper_actor - DEBUG - exec_recv key ((3, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:29,973 - piper_actor - DEBUG - run_dag dispatch (time 12): forward s3 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,028 - piper_actor - DEBUG - run_dag dispatch (time 12): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,029 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,029 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s2 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,015 - piper_actor - DEBUG - run_dag dispatch (time 12): send s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,015 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,016 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,047 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,047 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,048 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,048 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s1 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,062 - piper_actor - DEBUG - run_dag dispatch (time 13): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,063 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,063 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s0 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,063 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,064 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,064 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s0 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,104 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,105 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,105 - piper_actor - DEBUG - run_dag dispatch (time 14): send s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,105 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,106 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s1 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,141 - piper_actor - DEBUG - run_dag dispatch (time 14): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,142 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,142 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,143 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,143 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s0 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,142 - piper_actor - DEBUG - run_dag dispatch (time 15): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,142 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,142 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,143 - piper_actor - DEBUG - run_dag dispatch (time 16): update s1 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,182 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:30,183 - piper_actor - DEBUG - run_dag dispatch (time 16): update s0 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:30,251 - piper_actor - DEBUG - run_dag dispatch (time 16): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:30,252 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,248 - piper_actor - DEBUG - run_dag dispatch (time 16): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:30,248 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(run_dp_rank pid=2799000)[0m Running 1 timed iterations...
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,681 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s0 mb0 bkt=-1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,682 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s2 mb0 bkt=-1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,683 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,681 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s1 mb0 bkt=-1
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,682 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s3 mb0 bkt=-1
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,683 - piper_actor - DEBUG - run_dag dispatch (time -1): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,684 - piper_actor - DEBUG - exec_recv key ((1, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,685 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s1 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,694 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,706 - piper_actor - DEBUG - run_dag dispatch (time 1): send s0 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,706 - piper_actor - DEBUG - exec_send key ((0, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,707 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,707 - piper_actor - DEBUG - exec_recv key ((2, 0), 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,710 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,696 - piper_actor - DEBUG - run_dag dispatch (time 0): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,696 - piper_actor - DEBUG - exec_recv key ((1, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,697 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,709 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s3 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,709 - piper_actor - DEBUG - exec_recv key ((3, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,710 - piper_actor - DEBUG - run_dag dispatch (time 1): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,710 - piper_actor - DEBUG - exec_send key ((1, 0), 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,711 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s3 mb0 bkt=0
+[36m(run_dp_rank pid=2799105)[0m Running 1 timed iterations...
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,818 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s0 mb0 bkt=-1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,820 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s2 mb0 bkt=-1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,821 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,833 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,844 - piper_actor - DEBUG - run_dag dispatch (time 1): send s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,844 - piper_actor - DEBUG - exec_send key ((0, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,845 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,846 - piper_actor - DEBUG - exec_recv key ((2, 0), 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,848 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,859 - piper_actor - DEBUG - run_dag dispatch (time 2): send s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,860 - piper_actor - DEBUG - exec_send key ((0, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,860 - piper_actor - DEBUG - run_dag dispatch (time 2): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,861 - piper_actor - DEBUG - exec_recv key ((2, 0), 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,861 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,874 - piper_actor - DEBUG - run_dag dispatch (time 3): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,874 - piper_actor - DEBUG - exec_send key ((2, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,875 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s0 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,887 - piper_actor - DEBUG - run_dag dispatch (time 4): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,887 - piper_actor - DEBUG - exec_send key ((2, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,888 - piper_actor - DEBUG - run_dag dispatch (time 4): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,888 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,889 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,819 - piper_actor - DEBUG - run_dag dispatch (time -20001): all_gather s1 mb0 bkt=-1
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,821 - piper_actor - DEBUG - run_dag dispatch (time -20000): all_gather s3 mb0 bkt=-1
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,822 - piper_actor - DEBUG - run_dag dispatch (time -1): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,822 - piper_actor - DEBUG - exec_recv key ((1, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,823 - piper_actor - DEBUG - run_dag dispatch (time 0): forward s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,836 - piper_actor - DEBUG - run_dag dispatch (time 0): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,836 - piper_actor - DEBUG - exec_recv key ((1, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,837 - piper_actor - DEBUG - run_dag dispatch (time 1): forward s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,849 - piper_actor - DEBUG - run_dag dispatch (time 1): recv s3 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,849 - piper_actor - DEBUG - exec_recv key ((3, 0), 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,850 - piper_actor - DEBUG - run_dag dispatch (time 1): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,851 - piper_actor - DEBUG - exec_send key ((1, 0), 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,851 - piper_actor - DEBUG - run_dag dispatch (time 2): forward s3 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,863 - piper_actor - DEBUG - run_dag dispatch (time 2): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,864 - piper_actor - DEBUG - exec_send key ((1, 0), 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,866 - piper_actor - DEBUG - run_dag dispatch (time 3): backward s3 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,827 - piper_actor - DEBUG - run_dag dispatch (time 2): send s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,828 - piper_actor - DEBUG - exec_send key ((0, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,829 - piper_actor - DEBUG - run_dag dispatch (time 2): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,829 - piper_actor - DEBUG - exec_recv key ((2, 0), 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,830 - piper_actor - DEBUG - run_dag dispatch (time 3): forward s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,847 - piper_actor - DEBUG - run_dag dispatch (time 3): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,847 - piper_actor - DEBUG - exec_send key ((2, 0), 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,848 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s0 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,866 - piper_actor - DEBUG - run_dag dispatch (time 4): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,867 - piper_actor - DEBUG - exec_send key ((2, 0), 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,867 - piper_actor - DEBUG - run_dag dispatch (time 4): recv s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,868 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,868 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,904 - piper_actor - DEBUG - run_dag dispatch (time 5): send s0 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,904 - piper_actor - DEBUG - exec_send key ((0, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,905 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s0 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,847 - piper_actor - DEBUG - run_dag dispatch (time 2): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,848 - piper_actor - DEBUG - exec_send key ((1, 0), 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,850 - piper_actor - DEBUG - run_dag dispatch (time 3): backward s3 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,891 - piper_actor - DEBUG - run_dag dispatch (time 3): recv s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,891 - piper_actor - DEBUG - exec_recv key ((3, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,892 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s3 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,912 - piper_actor - DEBUG - run_dag dispatch (time 5): send s0 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,912 - piper_actor - DEBUG - exec_send key ((0, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,913 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s0 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,911 - piper_actor - DEBUG - run_dag dispatch (time 3): recv s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,911 - piper_actor - DEBUG - exec_recv key ((3, 0), 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,912 - piper_actor - DEBUG - run_dag dispatch (time 4): forward s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,928 - piper_actor - DEBUG - run_dag dispatch (time 4): send s3 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,928 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,929 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,928 - piper_actor - DEBUG - run_dag dispatch (time 4): send s3 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,928 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,929 - piper_actor - DEBUG - run_dag dispatch (time 5): backward s3 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,958 - piper_actor - DEBUG - run_dag dispatch (time 6): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,958 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,959 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,959 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,960 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s2 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,960 - piper_actor - DEBUG - run_dag dispatch (time 5): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,960 - piper_actor - DEBUG - exec_recv key ((1, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,961 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s1 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,957 - piper_actor - DEBUG - run_dag dispatch (time 6): send s2 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,957 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,958 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,958 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,959 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s2 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,959 - piper_actor - DEBUG - run_dag dispatch (time 5): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,959 - piper_actor - DEBUG - exec_recv key ((1, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,960 - piper_actor - DEBUG - run_dag dispatch (time 6): forward s1 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,993 - piper_actor - DEBUG - run_dag dispatch (time 7): send s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,993 - piper_actor - DEBUG - exec_send key ((0, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,994 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,994 - piper_actor - DEBUG - exec_recv key ((2, 0), 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:31,995 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s2 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,999 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:31,999 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,000 - piper_actor - DEBUG - run_dag dispatch (time 6): send s3 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,001 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,001 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - exec_recv key ((1, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,992 - piper_actor - DEBUG - run_dag dispatch (time 7): send s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,992 - piper_actor - DEBUG - exec_send key ((0, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,994 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,994 - piper_actor - DEBUG - exec_recv key ((2, 0), 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:31,995 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,028 - piper_actor - DEBUG - run_dag dispatch (time 8): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,028 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s0 mb0 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,031 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s0 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,998 - piper_actor - DEBUG - run_dag dispatch (time 6): recv s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,998 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,999 - piper_actor - DEBUG - run_dag dispatch (time 6): send s3 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:31,999 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,000 - piper_actor - DEBUG - run_dag dispatch (time 7): backward s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,028 - piper_actor - DEBUG - run_dag dispatch (time 7): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,028 - piper_actor - DEBUG - exec_recv key ((1, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,029 - piper_actor - DEBUG - run_dag dispatch (time 7): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,029 - piper_actor - DEBUG - exec_send key ((1, 0), 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s1 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - run_dag dispatch (time 8): send s2 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,030 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,031 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s0 mb0 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,031 - piper_actor - DEBUG - exec_recv key (None, 0) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,032 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s0 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,031 - piper_actor - DEBUG - run_dag dispatch (time 7): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,031 - piper_actor - DEBUG - exec_send key ((1, 0), 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,032 - piper_actor - DEBUG - run_dag dispatch (time 8): forward s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,045 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,046 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,046 - piper_actor - DEBUG - run_dag dispatch (time 8): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,047 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,048 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,044 - piper_actor - DEBUG - run_dag dispatch (time 8): recv s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,044 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,045 - piper_actor - DEBUG - run_dag dispatch (time 8): send s1 mb0 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,045 - piper_actor - DEBUG - exec_send key (None, 0) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,046 - piper_actor - DEBUG - run_dag dispatch (time 9): backward s1 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,075 - piper_actor - DEBUG - run_dag dispatch (time 9): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,075 - piper_actor - DEBUG - exec_send key ((2, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,076 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,076 - piper_actor - DEBUG - exec_recv key ((2, 0), 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,077 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,088 - piper_actor - DEBUG - run_dag dispatch (time 10): recv s0 mb1 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,088 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,089 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s0 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,079 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,079 - piper_actor - DEBUG - exec_recv key ((3, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,080 - piper_actor - DEBUG - run_dag dispatch (time 9): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,080 - piper_actor - DEBUG - exec_send key ((1, 0), 3) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,081 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,096 - piper_actor - DEBUG - run_dag dispatch (time 10): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,096 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,097 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s3 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,083 - piper_actor - DEBUG - run_dag dispatch (time 9): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,083 - piper_actor - DEBUG - exec_send key ((2, 0), 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,084 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,084 - piper_actor - DEBUG - exec_recv key ((2, 0), 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,085 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,097 - piper_actor - DEBUG - run_dag dispatch (time 10): recv s0 mb1 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,097 - piper_actor - DEBUG - exec_recv key (None, 1) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,098 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s0 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,077 - piper_actor - DEBUG - run_dag dispatch (time 9): recv s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,078 - piper_actor - DEBUG - exec_recv key ((3, 0), 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,079 - piper_actor - DEBUG - run_dag dispatch (time 9): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,079 - piper_actor - DEBUG - exec_send key ((1, 0), 3) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,080 - piper_actor - DEBUG - run_dag dispatch (time 10): forward s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,095 - piper_actor - DEBUG - run_dag dispatch (time 10): send s1 mb1 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,095 - piper_actor - DEBUG - exec_send key (None, 1) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,096 - piper_actor - DEBUG - run_dag dispatch (time 11): backward s3 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,123 - piper_actor - DEBUG - run_dag dispatch (time 11): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,124 - piper_actor - DEBUG - exec_send key ((2, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,125 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,125 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,126 - piper_actor - DEBUG - run_dag dispatch (time 12): backward s2 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,127 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,127 - piper_actor - DEBUG - exec_recv key ((3, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,129 - piper_actor - DEBUG - run_dag dispatch (time 12): forward s3 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,122 - piper_actor - DEBUG - run_dag dispatch (time 11): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,123 - piper_actor - DEBUG - exec_send key ((2, 0), 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,124 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,124 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,125 - piper_actor - DEBUG - run_dag dispatch (time 12): backward s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,155 - piper_actor - DEBUG - run_dag dispatch (time 12): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,155 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,156 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s2 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,127 - piper_actor - DEBUG - run_dag dispatch (time 11): recv s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,127 - piper_actor - DEBUG - exec_recv key ((3, 0), 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,128 - piper_actor - DEBUG - run_dag dispatch (time 12): forward s3 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,160 - piper_actor - DEBUG - run_dag dispatch (time 12): recv s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,160 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,161 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s2 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,169 - piper_actor - DEBUG - run_dag dispatch (time 12): send s3 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,169 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,170 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,200 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,166 - piper_actor - DEBUG - run_dag dispatch (time 12): send s3 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,167 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,168 - piper_actor - DEBUG - run_dag dispatch (time 13): backward s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,198 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,199 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,200 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s3 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,216 - piper_actor - DEBUG - run_dag dispatch (time 13): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,216 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,218 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s0 mb2 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,218 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,219 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,220 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s0 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,200 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,202 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,203 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s1 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,215 - piper_actor - DEBUG - run_dag dispatch (time 13): send s2 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,215 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,217 - piper_actor - DEBUG - run_dag dispatch (time 13): recv s0 mb2 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,217 - piper_actor - DEBUG - exec_recv key (None, 2) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,218 - piper_actor - DEBUG - run_dag dispatch (time 13): all_reduce s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,219 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s0 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,201 - piper_actor - DEBUG - run_dag dispatch (time 14): backward s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,258 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,258 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,259 - piper_actor - DEBUG - run_dag dispatch (time 14): send s3 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,260 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,260 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,257 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,258 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,259 - piper_actor - DEBUG - run_dag dispatch (time 14): send s3 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,259 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,260 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s1 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,294 - piper_actor - DEBUG - run_dag dispatch (time 14): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,296 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,296 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,297 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s0 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - run_dag dispatch (time 15): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,297 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,298 - piper_actor - DEBUG - run_dag dispatch (time 16): update s1 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - run_dag dispatch (time 14): send s2 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,296 - piper_actor - DEBUG - run_dag dispatch (time 14): recv s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,296 - piper_actor - DEBUG - exec_recv key (None, 3) from peer pp rank 1
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,297 - piper_actor - DEBUG - run_dag dispatch (time 15): backward s0 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,295 - piper_actor - DEBUG - run_dag dispatch (time 15): send s1 mb2 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,296 - piper_actor - DEBUG - exec_send key (None, 2) to peer pp rank 0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,297 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,298 - piper_actor - DEBUG - run_dag dispatch (time 16): update s1 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,336 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s0 mb3 bkt=0
+[36m(PiperActor pid=2840298)[0m 2026-04-07 03:16:32,337 - piper_actor - DEBUG - run_dag dispatch (time 16): update s0 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,357 - piper_actor - DEBUG - run_dag dispatch (time 16): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840404)[0m 2026-04-07 03:16:32,357 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,336 - piper_actor - DEBUG - run_dag dispatch (time 15): all_reduce s0 mb3 bkt=0
+[36m(PiperActor pid=2840473)[0m 2026-04-07 03:16:32,337 - piper_actor - DEBUG - run_dag dispatch (time 16): update s0 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,357 - piper_actor - DEBUG - run_dag dispatch (time 16): send s1 mb3 bkt=0
+[36m(PiperActor pid=2840673)[0m 2026-04-07 03:16:32,357 - piper_actor - DEBUG - exec_send key (None, 3) to peer pp rank 0
+[36m(run_dp_rank pid=2799105)[0m rank 0 iter time= 0.59379 ± 0.00000 s (1 samples)
+[36m(run_dp_rank pid=2799105)[0m rank 0 throughput= 27592.316 tokens/s
+[36m(run_dp_rank pid=2799105)[0m rank 0 peak_memory= 11.821 GiB
+[36m(run_dp_rank pid=2799105)[0m rank 1 peak_memory= 13.778 GiB
+[36m(run_dp_rank pid=2799105)[0m Memory breakdown (after 1st timed iter):
+[36m(run_dp_rank pid=2799105)[0m   rank 0  allocated=11.821 GiB  reserved=40.371 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=5.103 GiB
+[36m(run_dp_rank pid=2799105)[0m   rank 1  allocated=13.778 GiB  reserved=39.703 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=7.060 GiB
+[36m(run_dp_rank pid=2799105)[0m 
+[36m(run_dp_rank pid=2799105)[0m === Rank 0 per-task memory debug ===
+[36m(run_dp_rank pid=2799105)[0m   iter start: alloc=11.821 GiB  reserved=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t-20001 all_gather_s0_b-1_mb0: peak_alloc=11.821 GiB  peak_reserved=38.613 GiB  alloc_after=11.821 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t-20000 all_gather_s2_b-1_mb0: peak_alloc=11.821 GiB  peak_reserved=38.613 GiB  alloc_after=11.821 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t000 forward_s0_b0_mb0: peak_alloc=16.595 GiB  peak_reserved=38.613 GiB  alloc_after=16.548 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 forward_s0_b0_mb1: peak_alloc=21.322 GiB  peak_reserved=38.613 GiB  alloc_after=21.275 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 send_s0_b0_mb0: peak_alloc=21.275 GiB  peak_reserved=38.613 GiB  alloc_after=21.275 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 recv_s2_b0_mb0: peak_alloc=21.298 GiB  peak_reserved=38.613 GiB  alloc_after=21.298 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t002 forward_s2_b0_mb0: peak_alloc=26.072 GiB  peak_reserved=38.613 GiB  alloc_after=26.025 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t002 send_s0_b0_mb1: peak_alloc=26.025 GiB  peak_reserved=38.613 GiB  alloc_after=26.025 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t002 recv_s2_b0_mb1: peak_alloc=26.048 GiB  peak_reserved=38.613 GiB  alloc_after=26.048 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t003 forward_s2_b0_mb1: peak_alloc=30.822 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t003 send_s2_b0_mb0: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t004 forward_s0_b0_mb2: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t004 send_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t004 recv_s2_b0_mb0: peak_alloc=35.525 GiB  peak_reserved=38.613 GiB  alloc_after=35.525 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t005 backward_s2_b0_mb0: peak_alloc=35.650 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t005 send_s0_b0_mb2: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 forward_s0_b0_mb3: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 send_s2_b0_mb0: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.479 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 recv_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 backward_s2_b0_mb1: peak_alloc=35.627 GiB  peak_reserved=38.613 GiB  alloc_after=30.752 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 send_s0_b0_mb3: peak_alloc=30.752 GiB  peak_reserved=38.613 GiB  alloc_after=30.752 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 recv_s2_b0_mb2: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 forward_s2_b0_mb2: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 send_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.479 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 recv_s0_b0_mb0: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 backward_s0_b0_mb0: peak_alloc=35.627 GiB  peak_reserved=39.348 GiB  alloc_after=30.752 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 send_s2_b0_mb2: peak_alloc=30.752 GiB  peak_reserved=39.348 GiB  alloc_after=30.752 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 recv_s2_b0_mb3: peak_alloc=30.775 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t010 forward_s2_b0_mb3: peak_alloc=35.549 GiB  peak_reserved=39.348 GiB  alloc_after=35.502 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t010 recv_s0_b0_mb1: peak_alloc=35.525 GiB  peak_reserved=39.348 GiB  alloc_after=35.525 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t011 backward_s0_b0_mb1: peak_alloc=35.650 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t011 send_s2_b0_mb3: peak_alloc=30.775 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t011 recv_s2_b0_mb2: peak_alloc=30.799 GiB  peak_reserved=39.348 GiB  alloc_after=30.799 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t012 backward_s2_b0_mb2: peak_alloc=30.924 GiB  peak_reserved=39.348 GiB  alloc_after=26.048 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t012 recv_s2_b0_mb3: peak_alloc=26.072 GiB  peak_reserved=39.348 GiB  alloc_after=26.072 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 backward_s2_b0_mb3: peak_alloc=26.197 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 send_s2_b0_mb2: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.298 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 recv_s0_b0_mb2: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 all_reduce_s2_b0_mb3: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 backward_s0_b0_mb2: peak_alloc=21.447 GiB  peak_reserved=39.348 GiB  alloc_after=16.571 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 send_s2_b0_mb3: peak_alloc=16.571 GiB  peak_reserved=39.348 GiB  alloc_after=16.548 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 recv_s0_b0_mb3: peak_alloc=16.571 GiB  peak_reserved=39.348 GiB  alloc_after=16.571 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t015 backward_s0_b0_mb3: peak_alloc=16.696 GiB  peak_reserved=39.348 GiB  alloc_after=11.821 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t015 all_reduce_s0_b0_mb3: peak_alloc=11.821 GiB  peak_reserved=39.348 GiB  alloc_after=11.821 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799105)[0m   t016 update_s0_b0_mb3: peak_alloc=12.845 GiB  peak_reserved=40.371 GiB  alloc_after=11.821 GiB  reserved_after=40.371 GiB
+[36m(run_dp_rank pid=2799105)[0m 
+[36m(run_dp_rank pid=2799105)[0m === Rank 1 per-task memory debug ===
+[36m(run_dp_rank pid=2799105)[0m   iter start: alloc=13.778 GiB  reserved=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t-20001 all_gather_s1_b-1_mb0: peak_alloc=13.778 GiB  peak_reserved=35.789 GiB  alloc_after=13.778 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t-20000 all_gather_s3_b-1_mb0: peak_alloc=13.778 GiB  peak_reserved=35.789 GiB  alloc_after=13.778 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t-01 recv_s1_b0_mb0: peak_alloc=13.801 GiB  peak_reserved=35.789 GiB  alloc_after=13.801 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t000 forward_s1_b0_mb0: peak_alloc=18.575 GiB  peak_reserved=35.789 GiB  alloc_after=18.528 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t000 recv_s1_b0_mb1: peak_alloc=18.551 GiB  peak_reserved=35.789 GiB  alloc_after=18.551 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 forward_s1_b0_mb1: peak_alloc=23.325 GiB  peak_reserved=35.789 GiB  alloc_after=23.278 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 recv_s3_b0_mb0: peak_alloc=23.302 GiB  peak_reserved=35.789 GiB  alloc_after=23.302 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t001 send_s1_b0_mb0: peak_alloc=23.302 GiB  peak_reserved=35.789 GiB  alloc_after=23.302 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t002 forward_s3_b0_mb0: peak_alloc=31.034 GiB  peak_reserved=35.789 GiB  alloc_after=30.056 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t002 send_s1_b0_mb1: peak_alloc=30.056 GiB  peak_reserved=35.789 GiB  alloc_after=30.056 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799105)[0m   t003 backward_s3_b0_mb0: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t003 recv_s3_b0_mb1: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t004 forward_s3_b0_mb1: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t004 send_s3_b0_mb0: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t005 backward_s3_b0_mb1: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t005 recv_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 forward_s1_b0_mb2: peak_alloc=28.099 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 recv_s1_b0_mb0: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.075 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t006 send_s3_b0_mb1: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 backward_s1_b0_mb0: peak_alloc=28.177 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 recv_s1_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t007 send_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 forward_s1_b0_mb3: peak_alloc=28.099 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 recv_s1_b0_mb1: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.075 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t008 send_s1_b0_mb0: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 backward_s1_b0_mb1: peak_alloc=28.177 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 recv_s3_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t009 send_s1_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t010 forward_s3_b0_mb2: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t010 send_s1_b0_mb1: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t011 backward_s3_b0_mb2: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t011 recv_s3_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t012 forward_s3_b0_mb3: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t012 send_s3_b0_mb2: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 backward_s3_b0_mb3: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 recv_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t013 all_reduce_s3_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 backward_s1_b0_mb2: peak_alloc=23.450 GiB  peak_reserved=39.703 GiB  alloc_after=18.575 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 recv_s1_b0_mb3: peak_alloc=18.598 GiB  peak_reserved=39.703 GiB  alloc_after=18.598 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t014 send_s3_b0_mb3: peak_alloc=18.598 GiB  peak_reserved=39.703 GiB  alloc_after=18.575 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t015 backward_s1_b0_mb3: peak_alloc=18.700 GiB  peak_reserved=39.703 GiB  alloc_after=13.825 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t015 send_s1_b0_mb2: peak_alloc=13.825 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t015 all_reduce_s1_b0_mb3: peak_alloc=13.801 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t016 update_s1_b0_mb3: peak_alloc=14.825 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799105)[0m   t016 send_s1_b0_mb3: peak_alloc=13.801 GiB  peak_reserved=39.703 GiB  alloc_after=13.778 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m rank 1 iter time= 0.73067 ± 0.00000 s (1 samples)
+[36m(run_dp_rank pid=2799000)[0m rank 1 throughput= 22423.204 tokens/s
+[36m(run_dp_rank pid=2799000)[0m rank 2 peak_memory= 11.821 GiB
+[36m(run_dp_rank pid=2799000)[0m rank 3 peak_memory= 13.778 GiB
+[36m(run_dp_rank pid=2799000)[0m Memory breakdown (after 1st timed iter):
+[36m(run_dp_rank pid=2799000)[0m   rank 2  allocated=11.821 GiB  reserved=40.371 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=5.103 GiB
+[36m(run_dp_rank pid=2799000)[0m   rank 3  allocated=13.778 GiB  reserved=39.703 GiB  params=3.359 GiB  grads=3.359 GiB  shard=1.680 GiB  other(acts+optim)=7.060 GiB
+[36m(run_dp_rank pid=2799000)[0m 
+[36m(run_dp_rank pid=2799000)[0m === Rank 2 per-task memory debug ===
+[36m(run_dp_rank pid=2799000)[0m   iter start: alloc=11.821 GiB  reserved=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t-20001 all_gather_s0_b-1_mb0: peak_alloc=11.821 GiB  peak_reserved=38.613 GiB  alloc_after=11.821 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t-20000 all_gather_s2_b-1_mb0: peak_alloc=11.821 GiB  peak_reserved=38.613 GiB  alloc_after=11.821 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t000 forward_s0_b0_mb0: peak_alloc=16.595 GiB  peak_reserved=38.613 GiB  alloc_after=16.548 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 forward_s0_b0_mb1: peak_alloc=21.322 GiB  peak_reserved=38.613 GiB  alloc_after=21.275 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 send_s0_b0_mb0: peak_alloc=21.275 GiB  peak_reserved=38.613 GiB  alloc_after=21.275 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 recv_s2_b0_mb0: peak_alloc=21.298 GiB  peak_reserved=38.613 GiB  alloc_after=21.298 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t002 forward_s2_b0_mb0: peak_alloc=26.072 GiB  peak_reserved=38.613 GiB  alloc_after=26.025 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t002 send_s0_b0_mb1: peak_alloc=26.025 GiB  peak_reserved=38.613 GiB  alloc_after=26.025 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t002 recv_s2_b0_mb1: peak_alloc=26.048 GiB  peak_reserved=38.613 GiB  alloc_after=26.048 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t003 forward_s2_b0_mb1: peak_alloc=30.822 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t003 send_s2_b0_mb0: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t004 forward_s0_b0_mb2: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t004 send_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t004 recv_s2_b0_mb0: peak_alloc=35.525 GiB  peak_reserved=38.613 GiB  alloc_after=35.525 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t005 backward_s2_b0_mb0: peak_alloc=35.650 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t005 send_s0_b0_mb2: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 forward_s0_b0_mb3: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 send_s2_b0_mb0: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.479 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 recv_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 backward_s2_b0_mb1: peak_alloc=35.627 GiB  peak_reserved=38.613 GiB  alloc_after=30.752 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 send_s0_b0_mb3: peak_alloc=30.752 GiB  peak_reserved=38.613 GiB  alloc_after=30.752 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 recv_s2_b0_mb2: peak_alloc=30.775 GiB  peak_reserved=38.613 GiB  alloc_after=30.775 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 forward_s2_b0_mb2: peak_alloc=35.549 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 send_s2_b0_mb1: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.479 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 recv_s0_b0_mb0: peak_alloc=35.502 GiB  peak_reserved=38.613 GiB  alloc_after=35.502 GiB  reserved_after=38.613 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 backward_s0_b0_mb0: peak_alloc=35.627 GiB  peak_reserved=39.348 GiB  alloc_after=30.752 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 send_s2_b0_mb2: peak_alloc=30.752 GiB  peak_reserved=39.348 GiB  alloc_after=30.752 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 recv_s2_b0_mb3: peak_alloc=30.775 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t010 forward_s2_b0_mb3: peak_alloc=35.549 GiB  peak_reserved=39.348 GiB  alloc_after=35.502 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t010 recv_s0_b0_mb1: peak_alloc=35.525 GiB  peak_reserved=39.348 GiB  alloc_after=35.525 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t011 backward_s0_b0_mb1: peak_alloc=35.650 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t011 send_s2_b0_mb3: peak_alloc=30.775 GiB  peak_reserved=39.348 GiB  alloc_after=30.775 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t011 recv_s2_b0_mb2: peak_alloc=30.799 GiB  peak_reserved=39.348 GiB  alloc_after=30.799 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t012 backward_s2_b0_mb2: peak_alloc=30.924 GiB  peak_reserved=39.348 GiB  alloc_after=26.048 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t012 recv_s2_b0_mb3: peak_alloc=26.072 GiB  peak_reserved=39.348 GiB  alloc_after=26.072 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 backward_s2_b0_mb3: peak_alloc=26.197 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 send_s2_b0_mb2: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.298 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 recv_s0_b0_mb2: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 all_reduce_s2_b0_mb3: peak_alloc=21.322 GiB  peak_reserved=39.348 GiB  alloc_after=21.322 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 backward_s0_b0_mb2: peak_alloc=21.447 GiB  peak_reserved=39.348 GiB  alloc_after=16.571 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 send_s2_b0_mb3: peak_alloc=16.571 GiB  peak_reserved=39.348 GiB  alloc_after=16.548 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 recv_s0_b0_mb3: peak_alloc=16.571 GiB  peak_reserved=39.348 GiB  alloc_after=16.571 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t015 backward_s0_b0_mb3: peak_alloc=16.696 GiB  peak_reserved=39.348 GiB  alloc_after=11.821 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t015 all_reduce_s0_b0_mb3: peak_alloc=11.821 GiB  peak_reserved=39.348 GiB  alloc_after=11.821 GiB  reserved_after=39.348 GiB
+[36m(run_dp_rank pid=2799000)[0m   t016 update_s0_b0_mb3: peak_alloc=12.845 GiB  peak_reserved=40.371 GiB  alloc_after=11.821 GiB  reserved_after=40.371 GiB
+[36m(run_dp_rank pid=2799000)[0m 
+[36m(run_dp_rank pid=2799000)[0m === Rank 3 per-task memory debug ===
+[36m(run_dp_rank pid=2799000)[0m   iter start: alloc=13.778 GiB  reserved=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t-20001 all_gather_s1_b-1_mb0: peak_alloc=13.778 GiB  peak_reserved=35.789 GiB  alloc_after=13.778 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t-20000 all_gather_s3_b-1_mb0: peak_alloc=13.778 GiB  peak_reserved=35.789 GiB  alloc_after=13.778 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t-01 recv_s1_b0_mb0: peak_alloc=13.801 GiB  peak_reserved=35.789 GiB  alloc_after=13.801 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t000 forward_s1_b0_mb0: peak_alloc=18.575 GiB  peak_reserved=35.789 GiB  alloc_after=18.528 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t000 recv_s1_b0_mb1: peak_alloc=18.551 GiB  peak_reserved=35.789 GiB  alloc_after=18.551 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 forward_s1_b0_mb1: peak_alloc=23.325 GiB  peak_reserved=35.789 GiB  alloc_after=23.278 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 recv_s3_b0_mb0: peak_alloc=23.302 GiB  peak_reserved=35.789 GiB  alloc_after=23.302 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t001 send_s1_b0_mb0: peak_alloc=23.302 GiB  peak_reserved=35.789 GiB  alloc_after=23.302 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t002 forward_s3_b0_mb0: peak_alloc=31.034 GiB  peak_reserved=35.789 GiB  alloc_after=30.056 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t002 send_s1_b0_mb1: peak_alloc=30.056 GiB  peak_reserved=35.789 GiB  alloc_after=30.056 GiB  reserved_after=35.789 GiB
+[36m(run_dp_rank pid=2799000)[0m   t003 backward_s3_b0_mb0: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t003 recv_s3_b0_mb1: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t004 forward_s3_b0_mb1: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t004 send_s3_b0_mb0: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t005 backward_s3_b0_mb1: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t005 recv_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 forward_s1_b0_mb2: peak_alloc=28.099 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 recv_s1_b0_mb0: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.075 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t006 send_s3_b0_mb1: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 backward_s1_b0_mb0: peak_alloc=28.177 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 recv_s1_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t007 send_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 forward_s1_b0_mb3: peak_alloc=28.099 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 recv_s1_b0_mb1: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.075 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t008 send_s1_b0_mb0: peak_alloc=28.075 GiB  peak_reserved=39.703 GiB  alloc_after=28.052 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 backward_s1_b0_mb1: peak_alloc=28.177 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 recv_s3_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t009 send_s1_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t010 forward_s3_b0_mb2: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t010 send_s1_b0_mb1: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t011 backward_s3_b0_mb2: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t011 recv_s3_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t012 forward_s3_b0_mb3: peak_alloc=31.058 GiB  peak_reserved=39.703 GiB  alloc_after=30.079 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t012 send_s3_b0_mb2: peak_alloc=30.079 GiB  peak_reserved=39.703 GiB  alloc_after=30.056 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 backward_s3_b0_mb3: peak_alloc=35.927 GiB  peak_reserved=39.703 GiB  alloc_after=23.302 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 recv_s1_b0_mb2: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t013 all_reduce_s3_b0_mb3: peak_alloc=23.325 GiB  peak_reserved=39.703 GiB  alloc_after=23.325 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 backward_s1_b0_mb2: peak_alloc=23.450 GiB  peak_reserved=39.703 GiB  alloc_after=18.575 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 recv_s1_b0_mb3: peak_alloc=18.598 GiB  peak_reserved=39.703 GiB  alloc_after=18.598 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t014 send_s3_b0_mb3: peak_alloc=18.598 GiB  peak_reserved=39.703 GiB  alloc_after=18.575 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t015 backward_s1_b0_mb3: peak_alloc=18.700 GiB  peak_reserved=39.703 GiB  alloc_after=13.825 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t015 send_s1_b0_mb2: peak_alloc=13.825 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t015 all_reduce_s1_b0_mb3: peak_alloc=13.801 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t016 update_s1_b0_mb3: peak_alloc=14.825 GiB  peak_reserved=39.703 GiB  alloc_after=13.801 GiB  reserved_after=39.703 GiB
+[36m(run_dp_rank pid=2799000)[0m   t016 send_s1_b0_mb3: peak_alloc=13.801 GiB  peak_reserved=39.703 GiB  alloc_after=13.778 GiB  reserved_after=39.703 GiB
