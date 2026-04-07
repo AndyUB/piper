@@ -36,6 +36,11 @@ from .schedule_helpers import (
 
 
 def main(args, pg):
+    if args.mem_debug:
+        args.warmup = 1
+        args.iters = 1
+        args.tracing = False
+
     match args.model:
         case 'debug':
             llama_config = LLAMA_DEBUG
@@ -121,6 +126,8 @@ def main(args, pg):
     # Reset peak memory stats before the timed block so reported peaks reflect only
     # steady-state training, not model loading / warmup allocations.
     ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
+    if args.mem_debug:
+        ray.get([actor.set_mem_debug.remote(True) for actor in actors.values()])
     iter_times = []
     for i, _ in enumerate(range(args.iters)):
         start = time.perf_counter()
@@ -131,6 +138,8 @@ def main(args, pg):
         # allocator is at steady state (params + grads + optimizer states all live).
         if i == 0:
             mem_breakdown = ray.get([actor.get_memory_breakdown.remote() for actor in actors.values()])
+    if args.mem_debug:
+        ray.get([actor.set_mem_debug.remote(False) for actor in actors.values()])
 
     dp_rank = int(os.environ['PIPER_DP_RANK'])
     print(
@@ -156,6 +165,20 @@ def main(args, pg):
             f"shard={bd['shard_gb']:.3f} GiB  "
             f"other(acts+optim)={bd['other_gb']:.3f} GiB"
         )
+
+    if args.mem_debug:
+        mem_debug_data = ray.get([actor.get_mem_debug_log.remote() for actor in actors.values()])
+        for rank, log, init_alloc, init_reserved in sorted(mem_debug_data, key=lambda x: x[0]):
+            print(f"\n=== Rank {rank} per-task memory debug ===")
+            print(f"  iter start: alloc={init_alloc:.3f} GiB  reserved={init_reserved:.3f} GiB")
+            for entry in log:
+                print(
+                    f"  t{entry['time_step']:03d} {entry['task']}: "
+                    f"peak_alloc={entry['peak_alloc_gb']:.3f} GiB  "
+                    f"peak_reserved={entry['peak_reserved_gb']:.3f} GiB  "
+                    f"alloc_after={entry['alloc_after_gb']:.3f} GiB  "
+                    f"reserved_after={entry['reserved_after_gb']:.3f} GiB"
+                )
 
     if args.tracing:
         ray.get([actor.set_tracing.remote(True) for actor in actors.values()])
@@ -214,6 +237,8 @@ def parse_args():
     parser.add_argument('--no-nvtx', action='store_true', default=False,
                         help='Disable NVTX range annotations (note: NVTX is CPU-only and does NOT cause GPU sync; '
                              'the 10x CPU overhead seen in nsys is NCCL per-call overhead, not NVTX)')
+    parser.add_argument('--mem-debug', action='store_true', default=False,
+                        help='Record per-task GPU memory stats for debugging. Forces warmup=1, iters=1, tracing=False.')
     return parser.parse_args()
 
 

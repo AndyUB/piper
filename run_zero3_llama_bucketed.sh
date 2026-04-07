@@ -18,6 +18,7 @@ else
     BUCKET_SIZE="$bs_3b"
 fi
 NSIGHT="${NSIGHT:-1}"
+MEM_DEBUG="${MEM_DEBUG:-}"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 LOG_FILE="$LOG_DIR/piper_zero3_bucketed_${MODEL}_${TIMESTAMP}.log"
 
@@ -44,6 +45,7 @@ python3 -m test.test_llama \
   --tracing \
   --no-render-dag \
   ${NSIGHT:+--nsight} \
+  ${MEM_DEBUG:+--mem-debug} \
   >"$LOG_FILE" 2>&1
 
 echo "Run complete. Log: $LOG_FILE"

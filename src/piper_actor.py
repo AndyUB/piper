@@ -187,6 +187,10 @@ class PiperActor:
         self._pending_timing_events: list = []  # (label, start_event, stop_event)
         self.trace_data = defaultdict(list)
         self.memory_tracing_enabled = False
+        self.mem_debug_enabled = False
+        self.mem_debug_log: list = []
+        self._mem_debug_iter_init_alloc = 0.0
+        self._mem_debug_iter_init_reserved = 0.0
 
         # DAG execution state
         self.dag = None
@@ -326,6 +330,17 @@ class PiperActor:
             "shard_gb": shard_gb,
             "other_gb": max(0.0, allocated_gb - params_gb - grads_gb),
         }
+
+    def set_mem_debug(self, enabled: bool) -> None:
+        self.mem_debug_enabled = enabled
+
+    def get_mem_debug_log(self) -> tuple:
+        return (
+            self.global_rank,
+            self.mem_debug_log,
+            self._mem_debug_iter_init_alloc,
+            self._mem_debug_iter_init_reserved,
+        )
 
     def _nvtx_push(self, label: str) -> None:
         if not self.no_nvtx:
@@ -978,6 +993,12 @@ class PiperActor:
                 )
             ts_types.setdefault(ts, set()).add(ttype)
 
+        if self.mem_debug_enabled:
+            self._mem_debug_iter_init_alloc = torch.cuda.memory_allocated() / 1024**3
+            self._mem_debug_iter_init_reserved = torch.cuda.memory_reserved() / 1024**3
+            self.mem_debug_log = []
+            torch.cuda.reset_peak_memory_stats()
+
         for node in sorted_nodes:
             task = node.task
             # batches always has exactly one entry for single-stage tasks
@@ -1133,6 +1154,16 @@ class PiperActor:
                     self._update()
                     self._nvtx_pop()
 
+            if self.mem_debug_enabled:
+                self.mem_debug_log.append({
+                    "task": f"{task.type.value}_s{stage_id}_b{node.bucket_id}_mb{mb_idx}",
+                    "time_step": node.time_step,
+                    "peak_alloc_gb": torch.cuda.max_memory_allocated() / 1024**3,
+                    "peak_reserved_gb": torch.cuda.max_memory_reserved() / 1024**3,
+                    "alloc_after_gb": torch.cuda.memory_allocated() / 1024**3,
+                    "reserved_after_gb": torch.cuda.memory_reserved() / 1024**3,
+                })
+                torch.cuda.reset_peak_memory_stats()
 
 
     def _exec_send(
