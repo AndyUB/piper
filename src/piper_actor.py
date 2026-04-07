@@ -1634,7 +1634,26 @@ class PiperActor:
                 param.requires_grad_(True)
 
     def _free_full_params_for_stage(self, stage_id: int) -> None:
-        """Drop full flat params for all stage buckets and clear parameter views."""
+        """Drop full flat params for all stage buckets and clear parameter views.
+
+        We replace param.data with a zero-element placeholder instead of
+        torch.empty_like(param).  empty_like allocates a fresh full-size tensor
+        for every parameter (collectively the same size as the flat buffer, ~2 GiB
+        for a 3B stage) before the old flat buffer is released, which *increases*
+        peak memory rather than reducing it.  new_empty(0) allocates nothing.
+
+        Important limitation: we cannot actually free the old flat buffer's GPU
+        memory here during the forward phase.  PyTorch's autograd saves the
+        parameter storage (not a reference to the Python param object) at
+        computation time via SavedVariable.  That storage reference keeps the full
+        buffer alive until the corresponding backward() call consumes and destroys
+        the autograd graph.  Only free_full_params calls that happen *after* backward
+        (t037, t045, …) can actually reclaim the buffer.
+
+        Properly freeing full params between forward and backward requires custom
+        autograd functions (à la DeepSpeed's GatheredParameters) so that the
+        autograd graph never saves the full-param storage in the first place.
+        """
         if self.zero_stage != 3:
             return
         for key in list(self.param_shard_info.keys()):
@@ -1642,7 +1661,9 @@ class PiperActor:
                 continue
             for param, *_ in self.bucket_param_view_specs.get(key, []):
                 param.grad = None
-                param.data = torch.empty_like(param)
+                # Zero-element placeholder: drops the param's view into the full
+                # buffer without allocating any new GPU memory.
+                param.data = param.data.new_empty(0)
             self.bucket_flat_params[key] = None
 
     def _alloc_full_grads_for_stage(self, stage_id: int) -> None:
