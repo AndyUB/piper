@@ -231,6 +231,11 @@ class PiperActor:
         self.bucket_param_view_specs: dict = {}
         # (stage_id, bucket_id) -> output buffer for reduce_scatter result (ZeRO-2/3)
         self.bucket_rs_grads: dict = {}
+        # ZeRO-3: tracks whether bucket_flat_params already contains the latest
+        # all-gathered full params for the current optimizer version.  Once a
+        # bucket is gathered, repeated AG tasks in the same iteration can skip
+        # re-gather to avoid in-place writes on storage captured by autograd.
+        self.zero3_full_params_fresh: dict = {}
         # (stage_id, bucket_id) -> CUDA event after reduce_scatter
         self.rs_events: dict = {}
         # (stage_id, bucket_id) -> CUDA event after all_gather; persists across iters for ZeRO-1/2
@@ -870,6 +875,7 @@ class PiperActor:
                         # ZeRO-3 keeps only shard params resident between compute chains.
                         self.bucket_flat_params[(stage_id, b_idx)] = None
                         self.bucket_flat_grads[(stage_id, b_idx)] = None
+                        self.zero3_full_params_fresh[(stage_id, b_idx)] = False
                     else:
                         self.bucket_flat_params[(stage_id, b_idx)] = flat_params
                         self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
@@ -880,6 +886,8 @@ class PiperActor:
                 self.bucket_param_view_specs[(stage_id, b_idx)] = []
                 self.bucket_flat_params[(stage_id, b_idx)] = None
                 self.bucket_flat_grads[(stage_id, b_idx)] = None
+                if self.zero_stage == 3:
+                    self.zero3_full_params_fresh[(stage_id, b_idx)] = False
 
             # Optimizer for this module's trainable parameters (used when zero_stage == 0).
             trainable_for_optim = [realized[i] for i in trainable_idxs]
@@ -1650,9 +1658,14 @@ class PiperActor:
         the autograd graph.  Only free_full_params calls that happen *after* backward
         (t037, t045, …) can actually reclaim the buffer.
 
-        Properly freeing full params between forward and backward requires custom
-        autograd functions (à la DeepSpeed's GatheredParameters) so that the
-        autograd graph never saves the full-param storage in the first place.
+        To avoid allocating *additional* full buffers during the same iteration,
+        we keep the existing flat buffer object alive in bucket_flat_params and
+        only unbind param views here.  This allows later ALLOC/AG tasks in the
+        same iteration to reuse the same storage instead of allocating a new one
+        that would overlap with autograd-held older storage.
+
+        True deallocation still happens after backward+update in _update(), where
+        we clear bucket_flat_params once no autograd graph references remain.
         """
         if self.zero_stage != 3:
             return
@@ -1664,7 +1677,6 @@ class PiperActor:
                 # Zero-element placeholder: drops the param's view into the full
                 # buffer without allocating any new GPU memory.
                 param.data = param.data.new_empty(0)
-            self.bucket_flat_params[key] = None
 
     def _alloc_full_grads_for_stage(self, stage_id: int) -> None:
         """Allocate full flat grads for all stage buckets and bind .grad views."""
@@ -1748,7 +1760,15 @@ class PiperActor:
                 shard_in = self.bucket_shard_params.get(lookup_key)
                 if flat_params is None or shard_in is None:
                     continue
+                # ZeRO-3 autograd-safety:
+                # If full params are already fresh for the current optimizer
+                # version, skip re-gather to avoid in-place writes on storage
+                # that may be captured by SavedVariable from earlier forwards.
+                if self.zero_stage == 3 and self.zero3_full_params_fresh.get(lookup_key, False):
+                    continue
                 dist.all_gather_into_tensor(flat_params, shard_in, group=self.dp_group)
+                if self.zero_stage == 3:
+                    self.zero3_full_params_fresh[lookup_key] = True
             self._stop_timing(self.comm_stream, "all_gather")
             evt = torch.cuda.Event()
             evt.record(self.comm_stream)
@@ -1984,6 +2004,17 @@ class PiperActor:
                     shard_optim.step()
                 shard_param.grad = None
             self._stop_timing(self.comp_stream, "optim_step")
+
+            # ZeRO-3: now that backward has completed and shard params are
+            # updated, invalidate and release full-param buffers so the next
+            # iteration regathers fresh values.
+            if self.zero_stage == 3:
+                for key, specs in self.bucket_param_view_specs.items():
+                    for param, *_ in specs:
+                        param.data = param.data.new_empty(0)
+                        param.grad = None
+                    self.bucket_flat_params[key] = None
+                    self.zero3_full_params_fresh[key] = False
 
         elif self.ar_events:
             # ZeRO-0 DAG execution path: wait for in-flight all-reduces.
