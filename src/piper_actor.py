@@ -872,10 +872,14 @@ class PiperActor:
                     self.bucket_rs_grads[(stage_id, b_idx)] = flat_params.new_zeros(shard_size)
                     self.param_shard_info[(stage_id, b_idx)] = (shard_start, shard_size, orig_numel)
                     if self.zero_stage == 3:
-                        # ZeRO-3 keeps only shard params resident between compute chains.
-                        self.bucket_flat_params[(stage_id, b_idx)] = None
+                        # ZeRO-3 keeps a stable full flat tensor object but frees
+                        # its storage between compute chains via storage.resize_(0).
+                        self.bucket_flat_params[(stage_id, b_idx)] = flat_params
                         self.bucket_flat_grads[(stage_id, b_idx)] = None
                         self.zero3_full_params_fresh[(stage_id, b_idx)] = False
+                        storage = flat_params.untyped_storage()
+                        if storage.size() != 0:
+                            storage.resize_(0)
                     else:
                         self.bucket_flat_params[(stage_id, b_idx)] = flat_params
                         self.bucket_flat_grads[(stage_id, b_idx)] = flat_grads
@@ -1627,7 +1631,13 @@ class PiperActor:
         self.ar_events[(stage_id, bucket_id)] = evt
 
     def _alloc_full_params_for_stage(self, stage_id: int) -> None:
-        """Allocate full flat params for all buckets in a stage and rebind parameter views."""
+        """Ensure full flat-param storage is allocated for all buckets in a stage.
+
+        ZeRO-3 keeps a stable full flat tensor object per (stage, bucket) and
+        toggles its backing storage size between 0 and full size.  This matches
+        FSDP2-style alias-preserving semantics: autograd-saved views continue to
+        reference the same storage identity across free/regather boundaries.
+        """
         if self.zero_stage != 3:
             return
         for key, (shard_start, shard_size, _orig_numel) in self.param_shard_info.items():
@@ -1637,46 +1647,35 @@ class PiperActor:
             if full is None:
                 full = self.bucket_shard_params[key].new_empty(shard_size * self.dp_degree)
                 self.bucket_flat_params[key] = full
+            storage = full.untyped_storage()
+            required_bytes = full.numel() * full.element_size()
+            if storage.size() != required_bytes:
+                storage.resize_(required_bytes)
+            # Rebind every time ALLOC runs so params always point at the stable
+            # full buffer storage (important if some path temporarily swapped
+            # param.data for graph transforms/checkpointing internals).
             for param, offset, numel, shape in self.bucket_param_view_specs.get(key, []):
                 param.data = full[offset:offset + numel].view(shape)
                 param.requires_grad_(True)
 
     def _free_full_params_for_stage(self, stage_id: int) -> None:
-        """Drop full flat params for all stage buckets and clear parameter views.
+        """Free ZeRO-3 full flat-param storage for all buckets in a stage.
 
-        We replace param.data with a zero-element placeholder instead of
-        torch.empty_like(param).  empty_like allocates a fresh full-size tensor
-        for every parameter (collectively the same size as the flat buffer, ~2 GiB
-        for a 3B stage) before the old flat buffer is released, which *increases*
-        peak memory rather than reducing it.  new_empty(0) allocates nothing.
-
-        Important limitation: we cannot actually free the old flat buffer's GPU
-        memory here during the forward phase.  PyTorch's autograd saves the
-        parameter storage (not a reference to the Python param object) at
-        computation time via SavedVariable.  That storage reference keeps the full
-        buffer alive until the corresponding backward() call consumes and destroys
-        the autograd graph.  Only free_full_params calls that happen *after* backward
-        (t037, t045, …) can actually reclaim the buffer.
-
-        To avoid allocating *additional* full buffers during the same iteration,
-        we keep the existing flat buffer object alive in bucket_flat_params and
-        only unbind param views here.  This allows later ALLOC/AG tasks in the
-        same iteration to reuse the same storage instead of allocating a new one
-        that would overlap with autograd-held older storage.
-
-        True deallocation still happens after backward+update in _update(), where
-        we clear bucket_flat_params once no autograd graph references remain.
+        We keep tensor identity stable and free by resizing storage to 0.  On
+        the next ALLOC/ALL_GATHER, storage is resized back and repopulated.
         """
         if self.zero_stage != 3:
             return
         for key in list(self.param_shard_info.keys()):
             if key[0] != stage_id:
                 continue
-            for param, *_ in self.bucket_param_view_specs.get(key, []):
-                param.grad = None
-                # Zero-element placeholder: drops the param's view into the full
-                # buffer without allocating any new GPU memory.
-                param.data = param.data.new_empty(0)
+            full = self.bucket_flat_params.get(key)
+            if full is None:
+                continue
+            storage = full.untyped_storage()
+            if storage.size() != 0:
+                storage.resize_(0)
+            self.zero3_full_params_fresh[key] = False
 
     def _alloc_full_grads_for_stage(self, stage_id: int) -> None:
         """Allocate full flat grads for all stage buckets and bind .grad views."""
@@ -2011,9 +2010,12 @@ class PiperActor:
             if self.zero_stage == 3:
                 for key, specs in self.bucket_param_view_specs.items():
                     for param, *_ in specs:
-                        param.data = param.data.new_empty(0)
                         param.grad = None
-                    self.bucket_flat_params[key] = None
+                    full = self.bucket_flat_params.get(key)
+                    if full is not None:
+                        storage = full.untyped_storage()
+                        if storage.size() != 0:
+                            storage.resize_(0)
                     self.zero3_full_params_fresh[key] = False
 
         elif self.ar_events:
