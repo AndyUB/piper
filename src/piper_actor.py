@@ -190,6 +190,8 @@ class PiperActor:
         self._pending_timing_events: list = []  # (label, start_event, stop_event)
         self.trace_data = defaultdict(list)
         self.memory_tracing_enabled = False
+        self.memory_breakdown_enabled = False  # Enable detailed memory breakdown logging
+        self._run_dag_step_count = 0  # Counter for run_dag invocations
         # DAG execution state
         self.dag = None
 
@@ -256,11 +258,333 @@ class PiperActor:
             f"Actor {self.global_rank}: Tracing {'enabled' if enabled else 'disabled'}"
         )
 
+    def set_memory_breakdown_enabled(self, enabled: bool) -> None:
+        """Enable or disable detailed memory breakdown logging in run_dag."""
+        self.memory_breakdown_enabled = enabled
+        self.logger.info(
+            f"Actor {self.global_rank}: Memory breakdown logging {'enabled' if enabled else 'disabled'}"
+        )
+
     def reset_peak_memory(self):
         torch.cuda.reset_peak_memory_stats()
 
     def get_peak_memory(self):
         return self.global_rank, torch.cuda.max_memory_allocated() / (1024**3)
+
+    def get_memory_breakdown(self, label: str = "") -> dict:
+        """Return a detailed memory breakdown, avoiding double-counting by tracking unique storages.
+
+        Returns dict with:
+            - shard_params_bytes: memory for sharded parameter tensors (ZeRO)
+            - full_params_bytes: memory for full parameter buffers (storage size, 0 if resized)
+            - shard_grads_bytes: memory for bucket_rs_grads (reduce-scatter output)
+            - full_grads_bytes: memory for full gradient buffers
+            - optimizer_state_bytes: memory for optimizer state tensors
+            - task_buffer_bytes: memory for tensors in task_buffer
+            - inputs_labels_bytes: memory for inputs and labels
+            - total_tracked_bytes: sum of above categories
+            - torch_allocated_bytes: torch.cuda.memory_allocated()
+            - torch_reserved_bytes: torch.cuda.memory_reserved()
+            - unexplained_bytes: allocated - total_tracked (negative means over-counting)
+        """
+        # Track unique storages to avoid double-counting
+        seen_storage_ids: set = set()
+
+        def get_tensor_storage_bytes(t: torch.Tensor) -> int:
+            """Get actual storage size in bytes, tracking uniqueness."""
+            if t is None:
+                return 0
+            storage = t.untyped_storage()
+            storage_id = storage.data_ptr()
+            if storage_id in seen_storage_ids:
+                return 0  # Already counted
+            if storage.size() == 0:
+                return 0  # Resized to 0 (ZeRO-3 phantom)
+            seen_storage_ids.add(storage_id)
+            return storage.size()
+
+        def get_storage_info(t: torch.Tensor) -> tuple:
+            """Get (data_ptr, storage_size_bytes, numel, element_size) for a tensor."""
+            if t is None:
+                return (0, 0, 0, 0)
+            storage = t.untyped_storage()
+            return (storage.data_ptr(), storage.size(), t.numel(), t.element_size())
+
+        breakdown = {
+            "label": label,
+            "rank": self.global_rank,
+            "zero_stage": self.zero_stage,
+            "dp_degree": self.dp_degree,
+        }
+
+        # 1. Sharded parameters (bucket_shard_params)
+        shard_params_bytes = 0
+        shard_params_detail = {}
+        for ubid, shard_param in self.bucket_shard_params.items():
+            if shard_param is not None:
+                b = get_tensor_storage_bytes(shard_param)
+                shard_params_bytes += b
+                if b > 0:
+                    shard_params_detail[ubid] = {
+                        "bytes": b,
+                        "numel": shard_param.numel(),
+                        "shape": tuple(shard_param.shape),
+                    }
+        breakdown["shard_params_bytes"] = shard_params_bytes
+        breakdown["shard_params_detail"] = shard_params_detail
+
+        # 2. Full parameters (bucket_flat_params) - may be resized to 0 in ZeRO-3
+        full_params_bytes = 0
+        full_params_detail = {}
+        for ubid, full_param in self.bucket_flat_params.items():
+            if full_param is not None:
+                storage = full_param.untyped_storage()
+                storage_id = storage.data_ptr()
+                storage_size = storage.size()
+                is_phantom = storage_size == 0
+                already_seen = storage_id in seen_storage_ids
+                if not is_phantom and not already_seen:
+                    seen_storage_ids.add(storage_id)
+                    full_params_bytes += storage_size
+                full_params_detail[ubid] = {
+                    "storage_bytes": storage_size,
+                    "is_phantom": is_phantom,
+                    "already_seen": already_seen,
+                    "numel": full_param.numel(),
+                }
+        breakdown["full_params_bytes"] = full_params_bytes
+        breakdown["full_params_detail"] = full_params_detail
+
+        # 3. Reduce-scatter gradient outputs (bucket_rs_grads)
+        shard_grads_bytes = 0
+        shard_grads_detail = {}
+        for ubid, rs_grad in self.bucket_rs_grads.items():
+            if rs_grad is not None:
+                b = get_tensor_storage_bytes(rs_grad)
+                shard_grads_bytes += b
+                if b > 0:
+                    shard_grads_detail[ubid] = {
+                        "bytes": b,
+                        "numel": rs_grad.numel(),
+                    }
+        breakdown["shard_grads_bytes"] = shard_grads_bytes
+        breakdown["shard_grads_detail"] = shard_grads_detail
+
+        # 4. Full gradients (bucket_flat_grads)
+        full_grads_bytes = 0
+        full_grads_detail = {}
+        for ubid, flat_grad in self.bucket_flat_grads.items():
+            if flat_grad is not None:
+                storage = flat_grad.untyped_storage()
+                storage_id = storage.data_ptr()
+                storage_size = storage.size()
+                is_phantom = storage_size == 0
+                already_seen = storage_id in seen_storage_ids
+                if not is_phantom and not already_seen:
+                    seen_storage_ids.add(storage_id)
+                    full_grads_bytes += storage_size
+                full_grads_detail[ubid] = {
+                    "storage_bytes": storage_size,
+                    "is_phantom": is_phantom,
+                    "already_seen": already_seen,
+                    "numel": flat_grad.numel() if not is_phantom else 0,
+                }
+        breakdown["full_grads_bytes"] = full_grads_bytes
+        breakdown["full_grads_detail"] = full_grads_detail
+
+        # 5. Optimizer states (bucket_shard_optims for ZeRO, bucket_optims otherwise)
+        optimizer_state_bytes = 0
+        optimizer_state_detail = {}
+        optims_to_check = self.bucket_shard_optims if self.zero_stage > 0 else self.bucket_optims
+        for ubid, optim in optims_to_check.items():
+            if optim is None:
+                continue
+            ubid_bytes = 0
+            state_tensors = []
+            for param_group in optim.param_groups:
+                for p in param_group["params"]:
+                    if p in optim.state:
+                        for key, val in optim.state[p].items():
+                            if isinstance(val, torch.Tensor):
+                                b = get_tensor_storage_bytes(val)
+                                ubid_bytes += b
+                                if b > 0:
+                                    state_tensors.append({
+                                        "key": key,
+                                        "bytes": b,
+                                        "shape": tuple(val.shape),
+                                    })
+            optimizer_state_bytes += ubid_bytes
+            if ubid_bytes > 0:
+                optimizer_state_detail[ubid] = {
+                    "bytes": ubid_bytes,
+                    "state_tensors": state_tensors,
+                }
+        breakdown["optimizer_state_bytes"] = optimizer_state_bytes
+        breakdown["optimizer_state_detail"] = optimizer_state_detail
+
+        # 6. Task buffer tensors
+        task_buffer_bytes = 0
+        task_buffer_detail = {}
+        for uid, val in self.task_buffer.items():
+            uid_bytes = 0
+            val_type = type(val).__name__
+            tensor_info = []
+            if isinstance(val, torch.Tensor):
+                uid_bytes = get_tensor_storage_bytes(val)
+                tensor_info.append(f"Tensor{tuple(val.shape)}")
+            elif isinstance(val, dict):
+                for k, v in val.items():
+                    if isinstance(v, torch.Tensor):
+                        b = get_tensor_storage_bytes(v)
+                        uid_bytes += b
+                        if b > 0:
+                            tensor_info.append(f"{k}:{tuple(v.shape)}")
+                    elif isinstance(v, (list, tuple)):
+                        for i, item in enumerate(v):
+                            if isinstance(item, torch.Tensor):
+                                b = get_tensor_storage_bytes(item)
+                                uid_bytes += b
+                                if b > 0:
+                                    tensor_info.append(f"{k}[{i}]:{tuple(item.shape)}")
+            elif isinstance(val, (list, tuple)):
+                for i, item in enumerate(val):
+                    if isinstance(item, torch.Tensor):
+                        b = get_tensor_storage_bytes(item)
+                        uid_bytes += b
+                        if b > 0:
+                            tensor_info.append(f"[{i}]:{tuple(item.shape)}")
+            task_buffer_bytes += uid_bytes
+            refcount = self.task_buffer_refcounts.get(uid, "N/A")
+            if uid_bytes > 0:
+                task_buffer_detail[uid] = {
+                    "bytes": uid_bytes,
+                    "refcount": refcount,
+                    "type": val_type,
+                    "tensors": tensor_info[:5],  # Limit to first 5 for brevity
+                }
+        breakdown["task_buffer_bytes"] = task_buffer_bytes
+        breakdown["task_buffer_count"] = len(task_buffer_detail)
+        breakdown["task_buffer_detail"] = task_buffer_detail
+
+        # 7. Inputs and labels
+        inputs_labels_bytes = 0
+        if hasattr(self, 'inputs') and self.inputs:
+            for inp in self.inputs:
+                if isinstance(inp, torch.Tensor):
+                    inputs_labels_bytes += get_tensor_storage_bytes(inp)
+        if hasattr(self, 'labels') and isinstance(self.labels, torch.Tensor):
+            inputs_labels_bytes += get_tensor_storage_bytes(self.labels)
+        breakdown["inputs_labels_bytes"] = inputs_labels_bytes
+
+        # 8. Model const attrs
+        const_attrs_bytes = 0
+        for k, v in self.model_const_attrs.items():
+            if isinstance(v, torch.Tensor):
+                const_attrs_bytes += get_tensor_storage_bytes(v)
+        breakdown["const_attrs_bytes"] = const_attrs_bytes
+
+        # 9. Bucket fwd args (realized parameters - may overlap with flat_params)
+        fwd_args_bytes = 0
+        fwd_args_overlapped = 0
+        for ubid, args in self.bucket_fwd_args.items():
+            for arg in args:
+                if isinstance(arg, torch.Tensor):
+                    storage = arg.untyped_storage()
+                    storage_id = storage.data_ptr()
+                    storage_size = storage.size()
+                    if storage_size > 0:
+                        if storage_id in seen_storage_ids:
+                            fwd_args_overlapped += storage_size
+                        else:
+                            seen_storage_ids.add(storage_id)
+                            fwd_args_bytes += storage_size
+        breakdown["fwd_args_bytes"] = fwd_args_bytes
+        breakdown["fwd_args_overlapped"] = fwd_args_overlapped
+
+        # Totals
+        total_tracked = (
+            shard_params_bytes + full_params_bytes +
+            shard_grads_bytes + full_grads_bytes +
+            optimizer_state_bytes + task_buffer_bytes +
+            inputs_labels_bytes + const_attrs_bytes + fwd_args_bytes
+        )
+        breakdown["total_tracked_bytes"] = total_tracked
+
+        torch_allocated = torch.cuda.memory_allocated(self.device)
+        torch_reserved = torch.cuda.memory_reserved(self.device)
+        torch_max_allocated = torch.cuda.max_memory_allocated(self.device)
+
+        breakdown["torch_allocated_bytes"] = torch_allocated
+        breakdown["torch_reserved_bytes"] = torch_reserved
+        breakdown["torch_max_allocated_bytes"] = torch_max_allocated
+        breakdown["unexplained_bytes"] = torch_allocated - total_tracked
+        breakdown["unique_storages_counted"] = len(seen_storage_ids)
+
+        return breakdown
+
+    def log_memory_breakdown(self, label: str = "") -> None:
+        """Log a detailed memory breakdown to help debug ZeRO memory issues."""
+        bd = self.get_memory_breakdown(label)
+
+        def fmt_gb(b):
+            return f"{b / (1024**3):.4f}"
+
+        lines = [
+            f"\n{'='*80}",
+            f"MEMORY BREAKDOWN: {label} (rank={bd['rank']}, zero_stage={bd['zero_stage']}, dp={bd['dp_degree']})",
+            f"{'='*80}",
+            f"  Shard params:      {fmt_gb(bd['shard_params_bytes'])} GB",
+            f"  Full params:       {fmt_gb(bd['full_params_bytes'])} GB",
+            f"  Shard grads:       {fmt_gb(bd['shard_grads_bytes'])} GB",
+            f"  Full grads:        {fmt_gb(bd['full_grads_bytes'])} GB",
+            f"  Optimizer states:  {fmt_gb(bd['optimizer_state_bytes'])} GB",
+            f"  Task buffer:       {fmt_gb(bd['task_buffer_bytes'])} GB ({bd['task_buffer_count']} entries)",
+            f"  Inputs/labels:     {fmt_gb(bd['inputs_labels_bytes'])} GB",
+            f"  Const attrs:       {fmt_gb(bd['const_attrs_bytes'])} GB",
+            f"  Fwd args (other):  {fmt_gb(bd['fwd_args_bytes'])} GB (overlapped: {fmt_gb(bd['fwd_args_overlapped'])} GB)",
+            f"  -----------------------",
+            f"  Total tracked:     {fmt_gb(bd['total_tracked_bytes'])} GB",
+            f"  Torch allocated:   {fmt_gb(bd['torch_allocated_bytes'])} GB",
+            f"  Torch reserved:    {fmt_gb(bd['torch_reserved_bytes'])} GB",
+            f"  Torch max alloc:   {fmt_gb(bd['torch_max_allocated_bytes'])} GB",
+            f"  Unexplained:       {fmt_gb(bd['unexplained_bytes'])} GB",
+            f"  Unique storages:   {bd['unique_storages_counted']}",
+        ]
+
+        # Add per-bucket details for shard params
+        if bd['shard_params_detail']:
+            lines.append(f"\n  Shard params per bucket:")
+            for ubid, info in bd['shard_params_detail'].items():
+                lines.append(f"    ubid={ubid}: {fmt_gb(info['bytes'])} GB, numel={info['numel']}")
+
+        # Add per-bucket details for full params (showing phantoms)
+        if bd['full_params_detail']:
+            lines.append(f"\n  Full params per bucket:")
+            for ubid, info in bd['full_params_detail'].items():
+                phantom_str = " [PHANTOM]" if info['is_phantom'] else ""
+                seen_str = " [already counted]" if info['already_seen'] else ""
+                lines.append(f"    ubid={ubid}: storage={info['storage_bytes']} bytes, numel={info['numel']}{phantom_str}{seen_str}")
+
+        # Add optimizer state details
+        if bd['optimizer_state_detail']:
+            lines.append(f"\n  Optimizer states per bucket:")
+            for ubid, info in bd['optimizer_state_detail'].items():
+                lines.append(f"    ubid={ubid}: {fmt_gb(info['bytes'])} GB")
+                for st in info['state_tensors']:
+                    lines.append(f"      {st['key']}: {st['bytes']} bytes, shape={st['shape']}")
+
+        # Add task buffer details (important for debugging ZeRO-3 memory leaks)
+        if bd.get('task_buffer_detail'):
+            lines.append(f"\n  Task buffer entries (leak suspects):")
+            for uid, info in bd['task_buffer_detail'].items():
+                lines.append(f"    uid={uid}: {fmt_gb(info['bytes'])} GB, refcount={info['refcount']}, type={info['type']}")
+                if info['tensors']:
+                    lines.append(f"      tensors: {', '.join(info['tensors'])}")
+
+        lines.append(f"{'='*80}\n")
+
+        self.logger.info("\n".join(lines))
 
     def _nvtx_push(self, label: str) -> None:
         if not self.no_nvtx:
@@ -975,6 +1299,10 @@ class PiperActor:
             f"reserved={reserved_gb:.2f} GB"
         )
 
+        # Log detailed memory breakdown after loading this stage (if enabled)
+        if self.memory_breakdown_enabled:
+            self.log_memory_breakdown(f"after_load_stage_{stage_id}")
+
     # -----------------------------------------------------------------------
     # DAG-based execution
     # -----------------------------------------------------------------------
@@ -1325,6 +1653,11 @@ class PiperActor:
         self._init_task_buffer_refcounts(dag)
         ts_to_comp_event: dict[int, torch.cuda.Event] = {}
 
+        # Log memory breakdown at the start of run_dag (before any compute)
+        self._run_dag_step_count += 1
+        if self.memory_breakdown_enabled:
+            self.log_memory_breakdown(f"step_{self._run_dag_step_count}_begin")
+
         def _wait_for_all_gather(compute_node: Task) -> None:
             for pred in compute_node.data_preds:
                 if pred.chunk.type == TaskType.ALL_GATHER:
@@ -1503,6 +1836,8 @@ class PiperActor:
                             if ar_evt is not None:
                                 self.comp_stream.wait_event(ar_evt)
                                 ar_evt.synchronize()
+                        # Release task buffer for this predecessor
+                        self._release_task_buffer_uid(pred.uid)
                     self._nvtx_pop()
                     self._free_full_grads(node.unique_bucket_id)
 
@@ -1520,6 +1855,8 @@ class PiperActor:
                             # release the full ZeRO-3 buffer while a compute kernel
                             # launched on comp_stream may still be reading it.
                             comp_events[pred.uid].synchronize()
+                        # Release task buffer for this predecessor
+                        self._release_task_buffer_uid(pred.uid)
                     self._free_full_params(node.unique_bucket_id)
                     self._nvtx_pop()
 
@@ -2424,6 +2761,11 @@ class PiperActor:
             losses = self.loss
             self.loss.clear()
             torch.cuda.synchronize()
+
+            # Log memory breakdown after step completes (ZeRO path)
+            if self.memory_breakdown_enabled:
+                self.log_memory_breakdown(f"step_{self._run_dag_step_count}_end_zero")
+
             return losses
 
         pre_step_mem: dict = {}
@@ -2546,6 +2888,10 @@ class PiperActor:
                     f"(time step {node.time_step}): time={t_ms:.3f}ms "
                     f"mem_before={mem_before/1e9:.3f}GB"
                 )
+
+        # Log memory breakdown after step completes (non-ZeRO path)
+        if self.memory_breakdown_enabled:
+            self.log_memory_breakdown(f"step_{self._run_dag_step_count}_end")
 
         return {
             "losses": losses,

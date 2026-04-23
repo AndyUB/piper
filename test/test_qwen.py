@@ -219,12 +219,17 @@ def main(args, pg):
 
     del x, y
 
+    actors = piper_metadata.actors
+
+    # Enable memory breakdown logging if requested
+    if args.memory_breakdown:
+        logger.info("Enabling detailed memory breakdown logging on all actors")
+        ray.get([actor.set_memory_breakdown_enabled.remote(True) for actor in actors.values()])
+
     logger.info(f"Running {args.warmup} warmup iterations")
     for _ in range(args.warmup):
         piper_exec_dag(loss_fn)
         time.sleep(1)
-
-    actors = piper_metadata.actors
 
     logger.info(f"Running {args.iters} timed iterations")
     ray.get([actor.reset_peak_memory.remote() for actor in actors.values()])
@@ -356,6 +361,12 @@ def parse_args():
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Whether to run overlap_zero_ops on the per-rank DAGs (default: false)",
+    )
+    parser.add_argument(
+        "--memory-breakdown",
+        action="store_true",
+        default=False,
+        help="Enable detailed memory breakdown logging at each step (for debugging ZeRO memory issues)",
     )
     return parser.parse_args()
 
